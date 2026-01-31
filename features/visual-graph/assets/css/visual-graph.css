@@ -1,0 +1,24 @@
+/* Concept Graph D3 Styles */
+.concept-graph-svg {
+  background-color: rgba(248, 250, 252, 0.3);
+  transition: background-color 0.3s ease;
+}
+
+.dark .concept-graph-svg {
+  background-color: rgba(15, 23, 42, 0.3);
+}
+
+/* Node Transitions */
+.graph-node-group {
+  transition: opacity 0.3s ease;
+}
+
+.graph-edge-path {
+  transition: stroke-width 0.2s ease, stroke-opacity 0.2s ease;
+}
+
+/* Legend Overlay Glassmorphism */
+.graph-legend-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}

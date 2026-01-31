@@ -1,0 +1,27 @@
+/* Integration Diagnostic Feed */
+.integration-log-area {
+  scrollbar-width: thin;
+}
+
+.integration-log-area::-webkit-scrollbar {
+  width: 4px;
+}
+
+.integration-log-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.integration-log-area::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.dark .integration-log-area::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* Code Stream Styling */
+.raw-payload-viewer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  transition: background-color 0.3s ease;
+}

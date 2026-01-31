@@ -1,0 +1,7 @@
+{
+  "name": "Journal & Graph AI Demo",
+  "description": "A sophisticated journal application that uses Gemini AI to turn voice into structured entries and graph nodes, persisting everything in the browser via IndexedDB.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
