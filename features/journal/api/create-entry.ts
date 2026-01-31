@@ -2,7 +2,8 @@ import { AppData, CdagTopology, TextToActionResponse } from '@/types';
 import { processTextToAction, generalizeConcept } from '@/lib/google-ai';
 import { mergeTopology, nodeExists } from '@/stores/cdag-topology';
 import { applyScaledProgression } from '@/stores/player-statistics';
-import { getNormalizedDate, updateJournalHTML } from '@/features/journal/utils/index.ts';
+import { getNormalizedDate } from '@/features/journal/utils/time-utils';
+import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
 
 /**
  * createJournalEntry
