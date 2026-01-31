@@ -29,3 +29,10 @@ Open your web browser and navigate to the address shown in your terminal. It wil
 [http://localhost:3000](http://localhost:3000)
 
 You should now see the Journal & Graph AI application running in your browser.
+
+# Edge cases: 
+The issue was the ampersand in the folder name, which breaks npm’s default Windows cmd script runner. I added a project-level npm setting to run scripts with PowerShell instead.
+
+Added /.npmrc to set script-shell to Windows PowerShell.
+You can run npm run dev again and it should start normally. If you want a permanent OS‑level fix without this setting, rename the project folder to remove &.
+
