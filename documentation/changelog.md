@@ -2,6 +2,14 @@
 
 This document tracks the iterative development of the Journal & Graph AI application.
 
+## [v1.5.0] - The Modular Journal Refactor
+- **Self-Contained Journal Feature**: Completely refactored the journal feature to be a fully modular, self-contained React component.
+- **Simplified State Management**: Replaced Zustand local store with simple React useState for component-scoped UI state (dropdowns, forms, processing).
+- **Improved Data Flow**: Journal entries now update the store **immediately** with loading placeholders before AI processing, ensuring responsive UI.
+- **Cleaner App Integration**: Simplified `app.tsx` to use the new `<JournalFeature />` component with a clean integration callback interface.
+- **Enhanced Documentation**: Updated `features-journal.md` with comprehensive architectural documentation, data flow diagrams, and usage examples.
+- **Type Safety**: Fixed type inconsistencies in journal entry utilities with proper month normalization.
+
 ## [v1.4.0] - The Visualization Refinement
 - **Perfected Concept Graph**: Implemented a stable Directed Acyclic Graph (DAG) layout using a layered ranking algorithm.
 - **Ultra-Rigid Snapping**: Developed a custom D3 force tick handler that forcibly aligns nodes to their target grid coordinates, eliminating jitter and elastic bounce.

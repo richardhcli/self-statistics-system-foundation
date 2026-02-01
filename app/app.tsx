@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppData } from '@/hooks/use-app-data';
 import MainLayout from '@/components/layout/main-layout';
 import { AppView } from '@/components/layout/header';
-import { JournalView, VoiceRecorder, ManualEntryForm, getNormalizedDate, upsertJournalEntry, createJournalEntry } from '@/features/journal';
+import JournalFeature from '@/features/journal/components/journal-feature';
 import { GraphView } from '@/features/visual-graph';
 import { DeveloperGraphView } from '@/features/developer-graph';
 import { StatisticsView } from '@/features/statistics';
@@ -12,12 +12,10 @@ import { SettingsView } from '@/features/settings';
 import { DebugView } from '@/features/debug';
 import { IntegrationView, sendWebhook } from '@/features/integration';
 import { sendToObsidian } from '@/features/integration/api/obsidian-service';
-import { processVoiceToText } from '@/lib/google-ai';
 
 const App: React.FC = () => {
   const { data, setData, resetData, addTopologyNode, deleteTopologyNode, updateTopologyNode } = useAppData();
   const [view, setView] = useState<AppView>('journal');
-  const [isProcessing, setIsProcessing] = useState(false);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -34,7 +32,12 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const triggerIntegration = async (eventName: string, payload: any) => {
+  /**
+   * Integration event handler
+   * Triggered by journal feature after AI processing
+   * Handles webhooks and Obsidian sync
+   */
+  const handleIntegrationEvent = async (eventName: string, payload: any) => {
     const isWebhookEnabled = data.integrations?.config.enabled && data.integrations?.config.webhookUrl;
     const isObsidianEnabled = data.integrations?.obsidianConfig?.enabled;
 
@@ -112,102 +115,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleVoice = async (audioBase64: string) => {
-    setIsProcessing(true);
-    try {
-      const journalInfo = await processVoiceToText(audioBase64);
-      await createJournalEntry({ 
-        entry: journalInfo.content, 
-        useAI: true, 
-        dateInfo: journalInfo 
-      });
-
-      await triggerIntegration('JOURNAL_AI_PROCESSED', {
-        originalText: journalInfo.content,
-        timestamp: journalInfo.time
-      });
-      
-      setView('journal');
-    } finally { 
-      setIsProcessing(false); 
-    }
-  };
-
-  const handleManual = async (y: string, m: string, d: string, content: string) => {
-    if (!content.trim()) {
-      upsertJournalEntry(setData, getNormalizedDate({ year: y, month: m, day: d }), { content });
-      return;
-    }
-    setIsProcessing(true);
-    try { 
-      await createJournalEntry({ 
-        entry: content, 
-        useAI: true, 
-        dateInfo: { year: y, month: m, day: d } 
-      });
-
-      await triggerIntegration('JOURNAL_AI_PROCESSED', {
-        originalText: content,
-        source: 'manual_quick'
-      });
-    }
-    finally { 
-      setIsProcessing(false); 
-    }
-  };
-
-  const handleDetailedManual = async (payload: {
-    content: string;
-    time?: string;
-    duration?: string;
-    actions?: string[];
-    useAI: boolean;
-  }) => {
-    setIsProcessing(true);
-    try {
-      await createJournalEntry({
-        entry: payload.content,
-        actions: payload.actions,
-        useAI: payload.useAI,
-        duration: payload.duration,
-        dateInfo: payload.time ? { time: payload.time } : undefined
-      });
-
-      if (payload.useAI) {
-        await triggerIntegration('JOURNAL_AI_PROCESSED', {
-          originalText: payload.content,
-          source: 'manual_detailed'
-        });
-      }
-
-      setView('journal');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleParseEntry = async (year: string, month: string, day: string, time: string) => {
-    const entry = data.journal[year]?.[month]?.[day]?.[time];
-    if (!entry || !entry.content) return;
-
-    setIsProcessing(true);
-    try {
-      await createJournalEntry({
-        entry: entry.content,
-        useAI: true,
-        dateInfo: { year, month, day, time },
-        duration: entry.duration
-      });
-
-      await triggerIntegration('JOURNAL_AI_PROCESSED', {
-        originalText: entry.content,
-        source: 'retroactive_parse'
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const recordExperience = (actions: string[], exp: number) => {
     setData(prev => updatePlayerStats(prev, actions, exp).data);
   };
@@ -215,20 +122,7 @@ const App: React.FC = () => {
   return (
     <MainLayout view={view} setView={setView} onClearData={resetData}>
       {view === 'journal' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-4 space-y-6">
-            <VoiceRecorder onProcessed={handleVoice} isProcessing={isProcessing} />
-            <ManualEntryForm onSubmit={handleDetailedManual} isProcessing={isProcessing} />
-          </div>
-          <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-            <JournalView 
-              data={data.journal} 
-              onAddManualEntry={handleManual} 
-              onParseEntry={handleParseEntry} 
-              isProcessing={isProcessing} 
-            />
-          </div>
-        </div>
+        <JournalFeature onIntegrationEvent={handleIntegrationEvent} />
       )}
       {view === 'graph' && <GraphView data={data.visualGraph} />}
       {view === 'dev-graph' && (

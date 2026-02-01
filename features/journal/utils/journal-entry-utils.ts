@@ -1,19 +1,23 @@
 
-import { AppData, JournalEntryData } from '@/types';
+import { JournalEntryData } from '@/types';
 import { getNormalizedDate, getNormalizedMonthName } from './time-utils';
+import { useAppDataStore } from '@/stores/app-data';
 
-export const updateJournalHTML = (
-  prevData: AppData,
+/**
+ * updateJournalHTMLLocal
+ * Pure function: given raw journal data, returns updated journal with new entry.
+ * Used internally by upsertJournalEntry.
+ */
+const updateJournalHTMLLocal = (
+  journal: any,
   date: { year: string; month: string; day: string; time: string },
   entryData: JournalEntryData
-): AppData => {
-  const newJournal = JSON.parse(JSON.stringify(prevData.journal));
+): any => {
+  const newJournal = JSON.parse(JSON.stringify(journal));
   const { year, month, day, time } = date;
   
-  // Normalize month name just in case
   const normMonth = getNormalizedMonthName(month);
   
-  // Initialize hierarchy with metadata if not present
   if (!newJournal[year]) newJournal[year] = { metadata: { totalExp: 0 } };
   if (!newJournal[year][normMonth]) newJournal[year][normMonth] = { metadata: { totalExp: 0 } };
   if (!newJournal[year][normMonth][day]) newJournal[year][normMonth][day] = { metadata: { totalExp: 0 } };
@@ -21,24 +25,46 @@ export const updateJournalHTML = (
   const existingEntry = newJournal[year][normMonth][day][time] || {};
   const expDiff = (entryData.metadata?.totalExp || 0) - (existingEntry.metadata?.totalExp || 0);
 
-  // Update entry
   newJournal[year][normMonth][day][time] = { ...existingEntry, ...entryData };
 
-  // Update aggregated metadata
   if (expDiff !== 0) {
     newJournal[year][normMonth][day].metadata.totalExp += expDiff;
     newJournal[year][normMonth].metadata.totalExp += expDiff;
     newJournal[year].metadata.totalExp += expDiff;
   }
   
-  return { ...prevData, journal: newJournal };
+  return newJournal;
 };
 
+/**
+ * upsertJournalEntry
+ * Hook-based approach: directly updates global journal store.
+ * Automatically triggers re-renders across components watching journal.
+ * 
+ * @param date - Already normalized date object (year, month, day, time)
+ * @param entryData - Entry content and metadata
+ */
 export const upsertJournalEntry = (
-  setData: (fn: (prev: AppData) => AppData) => void,
   date: { year: string; month: string | number; day: string; time: string },
   entryData: JournalEntryData
 ): void => {
-  const normalized = getNormalizedDate(date);
-  setData(prev => updateJournalHTML(prev, normalized, entryData));
+  const { data, updateData } = useAppDataStore.getState();
+  
+  // Normalize month to string if it's a number
+  const normalizedDate = {
+    year: date.year,
+    month: typeof date.month === 'number' ? getNormalizedMonthName(date.month.toString()) : date.month,
+    day: date.day,
+    time: date.time
+  };
+  
+  const updatedJournal = updateJournalHTMLLocal(data.journal, normalizedDate, entryData);
+  updateData(prev => ({ ...prev, journal: updatedJournal }));
+};
+
+/**
+ * @deprecated Use upsertJournalEntry instead
+ */
+export const updateJournalHTML = () => {
+  console.warn('updateJournalHTML is deprecated. Use upsertJournalEntry instead.');
 };

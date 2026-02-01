@@ -1,15 +1,16 @@
-import { useAppDataStore } from '@/stores/app-data';
 import { entryOrchestrator } from '@/utils/text-to-topology/entry-pipeline';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
-import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
+import { upsertJournalEntry } from '@/features/journal/utils/journal-entry-utils';
 import { JournalEntryData } from '@/types';
 
 /**
  * createJournalEntry
- * Full lifecycle of a journal entry: AI analysis, topology merging, 
- * EXP propagation, and data persistence.
+ * Generates dummy journal entry layout immediately, and then 
+ * calls entry orchestrator to process and update the entry.
  * 
- * Retrieves current state and persists updates via global Zustand store.
+ * Creates loading placeholder immediately with a fixed timestamp,
+ * then orchestrator updates the SAME entry with final values.
+ * This prevents duplicate entries by ensuring consistent timestamp usage.
  */
 export const createJournalEntry = async (
   context: { 
@@ -21,9 +22,9 @@ export const createJournalEntry = async (
   },
 ): Promise<void> => {
   const { entry, actions = [], useAI = false, dateInfo, duration } = context;
-  const date = getNormalizedDate(dateInfo);
-
-  const { setData, data } = useAppDataStore.getState();
+  
+  // Generate normalized date ONCE to use for both loading and final entry
+  const normalizedDate = getNormalizedDate(dateInfo);
 
   const loadingEntry: JournalEntryData = {
     content: 'loading',
@@ -36,7 +37,15 @@ export const createJournalEntry = async (
     }
   };
 
-  setData(updateJournalHTML(data, date, loadingEntry));
+  // Create loading placeholder at the normalized date
+  upsertJournalEntry(normalizedDate, loadingEntry);
 
-  await entryOrchestrator({ entry, actions, useAI, duration, dateInfo });
+  // Pass the normalized date to orchestrator to ensure same entry is updated
+  await entryOrchestrator({ 
+    entry, 
+    actions, 
+    useAI, 
+    duration, 
+    normalizedDate 
+  });
 };

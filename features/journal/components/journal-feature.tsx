@@ -1,0 +1,182 @@
+import React, { useState } from 'react';
+import { createJournalEntry } from '@/features/journal/api/create-entry';
+import { upsertJournalEntry } from '@/features/journal/utils/journal-entry-utils';
+import { getNormalizedDate } from '@/features/journal/utils/time-utils';
+import { useJournalStore } from '@/features/journal/hooks/use-journal-store';
+import { processVoiceToText } from '@/lib/google-ai';
+import JournalView from './journal-view';
+import ManualEntryForm from './manual-entry-form';
+import VoiceRecorder from './voice-recorder';
+
+/**
+ * JournalFeature
+ * 
+ * Self-contained journal feature module responsible for:
+ * 1. Getting user input (voice recorder + manual entry form)
+ * 2. Updating global journal store immediately before processing
+ * 3. Displaying journal entries with local React state management
+ * 
+ * Architecture:
+ * - Uses global journal store (stores/app-data) for persistent journal data
+ * - Uses local useState for ephemeral UI state (processing flags)
+ * - Handles all journal-related business logic internally
+ * - Provides integration points for webhooks/external systems via callbacks
+ */
+
+interface JournalFeatureProps {
+  /**
+   * Optional callback for integration events (webhooks, Obsidian sync, etc.)
+   * Called after journal entries are processed with AI
+   */
+  onIntegrationEvent?: (eventName: string, payload: any) => Promise<void>;
+}
+
+const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
+  const { journal } = useJournalStore();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  /**
+   * Handle voice input
+   * 1. Process voice to text via Google AI
+   * 2. Create journal entry with AI analysis
+   * 3. Trigger integration events
+   */
+  const handleVoice = async (audioBase64: string) => {
+    setIsProcessing(true);
+    try {
+      const journalInfo = await processVoiceToText(audioBase64);
+      await createJournalEntry({ 
+        entry: journalInfo.content, 
+        useAI: true, 
+        dateInfo: journalInfo 
+      });
+
+      if (onIntegrationEvent) {
+        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+          originalText: journalInfo.content,
+          timestamp: journalInfo.time
+        });
+      }
+    } finally { 
+      setIsProcessing(false); 
+    }
+  };
+
+  /**
+   * Handle quick manual entry (from journal view inline)
+   * 1. If empty, just create placeholder in journal store
+   * 2. If has content, process with AI and update store
+   * 3. Trigger integration events
+   */
+  const handleManualQuickEntry = async (y: string, m: string, d: string, content: string) => {
+    if (!content.trim()) {
+      // Empty entry - just create placeholder for UI
+      upsertJournalEntry(
+        getNormalizedDate({ year: y, month: m, day: d }), 
+        { content }
+      );
+      return;
+    }
+
+    setIsProcessing(true);
+    try { 
+      await createJournalEntry({ 
+        entry: content, 
+        useAI: true, 
+        dateInfo: { year: y, month: m, day: d } 
+      });
+
+      if (onIntegrationEvent) {
+        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+          originalText: content,
+          source: 'manual_quick'
+        });
+      }
+    } finally { 
+      setIsProcessing(false); 
+    }
+  };
+
+  /**
+   * Handle detailed manual entry (from manual entry form)
+   * Supports custom time, duration, actions, and AI toggle
+   */
+  const handleDetailedManualEntry = async (payload: {
+    content: string;
+    time?: string;
+    duration?: string;
+    actions?: string[];
+    useAI: boolean;
+  }) => {
+    setIsProcessing(true);
+    try {
+      await createJournalEntry({
+        entry: payload.content,
+        actions: payload.actions,
+        useAI: payload.useAI,
+        duration: payload.duration,
+        dateInfo: payload.time ? { time: payload.time } : undefined
+      });
+
+      if (payload.useAI && onIntegrationEvent) {
+        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+          originalText: payload.content,
+          source: 'manual_detailed',
+          duration: payload.duration,
+          actions: payload.actions
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Handle re-parsing an existing entry
+   * Useful when user wants to re-analyze an entry with AI
+   */
+  const handleParseEntry = async (year: string, month: string, day: string, time: string) => {
+    const entry = journal[year]?.[month]?.[day]?.[time];
+    if (!entry || !entry.content) return;
+
+    setIsProcessing(true);
+    try {
+      await createJournalEntry({
+        entry: entry.content,
+        useAI: true,
+        dateInfo: { year, month, day, time },
+        duration: entry.duration
+      });
+
+      if (onIntegrationEvent) {
+        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+          originalText: entry.content,
+          source: 'reparse',
+          timestamp: `${year}-${month}-${day} ${time}`
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Input Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <VoiceRecorder onProcessed={handleVoice} isProcessing={isProcessing} />
+        <ManualEntryForm onSubmit={handleDetailedManualEntry} isProcessing={isProcessing} />
+      </div>
+
+      {/* Display Section */}
+      <JournalView 
+        data={journal} 
+        onAddManualEntry={handleManualQuickEntry}
+        onParseEntry={handleParseEntry}
+        isProcessing={isProcessing}
+      />
+    </div>
+  );
+};
+
+export default JournalFeature;

@@ -4,22 +4,21 @@ import { dataUpdater } from './data-updater';
 import { EntryOrchestratorContext, EntryPipelineResult } from './types';
 import { mergeTopology } from '@/lib/soulTopology';
 import { getCurrentData } from '@/stores/app-data';
-import { useAppDataStore } from '@/stores/app-data';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
-import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
+import { upsertJournalEntry } from '@/features/journal/utils/journal-entry-utils';
 
 /**
  * entryOrchestrator
  * Orchestrates entry processing: runs AI analysis if enabled, merges resulting topology,
  * applies data updates, and returns the result of the entry operation.
  *
- * @param context - Entry data and flags for AI usage
+ * @param context - Entry data and flags for AI usage, including pre-normalized date
  * @returns Pipeline result containing the updated data and entry metadata
  */
 export const entryOrchestrator = async (
 	context: EntryOrchestratorContext
 ): Promise<EntryPipelineResult> => {
-	const { useAI = false, entry, duration, actions = [], dateInfo } = context;
+	const { useAI = false, entry, duration, actions = [], normalizedDate } = context;
 	const currentData = getCurrentData();
 
 	let cdagTopologyFragment;
@@ -37,9 +36,8 @@ export const entryOrchestrator = async (
 
 	const result = dataUpdater(mergedData, { ...context, duration: estimatedDuration }, useAI);
 
-	const { setData } = useAppDataStore.getState();
-	const date = getNormalizedDate(dateInfo);
-	setData(updateJournalHTML(result.data, date, result.entryData));
+	// Use the pre-normalized date to update the SAME entry that was created as loading
+	upsertJournalEntry(normalizedDate, result.entryData);
 
 	return result;
 };

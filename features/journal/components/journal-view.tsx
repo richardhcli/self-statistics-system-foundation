@@ -13,7 +13,7 @@ interface JournalViewProps {
 const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onParseEntry, isProcessing }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
-  const [manualText, setManualText] = useState("");
+  const [manualText, setManualText] = useState('');
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   useEffect(() => {
@@ -23,11 +23,18 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
     const d = now.getDate().toString();
     const dayPath = `${y}-${m}-${d}`;
     if (Object.keys(data).length === 0) onAddManualEntry(y, m, d, "");
-    setExpanded(prev => ({ ...prev, [y]: true, [`${y}-${m}`]: true, [dayPath]: true }));
+    setExpanded(prev => ({ 
+      ...prev, 
+      [y]: true, 
+      [`${y}-${m}`]: true, 
+      [dayPath]: true 
+    }));
   }, []);
 
-  const toggle = (path: string) => setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
-  
+  const toggleExpanded = (path: string) => {
+    setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
   // Chronological sort: earliest year first
   const years = Object.keys(data)
     .filter(k => k !== 'metadata')
@@ -36,7 +43,7 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
   const handleManualSubmit = (y: string, m: string, d: string) => {
     if (!manualText.trim()) return;
     onAddManualEntry(y, m, d, manualText);
-    setManualText("");
+    setManualText('');
     setAddingToDay(null);
   };
 
@@ -46,7 +53,7 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
     <div className="space-y-4 journal-scroll-area">
       {years.map(year => (
         <div key={year} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden journal-entry-card">
-          <button onClick={() => toggle(year)} className="w-full flex items-center px-4 py-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+          <button onClick={() => toggleExpanded(year)} className="w-full flex items-center px-4 py-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
             {expanded[year] ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}
             <span className="font-black text-slate-800 tracking-tight">{year}</span>
           </button>
@@ -58,7 +65,7 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
               .map(month => {
                 const monthPath = `${year}-${month}`;
                 return <div key={month} className="border-l-2 border-slate-100 ml-2">
-                  <button onClick={() => toggle(monthPath)} className="w-full flex items-center px-4 py-3 hover:bg-slate-50 text-slate-600">
+                  <button onClick={() => toggleExpanded(monthPath)} className="w-full flex items-center px-4 py-3 hover:bg-slate-50 text-slate-600">
                     {expanded[monthPath] ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}
                     <span className="font-bold text-sm uppercase tracking-wider">{month}</span>
                   </button>
@@ -71,7 +78,7 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
                         const dayPath = `${monthPath}-${day}`;
                         return <div key={day} className="border-l-2 border-slate-100 ml-2">
                           <div className="flex items-center justify-between px-4 py-2">
-                            <button onClick={() => toggle(dayPath)} className="flex items-center text-slate-500">{expanded[dayPath] ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}<span className="text-xs font-bold uppercase">Day {day}</span></button>
+                            <button onClick={() => toggleExpanded(dayPath)} className="flex items-center text-slate-500">{expanded[dayPath] ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}<span className="text-xs font-bold uppercase">Day {day}</span></button>
                             <button onClick={() => setAddingToDay(addingToDay === dayPath ? null : dayPath)} className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Plus className="w-4 h-4" /></button>
                           </div>
                           {addingToDay === dayPath && <div className="px-6 py-2 relative"><textarea autoFocus value={manualText} onChange={(e) => setManualText(e.target.value)} placeholder="What did you just finish doing?" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 resize-none min-h-[80px]" /><button onClick={() => handleManualSubmit(year, month, day)} disabled={!manualText.trim()} className="absolute bottom-6 right-8 p-2 bg-indigo-600 text-white rounded-lg shadow-lg"><Send className="w-3 h-3" /></button></div>}

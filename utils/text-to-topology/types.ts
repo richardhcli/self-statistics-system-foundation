@@ -13,6 +13,7 @@ export interface EntryOrchestratorContext {
 	useAI?: boolean;
 	duration?: string;
 	dateInfo?: any;
+	normalizedDate?: { year: string; month: string; day: string; time: string };
 }
 
 export type EntryPipelineResult = {
