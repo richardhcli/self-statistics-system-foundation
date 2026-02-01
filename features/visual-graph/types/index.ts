@@ -1,2 +1,2 @@
-
-export * from './visual-graph';
+// Re-export types from store (consolidated location)
+export * from '../store';

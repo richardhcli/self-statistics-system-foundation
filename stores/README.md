@@ -1,61 +1,105 @@
 
 # Global Stores
 
-The `stores/` directory contains global business logic and state structures that are shared across multiple features.
+The `stores/` directory contains independent Zustand stores with **Pattern C** separation (state hook + actions hook). Each store manages a specific domain and exports dual hooks to prevent unnecessary re-renders.
 
-## 🏗 Store Hierarchy
+## 🏗 Store Architecture
 
-### 1. `app-data` ⭐ (Canonical Store - Zustand)
-- **Responsibility**: **Centralized Global State Management**.
-- **Role**: This is the master store using Zustand. It defines the `AppData` type which wraps every other store (Journal, Topology, Stats, Integrations).
-- **Key Files**: 
-  - `store.ts`: Zustand store implementation with getters and setters
-  - `types.ts`: AppData interface and all related types
-  - `constants.ts`: INITIAL_APP_DATA
-  - `utils/get-current-data.ts`: Centralized data accessor for non-React code
-  - `utils/data-portability.ts`: Export/import utilities
-- **Architecture**: Follows Bulletproof React patterns with Zustand for global state management
-- **Usage**: 
-  - Components: `const { getData, setData } = useAppDataStore()`
-  - Utilities: `const data = getCurrentData()` + `useAppDataStore.getState().setData(...)`
+### Pattern C: State + Actions Separation
+Each store exports two hooks:
+- **State Hook** (`useStore`): Returns read-only state. Use when you only need data.
+- **Actions Hook** (`useStoreActions`): Returns mutation functions. Use when you need to update state.
 
-### 2. `cdag-topology`
-- **Responsibility**: Topology-specific types and utilities.
-- **Key Files**: 
-  - `types.ts`: Topology node and graph types (CdagTopology, CdagNodeData).
-  - `api/`: Sync endpoints for topology snapshots.
-- **Brain Logic Location**: `lib/soulTopology` owns merging, propagation, and AI-driven hierarchy utilities.
-- **Note**: State is managed in `app-data` store, this folder contains types and specialized logic.
+This separation prevents unnecessary re-renders—components accessing only actions don't re-render when state changes.
 
-### 3. `player-statistics`
-- **Responsibility**: Core leveling and progression mechanics.
-- **Key Files**:
-  - `types.ts`: PlayerStatistics type definitions
-  - `utils/exp-state-manager.ts`: Detects level-ups and handles state deltas (moved to utils/player-data-update)
-  - `utils/progression-orchestrator.ts`: Bridges the Topology propagation with the Statistics state (moved to utils/player-data-update)
-- **Note**: Progression logic moved to `utils/player-data-update/` for better separation of concerns.
+## 📚 Store Domains
 
-### 4. `user-data` ⚠️ (Deprecated - Compatibility Layer)
-- **Status**: **DEPRECATED** - Use `app-data` instead
-- **Purpose**: Provides backward compatibility for legacy imports
-- **Migration**: All files now re-export from `app-data`
-- **Files**: 
-  - `types.ts`: Re-exports from `app-data/types`
-  - `constants.ts`: Re-exports from `app-data/constants`
-  - `utils/`: Re-exports from `app-data/utils`
-  - `api/`: User-specific API endpoints (user-information, sync)
-- **Action Required**: Update imports from `@/stores/user-data` to `@/stores/app-data`
+### 1. `journal/`
+**Purpose**: Manage journal entries with date-indexed hierarchy  
+**Exports**: `useJournal()` + `useJournalActions()`  
+**State**: `entries` (date-indexed), `tags`  
+**Actions**: `addEntry()`, `updateEntry()`, `deleteEntry()`
+
+### 2. `cdag-topology/`
+**Purpose**: Manage the logical concept hierarchy (Second Brain core)  
+**Exports**: `useCdagTopology()` + `useCdagTopologyActions()`  
+**State**: `nodes`, `edges`, metadata  
+**Actions**: `addNode()`, `addEdge()`, `updateNodeMetadata()`
+
+### 3. `player-statistics/`
+**Purpose**: Track experience and leveling progression  
+**Exports**: `usePlayerStatistics()` + `usePlayerStatisticsActions()`  
+**State**: `totalExp`, `currentLevel`, `nodeMastery`  
+**Actions**: `awardExp()`, `updateNodeMastery()`
+
+### 4. `user-information/`
+**Purpose**: User profile and identity data  
+**Exports**: `useUserInformation()` + `useUserInformationActions()`  
+**State**: `username`, `userClass`, `profileVisibility`  
+**Actions**: `updateName()`, `updateUserClass()`
+
+### 5. `ai-config/`
+**Purpose**: AI model and processing configuration  
+**Exports**: `useAiConfig()` + `useAiConfigActions()`  
+**State**: `model`, `temperature`, `voiceSettings`  
+**Actions**: `updateModel()`, `updateTemperature()`, `updateVoiceSettings()`
+
+### 6. `user-integrations/`
+**Purpose**: Webhook and integration configuration  
+**Exports**: `useUserIntegrations()` + `useUserIntegrationsActions()`  
+**State**: `webhookConfig`, `obsidianSettings`, `integrationLogs`  
+**Actions**: `updateWebhookConfig()`, `updateObsidianSettings()`
+
+### 7. `root/`
+**Purpose**: Serialization-only composition store (no state hook)  
+**Exports**: `serializeRootState()`, `deserializeRootState()`  
+**Use Case**: Convert all 6 stores to/from JSON for persistence
 
 ## 🔄 Data Flow
-When an update occurs:
-1. Brain structure logic runs in `lib/soulTopology` alongside progression utilities in `utils/player-data-update/`.
-2. Results are written directly to the Zustand store via `useAppDataStore.getState().setData()`.
-3. The `use-persistence` hook detects the change in `AppData` and commits the entire block to IndexedDB.
-4. Components subscribed to store slices automatically re-render.
 
-## 📦 State Management Pattern
-- **Global State**: Zustand (`app-data` store)
-- **Server State**: React Query (for async/external data)
-- **Local State**: useState (for UI-only state)
-- **Persistence**: IndexedDB via `usePersistence` hook
-- **Centralized Access**: `getCurrentData()` for utilities, `useAppDataStore()` for components
+```
+Component → Store Hook → Zustand State
+    ↓
+Action Hook → Store Mutation → use-persistence Hook
+    ↓
+Serialize to RootState → Save to IndexedDB
+```
+
+When an update occurs:
+1. Component calls an action hook (e.g., `useJournalActions().addEntry()`)
+2. Store state updates immediately (Zustand mutation)
+3. `use-persistence` hook detects the change (via subscriptions)
+4. `serializeRootState()` collects all 6 stores into RootState
+5. JSON serialized and saved to IndexedDB
+6. Components subscribed to state automatically re-render (Pattern C ensures minimal re-renders)
+
+## 💾 Persistence
+
+- **Format**: IndexedDB with RootState JSON serialization
+- **Trigger**: Automatic on any store mutation (via `use-persistence` hook)
+- **Restoration**: App startup calls `deserializeRootState()` to hydrate all stores
+
+## 🚀 Usage Patterns
+
+### Read-only Access
+```tsx
+const { entries } = useJournal();  // Only subscribe to state
+```
+
+### Mutations Only
+```tsx
+const { addEntry } = useJournalActions();  // Only subscribe to actions
+```
+
+### Read + Write
+```tsx
+const { entries } = useJournal();
+const { addEntry } = useJournalActions();
+```
+
+## 🧪 Testing & Injection
+
+Test data injection uses store-specific hook factories in `features/debug/api/test-injections.ts`:
+- `createInjectTestDataHook()`: Injects complete data via `deserializeRootState()`
+- `createInjectTopologyDataHook()`: Injects topology nodes/edges
+- Feature-specific injectors for targeted testing

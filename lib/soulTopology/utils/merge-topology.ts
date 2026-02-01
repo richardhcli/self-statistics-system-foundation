@@ -1,26 +1,34 @@
-import { AppData, CdagTopology } from '@/types';
-import { getExistingLabel } from './checker';
-import { createNode } from './manager';
+import { CdagTopology, NodeType } from '@/types';
+import { getExistingLabel, nodeExists } from './checker';
 import { LEARNING_RATE } from '@/lib/config';
 
 /**
- * Merges an incoming CdagTopology structure into the application state.
+ * Merges an incoming CdagTopology structure into an existing topology.
  * If nodes exist, it adjusts edge weights using the global LEARNING_RATE.
  * If nodes are new, it registers them with their specified types.
+ * 
+ * @param currentTopology - The existing CDAG topology
+ * @param incoming - The incoming topology fragment to merge
+ * @returns The merged topology
  */
-export const mergeTopology = (data: AppData, incoming: CdagTopology): AppData => {
-  let current = { ...data };
+export const mergeTopology = (currentTopology: CdagTopology, incoming: CdagTopology): CdagTopology => {
+  let result = { ...currentTopology };
 
   Object.entries(incoming).forEach(([nodeLabel, nodeData]) => {
-    const existingLabel = getExistingLabel(current.cdagTopology, nodeLabel);
+    const existingLabel = getExistingLabel(result, nodeLabel);
 
     if (!existingLabel) {
       // Node is brand new, create it with specified type
-      current = createNode(current, nodeLabel, nodeData.parents, nodeData.type);
+      result = {
+        ...result,
+        [nodeLabel]: {
+          parents: nodeData.parents,
+          type: nodeData.type
+        }
+      };
     } else {
       // Node exists, merge parents/weights and potentially update type if it was 'none'
-      const currentTopology = { ...current.cdagTopology };
-      const currentNodeData = { ...currentTopology[existingLabel] };
+      const currentNodeData = { ...result[existingLabel] };
 
       // Upgrade type if the new data is more specific
       if (currentNodeData.type === 'none' && nodeData.type !== 'none') {
@@ -30,7 +38,7 @@ export const mergeTopology = (data: AppData, incoming: CdagTopology): AppData =>
       const currentParents = { ...currentNodeData.parents };
 
       Object.entries(nodeData.parents).forEach(([parentLabel, incomingWeight]) => {
-        const existingParentLabel = getExistingLabel(current.cdagTopology, parentLabel) || parentLabel;
+        const existingParentLabel = getExistingLabel(result, parentLabel) || parentLabel;
 
         if (currentParents[existingParentLabel] === undefined) {
           // New edge for existing node
@@ -47,10 +55,9 @@ export const mergeTopology = (data: AppData, incoming: CdagTopology): AppData =>
       });
 
       currentNodeData.parents = currentParents;
-      currentTopology[existingLabel] = currentNodeData;
-      current = { ...current, cdagTopology: currentTopology };
+      result = { ...result, [existingLabel]: currentNodeData };
     }
   });
 
-  return current;
+  return result;
 };

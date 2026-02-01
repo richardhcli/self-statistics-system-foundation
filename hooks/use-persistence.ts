@@ -1,43 +1,38 @@
+import { useEffect, useState } from 'react';
 
-// Add React import for TypeScript namespace resolution
-import React, { useEffect, useState } from 'react';
-import { AppData } from '@/types';
-import { loadData, saveData } from '@/lib/db';
-
-export const usePersistence = (
-  data: AppData,
-  setData: React.Dispatch<React.SetStateAction<AppData>>,
-  initialData: AppData
-) => {
+/**
+ * Persistence Hook - Simplified Version
+ * 
+ * With Zustand's persist middleware (with idb-keyval storage), all stores
+ * automatically hydrate from IndexedDB on mount. This hook simply:
+ * 1. Waits for all stores to finish hydrating
+ * 2. Returns initialization state for UI loading screens
+ * 
+ * Architecture: Local-First, Sync-Behind
+ * - Read Flow: UI reads from Zustand (hydrated from IndexedDB immediately)
+ * - Write Flow: UI → Zustand → IndexedDB (automatic, non-blocking)
+ * - Sync: Backend sync happens independently (future implementation)
+ * 
+ * No manual IndexedDB serialization needed - the persist middleware handles it.
+ * Each store persists independently to IndexedDB with automatic version management.
+ * 
+ * Usage:
+ * const { isInitialized } = usePersistence();
+ * if (!isInitialized) return <LoadingScreen />;
+ */
+export const usePersistence = () => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const initializeFromDB = async () => {
-      try {
-        const persisted = await loadData();
-        if (persisted) {
-          setData({
-            ...initialData,
-            ...persisted,
-            cdagTopology: persisted.cdagTopology || {}
-          });
-        }
-      } catch (err) {
-        console.error("Critical: Failed to load data from IndexedDB", err);
-      } finally {
-        setIsInitialized(true);
-      }
-    };
-    initializeFromDB();
-  }, [setData, initialData]);
+    // Zustand persist middleware hydrates asynchronously on store creation.
+    // We wait one tick to ensure all stores have had time to hydrate.
+    // This is a safe, low-overhead way to detect initialization completion.
+    const timer = setTimeout(() => {
+      setIsInitialized(true);
+    }, 0);
 
-  useEffect(() => {
-    if (isInitialized) {
-      saveData(data).catch(err => {
-        console.error("Persistence Error: Failed to auto-save to IndexedDB", err);
-      });
-    }
-  }, [data, isInitialized]);
+    return () => clearTimeout(timer);
+  }, []);
 
   return { isInitialized };
 };

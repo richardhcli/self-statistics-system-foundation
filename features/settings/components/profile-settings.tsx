@@ -1,14 +1,8 @@
 
 import React, { useState } from 'react';
 import { UserCircle, Mail, MapPin, Save } from 'lucide-react';
-import { AppData } from '@/types';
 
-interface ProfileSettingsProps {
-  data: AppData;
-  setData: (fn: (prev: AppData) => AppData) => void;
-}
-
-const ProfileSettings: React.FC<ProfileSettingsProps> = ({ data, setData }) => {
+const ProfileSettings: React.FC = () => {
   const [bio, setBio] = useState("Exploring the boundaries of local-first AI and journaling.");
   const [isSaving, setIsSaving] = useState(false);
 

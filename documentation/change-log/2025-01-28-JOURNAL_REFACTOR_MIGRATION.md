@@ -1,5 +1,8 @@
 # Journal Feature Refactor - Migration Guide
 
+**Date**: January 28, 2026  
+**Phase**: Phase 3 - Component Migration
+
 ## Overview
 
 The journal feature has been refactored to be a fully self-contained, modular React feature. This guide explains the changes and how to work with the new architecture.

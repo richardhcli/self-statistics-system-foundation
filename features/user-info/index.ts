@@ -1,2 +1,1 @@
-
-export * from '@/stores/app-data';
+export * from '@/stores/user-information';

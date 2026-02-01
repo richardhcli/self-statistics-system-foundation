@@ -1,7 +1,6 @@
 
 import { JournalEntryData } from '@/types';
 import { getNormalizedDate, getNormalizedMonthName } from './time-utils';
-import { useAppDataStore } from '@/stores/app-data';
 
 /**
  * updateJournalHTMLLocal
@@ -37,34 +36,24 @@ const updateJournalHTMLLocal = (
 };
 
 /**
- * upsertJournalEntry
- * Hook-based approach: directly updates global journal store.
- * Automatically triggers re-renders across components watching journal.
+ * DEPRECATED: This function relied on useAppDataStore which no longer exists.
+ * Use useJournalActions().upsertEntry() directly instead.
  * 
- * @param date - Already normalized date object (year, month, day, time)
- * @param entryData - Entry content and metadata
+ * @deprecated Use useJournalActions().upsertEntry() from stores/journal
  */
 export const upsertJournalEntry = (
   date: { year: string; month: string | number; day: string; time: string },
   entryData: JournalEntryData
 ): void => {
-  const { data, updateData } = useAppDataStore.getState();
-  
-  // Normalize month to string if it's a number
-  const normalizedDate = {
-    year: date.year,
-    month: typeof date.month === 'number' ? getNormalizedMonthName(date.month.toString()) : date.month,
-    day: date.day,
-    time: date.time
-  };
-  
-  const updatedJournal = updateJournalHTMLLocal(data.journal, normalizedDate, entryData);
-  updateData(prev => ({ ...prev, journal: updatedJournal }));
+  throw new Error(
+    'upsertJournalEntry is deprecated. Use useJournalActions().upsertEntry() from @/stores/journal instead. ' +
+    'Note: useJournalActions must be called from within a React component.'
+  );
 };
 
 /**
- * @deprecated Use upsertJournalEntry instead
+ * @deprecated Use useJournalActions instead
  */
 export const updateJournalHTML = () => {
-  console.warn('updateJournalHTML is deprecated. Use upsertJournalEntry instead.');
+  console.warn('updateJournalHTML is deprecated. Use useJournalActions instead.');
 };

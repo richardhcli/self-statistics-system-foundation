@@ -1,59 +1,19 @@
-
-import { AppData } from '@/types';
-import { calculateParentPropagation } from '@/lib/soulTopology';
-import { parseDurationToMultiplier, scaleExperience } from './scaled-logic';
-import { updatePlayerStatsState } from './exp-state-manager';
-
 /**
- * Orchestrates the full EXP calculation and application flow.
+ * DEPRECATED: AppData progression orchestrator removed.
+ * Use calculateScaledProgression or store actions instead.
  */
-export const applyScaledProgression = (
-  data: AppData,
-  initialActions: string[],
-  duration?: string
-): { data: AppData; totalIncrease: number; levelsGained: number; nodeIncreases: Record<string, number> } => {
-  const initialSeeds: Record<string, number> = {};
-  initialActions.forEach(action => {
-    initialSeeds[action] = 1.0;
-  });
-
-  const propagated = calculateParentPropagation(data.cdagTopology, initialSeeds);
-  
-  const multiplier = parseDurationToMultiplier(duration);
-  const scaledExpMap = scaleExperience(propagated, multiplier);
-
-  const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
-    data.playerStatistics,
-    scaledExpMap
+export const applyScaledProgression = (): never => {
+  throw new Error(
+    'applyScaledProgression has been removed. Use calculateScaledProgression from stores/player-statistics/utils.'
   );
-
-  return {
-    data: { ...data, playerStatistics: nextStats },
-    totalIncrease,
-    levelsGained,
-    nodeIncreases: scaledExpMap
-  };
 };
 
-export const updatePlayerStats = (
-  data: AppData, 
-  actions: string[], 
-  exp: number = 1
-): { data: AppData; totalIncrease: number; levelsGained: number; nodeIncreases: Record<string, number> } => {
-  const initialSeeds: Record<string, number> = {};
-  actions.forEach(a => initialSeeds[a] = exp);
-  
-  const propagated = calculateParentPropagation(data.cdagTopology, initialSeeds);
-  
-  const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
-    data.playerStatistics,
-    propagated
+/**
+ * DEPRECATED: AppData progression orchestrator removed.
+ * Use store actions instead.
+ */
+export const updatePlayerStats = (): never => {
+  throw new Error(
+    'updatePlayerStats has been removed. Use usePlayerStatisticsActions().updateStats instead.'
   );
-
-  return { 
-    data: { ...data, playerStatistics: nextStats },
-    totalIncrease,
-    levelsGained,
-    nodeIncreases: propagated
-  };
 };

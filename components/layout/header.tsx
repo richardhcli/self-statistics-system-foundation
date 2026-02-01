@@ -6,11 +6,9 @@ export type AppView = 'journal' | 'graph' | 'dev-graph' | 'statistics' | 'billin
 interface HeaderProps {
   view: AppView;
   setView: (view: AppView) => void;
-  /** Optional handler for clearing application data, passed from layout orchestrator */
-  onClearData?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ view, setView, onClearData }) => {
+const Header: React.FC<HeaderProps> = ({ view, setView }) => {
   const navRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);

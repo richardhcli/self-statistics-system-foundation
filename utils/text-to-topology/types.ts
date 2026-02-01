@@ -1,4 +1,4 @@
-import { AppData, CdagTopology, GeneralizationLink, JournalEntryData, TextToActionResponse } from '@/types';
+import { CdagTopology, GeneralizationLink, JournalEntryData, TextToActionResponse } from '@/types';
 
 export interface AiAnalysisResult {
 	analysis: TextToActionResponse;
@@ -16,7 +16,3 @@ export interface EntryOrchestratorContext {
 	normalizedDate?: { year: string; month: string; day: string; time: string };
 }
 
-export type EntryPipelineResult = {
-	data: AppData;
-	entryData: JournalEntryData;
-};

@@ -1,18 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-// Added Loader2 to the lucide-react imports
 import { Save, Sparkles, Layout, Eye, EyeOff, Moon, Sun, Loader2 } from 'lucide-react';
-import { AppData } from '@/types';
+import { useUserInformation, useUserInformationActions } from '@/stores/user-information';
 
-interface StatusDisplaySettingsProps {
-  data: AppData;
-  setData: (fn: (prev: AppData) => AppData) => void;
-}
-
-const StatusDisplaySettings: React.FC<StatusDisplaySettingsProps> = ({ data, setData }) => {
+const StatusDisplaySettings: React.FC = () => {
+  const userInfo = useUserInformation();
+  const { updateName, updateUserClass } = useUserInformationActions();
   const [formData, setFormData] = useState({
-    name: data.userInformation.name || '',
-    userClass: data.userInformation.userClass || ''
+    name: userInfo.name || '',
+    userClass: userInfo.userClass || ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
@@ -41,15 +37,8 @@ const StatusDisplaySettings: React.FC<StatusDisplaySettingsProps> = ({ data, set
     e.preventDefault();
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 600));
-    
-    setData(prev => ({
-      ...prev,
-      userInformation: {
-        ...prev.userInformation,
-        name: formData.name,
-        userClass: formData.userClass
-      }
-    }));
+    updateName(formData.name);
+    updateUserClass(formData.userClass);
     
     setIsSaving(false);
   };

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Database, Sparkles, UserCheck, Loader2, Trash2, Network, Brain } from 'lucide-react';
-import { injectTestData, injectTopologyData, injectBrainTopologyData } from '../api/test-injections';
+import { createInjectTestDataHook, createInjectTopologyDataHook, createInjectBrainTopologyDataHook } from '../api/test-injections';
 import { clearAllTables } from '@/lib/db';
-import { useAppDataStore } from '@/stores/app-data';
+import { deserializeRootState, INITIAL_ROOT_STATE } from '@/stores/root';
 import { WipeConfirmationModal } from './wipe-confirmation-modal';
-import { INITIAL_APP_DATA } from '@/stores/app-data';
 
 const DataInjectionPanel: React.FC = () => {
   const [loading, setLoading] = useState<'ai' | 'manual' | 'clear' | 'topology' | 'brain' | null>(null);
   const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
-  const { setData } = useAppDataStore();
+  const injectTestData = createInjectTestDataHook();
+  const injectTopologyData = createInjectTopologyDataHook();
+  const injectBrainTopologyData = createInjectBrainTopologyDataHook();
   
   const handleInject = async (isAI: boolean) => { 
     setLoading(isAI ? 'ai' : 'manual'); 
@@ -36,7 +37,7 @@ const DataInjectionPanel: React.FC = () => {
     setLoading('clear'); 
     try { 
       await clearAllTables(); 
-      setData({ ...INITIAL_APP_DATA }); 
+      deserializeRootState({ ...INITIAL_ROOT_STATE }); 
       setIsWipeModalOpen(false);
     } finally { setLoading(null); } 
   };

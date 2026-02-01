@@ -1,22 +1,16 @@
 
 import React, { useRef, useState } from 'react';
 import { Download, Upload, AlertTriangle, FileJson, Loader2, CheckCircle2 } from 'lucide-react';
-import { AppData } from '@/types';
-import { exportAppState, parseAndValidateBackup } from '@/stores/app-data';
-
-interface DataPortabilityProps {
-  data: AppData;
-  setData: React.Dispatch<React.SetStateAction<AppData>>;
-}
+import { deserializeRootState, serializeRootState, RootState } from '@/stores/root';
 
 /**
  * Component: DataPortability
  * 
  * Functional Description:
  * Provides the UI for manual data backup and restoration.
- * Delegating core logic to 'stores/user-data/utils/data-portability'.
+ * Uses RootState serialization/deserialization for backups.
  */
-export const DataPortability: React.FC<DataPortabilityProps> = ({ data, setData }) => {
+export const DataPortability: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<'idle' | 'importing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -26,7 +20,19 @@ export const DataPortability: React.FC<DataPortabilityProps> = ({ data, setData 
    */
   const handleExport = () => {
     try {
-      exportAppState(data);
+      const rootState = serializeRootState();
+      const fileName = `neural-brain-backup-${new Date().toISOString().split('T')[0]}.json`;
+      const json = JSON.stringify(rootState, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const href = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(href);
     } catch (err: any) {
       alert(err.message);
     }
@@ -37,6 +43,31 @@ export const DataPortability: React.FC<DataPortabilityProps> = ({ data, setData 
    */
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const parseAndValidateBackup = (jsonContent: string): RootState => {
+    try {
+      const importedData = JSON.parse(jsonContent) as Partial<RootState>;
+      const requiredKeys: Array<keyof RootState> = [
+        'journal',
+        'cdagTopology',
+        'playerStatistics',
+        'userInformation',
+        'aiConfig',
+        'integrations',
+      ];
+
+      for (const key of requiredKeys) {
+        if (!importedData || importedData[key] === undefined) {
+          throw new Error(`Invalid backup file. Missing key: ${key}`);
+        }
+      }
+
+      return importedData as RootState;
+    } catch (err: any) {
+      console.error('Import validation failed:', err);
+      throw new Error('Backup file is invalid or corrupted.');
+    }
   };
 
   /**
@@ -55,7 +86,7 @@ export const DataPortability: React.FC<DataPortabilityProps> = ({ data, setData 
         const validatedData = parseAndValidateBackup(content);
 
         if (confirm("WARNING: This will overwrite your current local state. This action cannot be undone. Proceed?")) {
-          setData(validatedData);
+          deserializeRootState(validatedData);
           setStatus('success');
           setTimeout(() => setStatus('idle'), 3000);
         } else {
@@ -80,6 +111,7 @@ export const DataPortability: React.FC<DataPortabilityProps> = ({ data, setData 
     // Clear the input value so the same file can be re-selected if an error occurred
     if (e.target) e.target.value = '';
   };
+
 
   return (
     <section className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">

@@ -1,63 +1,89 @@
 
-import { AppData } from '@/types';
+import { CdagTopology } from '@/stores/cdag-topology/types';
+import { PlayerStatistics } from '../types';
 import { calculateParentPropagation } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from './scaled-logic';
 import { updatePlayerStatsState } from './exp-state-manager';
 
 /**
- * Orchestrates the full EXP calculation and application flow.
- * Links CDAG topology propagation with player statistics state updates.
+ * Pure function: Calculate scaled progression from topology and actions.
+ * This is a pure utility - does NOT access any stores.
+ * 
+ * @param topology - Current CDAG topology
+ * @param stats - Current player statistics
+ * @param initialActions - Action labels to propagate
+ * @param duration - Duration string for scaling
+ * @returns Updated stats and metadata
  */
-export const applyScaledProgression = (
-  data: AppData,
+export const calculateScaledProgression = (
+  topology: CdagTopology,
+  stats: PlayerStatistics,
   initialActions: string[],
   duration?: string
-): { data: AppData; totalIncrease: number; levelsGained: number; nodeIncreases: Record<string, number> } => {
+): {
+  nextStats: PlayerStatistics;
+  totalIncrease: number;
+  levelsGained: number;
+  nodeIncreases: Record<string, number>;
+} => {
   const initialSeeds: Record<string, number> = {};
-  initialActions.forEach(action => {
+  initialActions.forEach((action) => {
     initialSeeds[action] = 1.0;
   });
 
-  const propagated = calculateParentPropagation(data.cdagTopology, initialSeeds);
-  
+  const propagated = calculateParentPropagation(topology, initialSeeds);
+
   const multiplier = parseDurationToMultiplier(duration);
   const scaledExpMap = scaleExperience(propagated, multiplier);
 
   const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
-    data.playerStatistics,
+    stats,
     scaledExpMap
   );
 
   return {
-    data: { ...data, playerStatistics: nextStats },
+    nextStats,
     totalIncrease,
     levelsGained,
-    nodeIncreases: scaledExpMap
+    nodeIncreases: scaledExpMap,
   };
 };
 
 /**
- * Direct experience injection for debugging or specific triggers.
+ * Pure function: Direct experience injection for debugging or specific triggers.
+ * This is a pure utility - does NOT access any stores.
+ * 
+ * @param topology - Current CDAG topology
+ * @param stats - Current player statistics
+ * @param actions - Action labels
+ * @param exp - Experience amount per action
+ * @returns Updated stats and metadata
  */
-export const updatePlayerStats = (
-  data: AppData, 
-  actions: string[], 
+export const calculateDirectProgression = (
+  topology: CdagTopology,
+  stats: PlayerStatistics,
+  actions: string[],
   exp: number = 1
-): { data: AppData; totalIncrease: number; levelsGained: number; nodeIncreases: Record<string, number> } => {
+): {
+  nextStats: PlayerStatistics;
+  totalIncrease: number;
+  levelsGained: number;
+  nodeIncreases: Record<string, number>;
+} => {
   const initialSeeds: Record<string, number> = {};
-  actions.forEach(a => initialSeeds[a] = exp);
-  
-  const propagated = calculateParentPropagation(data.cdagTopology, initialSeeds);
-  
+  actions.forEach((a) => (initialSeeds[a] = exp));
+
+  const propagated = calculateParentPropagation(topology, initialSeeds);
+
   const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
-    data.playerStatistics,
+    stats,
     propagated
   );
 
-  return { 
-    data: { ...data, playerStatistics: nextStats },
+  return {
+    nextStats,
     totalIncrease,
     levelsGained,
-    nodeIncreases: propagated
+    nodeIncreases: propagated,
   };
 };

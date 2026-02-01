@@ -16,12 +16,40 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).catch((error) => {
-        console.warn('Fetch failed for:', event.request.url, error);
-        return new Response('Network error', { status: 503 });
-      });
-    })
-  );
+  // For development, use network-first strategy for assets
+  // This allows Vite to serve hot-updated files
+  const url = new URL(event.request.url);
+  
+  // For API calls and important requests, try network first
+  if (url.pathname.includes('/api/') || url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Cache successful responses
+          if (response.ok && event.request.method === 'GET') {
+            const cacheCopy = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, cacheCopy);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fall back to cache if network fails
+          return caches.match(event.request).then(cached => {
+            return cached || new Response('Network error', { status: 503 });
+          });
+        })
+    );
+  } else {
+    // For HTML and other requests, try cache first
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request).catch((error) => {
+          console.warn('Fetch failed for:', event.request.url, error);
+          return new Response('Network error', { status: 503 });
+        });
+      })
+    );
+  }
 });

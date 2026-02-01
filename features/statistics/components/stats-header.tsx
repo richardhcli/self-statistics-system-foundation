@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { UserCircle, Sparkles, Zap, CalendarDays } from 'lucide-react';
-import { AppData, UserInformation } from '@/types';
+import { UserInformation } from '@/stores/user-information/types';
 
 interface StatsHeaderProps {
   userInformation: UserInformation;
@@ -9,7 +9,6 @@ interface StatsHeaderProps {
   expToday: number;
   expYesterday: number;
   playerExpProgress: number;
-  setData?: React.Dispatch<React.SetStateAction<AppData>>;
 }
 
 export const StatsHeader: React.FC<StatsHeaderProps> = ({ 

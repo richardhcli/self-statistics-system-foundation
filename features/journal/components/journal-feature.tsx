@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { createJournalEntry } from '@/features/journal/api/create-entry';
-import { upsertJournalEntry } from '@/features/journal/utils/journal-entry-utils';
+import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
+import { useJournalActions } from '@/stores/journal';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
-import { useJournalStore } from '@/features/journal/hooks/use-journal-store';
+import { useJournal } from '@/stores/journal';
 import { processVoiceToText } from '@/lib/google-ai';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
@@ -14,10 +14,10 @@ import VoiceRecorder from './voice-recorder';
  * Self-contained journal feature module responsible for:
  * 1. Getting user input (voice recorder + manual entry form)
  * 2. Updating global journal store immediately before processing
- * 3. Displaying journal entries with local React state management
+ * 3. Displaying journal entries with Pattern C hooks
  * 
  * Architecture:
- * - Uses global journal store (stores/app-data) for persistent journal data
+ * - Uses global journal store (stores/journal) for persistent journal data
  * - Uses local useState for ephemeral UI state (processing flags)
  * - Handles all journal-related business logic internally
  * - Provides integration points for webhooks/external systems via callbacks
@@ -32,7 +32,9 @@ interface JournalFeatureProps {
 }
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
-  const { journal } = useJournalStore();
+  const journal = useJournal();
+  const { upsertEntry } = useJournalActions();
+  const createJournalEntry = useCreateJournalEntry();
   const [isProcessing, setIsProcessing] = useState(false);
 
   /**
@@ -71,10 +73,9 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const handleManualQuickEntry = async (y: string, m: string, d: string, content: string) => {
     if (!content.trim()) {
       // Empty entry - just create placeholder for UI
-      upsertJournalEntry(
-        getNormalizedDate({ year: y, month: m, day: d }), 
-        { content }
-      );
+      const dateObj = getNormalizedDate({ year: y, month: m, day: d });
+      const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
+      upsertEntry(dateKey, { content } as any);
       return;
     }
 

@@ -1,6 +1,9 @@
 
 import React, { useMemo, useState } from 'react';
-import { AppData } from '@/types';
+import { useJournal } from '@/stores/journal';
+import { useCdagTopology } from '@/stores/cdag-topology';
+import { usePlayerStatistics } from '@/stores/player-statistics';
+import { useUserInformation } from '@/stores/user-information';
 import { StatsHeader } from './stats-header';
 import { StatsTable } from './stats-table';
 import { AttributesGrid } from './attributes-grid';
@@ -9,15 +12,14 @@ import { SystemStatus } from './system-status';
 import { PlayerStatusTab } from './player-status-tab';
 import { LayoutGrid, User, ArrowRightLeft } from 'lucide-react';
 
-interface StatisticsViewProps {
-  data: AppData;
-  setData?: React.Dispatch<React.SetStateAction<AppData>>;
-}
-
 type TabType = 'player-status' | 'all-statistics';
 
-const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
+const StatisticsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('player-status');
+  const journal = useJournal();
+  const topology = useCdagTopology();
+  const playerStatistics = usePlayerStatistics();
+  const userInformation = useUserInformation();
 
   const stats = useMemo(() => {
     let totalEntries = 0;
@@ -36,21 +38,21 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
     };
     
     // Aggregation Logic for UI Stats
-    Object.keys(data.journal).forEach(y => {
+    Object.keys(journal).forEach(y => {
       if (y === 'metadata') return;
-      Object.keys(data.journal[y]).forEach(m => {
+      Object.keys(journal[y]).forEach(m => {
         if (m === 'metadata') return;
-        Object.keys(data.journal[y][m]).forEach(d => {
+        Object.keys(journal[y][m]).forEach(d => {
           if (d === 'metadata') return;
-          Object.keys(data.journal[y][m][d]).forEach(t => {
+          Object.keys(journal[y][m][d]).forEach(t => {
             if (t === 'metadata') return;
-            const entry = data.journal[y][m][d][t];
+            const entry = journal[y][m][d][t];
             if (entry.content) totalEntries++;
             
             // Fix: Derived domain statistics from node increases in metadata instead of non-existent domainType field
             if (entry.metadata?.nodeIncreases) {
               Object.keys(entry.metadata.nodeIncreases).forEach(nodeLabel => {
-                const topoNode = data.cdagTopology[nodeLabel];
+                const topoNode = topology[nodeLabel];
                 if (topoNode?.type === 'characteristic') {
                   // Normalize keys for case-insensitive matching
                   const match = Object.keys(domainCounts).find(k => k.toLowerCase() === nodeLabel.toLowerCase());
@@ -69,7 +71,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
     const playerExpProgress = (totalEntries % 5) * 20;
 
     // Use explicit casting to handle unknown property access from Object.entries on Record
-    const nodesWithStats = Object.entries(data.playerStatistics).map(([label, s]) => {
+    const nodesWithStats = Object.entries(playerStatistics).map(([label, s]) => {
       const nodeStats = s as any;
       totalExp += nodeStats.experience;
       totalLevels += nodeStats.level;
@@ -90,7 +92,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
       const y = dateObj.getFullYear().toString();
       const m = monthNames[dateObj.getMonth()];
       const d = dateObj.getDate().toString();
-      return data.journal[y]?.[m]?.[d]?.metadata?.totalExp || 0;
+      return journal[y]?.[m]?.[d]?.metadata?.totalExp || 0;
     };
 
     const expToday = getDateMeta(now);
@@ -103,7 +105,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
       domains: domainCounts, 
       topNodes: sortedByExp.slice(0, 5),
       // Fix: changed graph to visualGraph to match AppData interface
-      totalNodes: data.visualGraph.nodes.length,
+      totalNodes: Object.keys(topology).length,
       totalExp,
       totalLevels,
       expToday,
@@ -111,7 +113,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
       highestExpNode: sortedByExp[0] || null,
       highestLevelNode: sortedByLevel[0] || null
     };
-  }, [data]);
+  }, [journal, topology, playerStatistics]);
 
   const toggleView = () => {
     setActiveTab(prev => prev === 'player-status' ? 'all-statistics' : 'player-status');
@@ -122,12 +124,11 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data, setData }) => {
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-16">
       {/* Header Profile Section */}
       <StatsHeader 
-        userInformation={data.userInformation}
+        userInformation={userInformation}
         totalExp={stats.totalExp}
         expToday={stats.expToday}
         expYesterday={stats.expYesterday}
         playerExpProgress={stats.playerExpProgress}
-        setData={setData}
       />
 
       {/* Main View Area */}

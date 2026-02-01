@@ -1,20 +1,14 @@
 import React, { useState } from 'react';
 import { User, Shield, Bell, Layout, Sparkles } from 'lucide-react';
-import { AppData } from '@/types';
 import StatusDisplaySettings from './status-display-settings';
 import ProfileSettings from './profile-settings';
 import PrivacySettings from './privacy-settings';
 import NotificationSettings from './notification-settings';
 import AIFeaturesSettings from './ai-features-settings';
 
-interface SettingsViewProps {
-  data: AppData;
-  setData: (fn: (prev: AppData) => AppData) => void;
-}
-
 type SettingsTab = 'status' | 'profile' | 'privacy' | 'notifications' | 'ai-features';
 
-const SettingsView: React.FC<SettingsViewProps> = ({ data, setData }) => {
+const SettingsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('status');
 
   const tabs = [
@@ -89,9 +83,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ data, setData }) => {
         <main className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 transition-colors settings-content-area">
           <div className="max-w-4xl p-10 md:p-16 mx-auto">
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
-              {activeTab === 'status' && <StatusDisplaySettings data={data} setData={setData} />}
-              {activeTab === 'profile' && <ProfileSettings data={data} setData={setData} />}
-              {activeTab === 'ai-features' && <AIFeaturesSettings data={data} setData={setData} />}
+              {activeTab === 'status' && <StatusDisplaySettings />}
+              {activeTab === 'profile' && <ProfileSettings />}
+              {activeTab === 'ai-features' && <AIFeaturesSettings />}
               {activeTab === 'privacy' && <PrivacySettings />}
               {activeTab === 'notifications' && <NotificationSettings />}
             </div>

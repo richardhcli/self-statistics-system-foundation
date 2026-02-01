@@ -1,6 +1,5 @@
-import { createJournalEntry } from '@/features/journal';
-import { useAppDataStore } from '@/stores/app-data';
-import { syncGraphFromTopology } from '@/hooks/sync-graph-from-topology';
+import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
+import { useCdagTopologyActions } from '@/stores/cdag-topology';
 import { 
   AI_TEST_ENTRIES, 
   MANUAL_TEST_ENTRIES, 
@@ -15,21 +14,27 @@ import {
  * Orchestrates the batch creation of journal entries.
  * - AI Injections: Passes raw strings to the Gemini-powered pipeline.
  * - Manual Injections: Directly tags entries with pre-defined actions.
+ * 
+ * NOTE: This is designed to be called from a React component context
+ * where hooks can be used. See DebugView for usage example.
  */
-export const injectTestData = async (isAI: boolean) => {
-  const entries = isAI ? AI_TEST_ENTRIES : MANUAL_TEST_ENTRIES;
+export const createInjectTestDataHook = () => {
+  return async (isAI: boolean) => {
+    const createEntry = useCreateJournalEntry();
+    const entries = isAI ? AI_TEST_ENTRIES : MANUAL_TEST_ENTRIES;
 
-  for (const e of entries) {
-    const ctx = typeof e === 'string' 
-      ? { entry: e, useAI: true } 
-      : { entry: e.c, actions: e.a, useAI: false };
-    
-    await createJournalEntry(ctx);
-    
-    // Staggered delay ensures that generated timestamps are unique 
-    // at the millisecond level for IndexedDB key safety.
-    await new Promise(r => setTimeout(r, 350));
-  }
+    for (const e of entries) {
+      const ctx = typeof e === 'string' 
+        ? { entry: e, useAI: true } 
+        : { entry: e.c, actions: e.a, useAI: false };
+      
+      await createEntry(ctx);
+      
+      // Staggered delay ensures that generated timestamps are unique 
+      // at the millisecond level for IndexedDB key safety.
+      await new Promise(r => setTimeout(r, 350));
+    }
+  };
 };
 
 /**
@@ -37,17 +42,14 @@ export const injectTestData = async (isAI: boolean) => {
  * 
  * Useful for verifying graph visualization stability and 
  * multi-path experience propagation logic.
+ * 
+ * NOTE: This must be called from a React component context.
  */
-export const injectTopologyData = async () => {
-  const { getData, setData } = useAppDataStore.getState();
-  const prev = getData();
-  const nextAppData = {
-    ...prev,
-    cdagTopology: COMPLEX_TOPOLOGY_DATA
+export const createInjectTopologyDataHook = () => {
+  return () => {
+    const { setTopology } = useCdagTopologyActions();
+    setTopology(COMPLEX_TOPOLOGY_DATA);
   };
-  
-  // Explicitly sync visualGraph metadata to reflect the new logical topology
-  setData(syncGraphFromTopology(nextAppData));
 };
 
 /**
@@ -55,14 +57,9 @@ export const injectTopologyData = async () => {
  * 
  * Represents a complex personal development and cognitive skill tree.
  */
-export const injectBrainTopologyData = async () => {
-  const { getData, setData } = useAppDataStore.getState();
-  const prev = getData();
-  const nextAppData = {
-    ...prev,
-    cdagTopology: BRAIN_TOPOLOGY_DATA
+export const createInjectBrainTopologyDataHook = () => {
+  return () => {
+    const { setTopology } = useCdagTopologyActions();
+    setTopology(BRAIN_TOPOLOGY_DATA);
   };
-  
-  // Explicitly sync visualGraph metadata to reflect the new logical topology
-  setData(syncGraphFromTopology(nextAppData));
 };

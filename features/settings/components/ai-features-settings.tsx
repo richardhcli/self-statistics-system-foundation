@@ -1,25 +1,20 @@
 import React from 'react';
 import { Sparkles, Gauge, Cpu, ShieldCheck } from 'lucide-react';
-import { AppData } from '@/types';
+import { useAiConfig, useAiConfigActions } from '@/stores/ai-config';
 
-interface AIFeaturesSettingsProps {
-  data: AppData;
-  setData: (fn: (prev: AppData) => AppData) => void;
-}
-
-const AIFeaturesSettings: React.FC<AIFeaturesSettingsProps> = ({ data, setData }) => {
-  const config = data.aiConfig || {
-    model: 'gemini-3-flash-preview',
-    temperature: 0,
-    liveTranscription: true,
-    voiceSensitivity: 0.5
-  };
+const AIFeaturesSettings: React.FC = () => {
+  const config = useAiConfig();
+  const { updateModel, updateTemperature, updateVoiceSettings } = useAiConfigActions();
 
   const updateConfig = (updates: Partial<typeof config>) => {
-    setData(prev => ({
-      ...prev,
-      aiConfig: { ...config, ...updates }
-    }));
+    if (updates.model !== undefined) updateModel(updates.model);
+    if (updates.temperature !== undefined) updateTemperature(updates.temperature);
+    if (updates.liveTranscription !== undefined || updates.voiceSensitivity !== undefined) {
+      updateVoiceSettings(
+        updates.liveTranscription ?? config.liveTranscription,
+        updates.voiceSensitivity ?? config.voiceSensitivity
+      );
+    }
   };
 
   return (

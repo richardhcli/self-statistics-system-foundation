@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, Trophy } from 'lucide-react';
-import { PlayerStatistics } from '@/types';
+import { PlayerStatistics } from '@/stores/player-statistics/types';
 
 interface PlayerStatsViewProps {
   stats: PlayerStatistics;
