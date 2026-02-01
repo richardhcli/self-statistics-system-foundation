@@ -5,7 +5,7 @@ import { EditorSidebar } from './editor-sidebar';
 import { PropertySidebar } from './property-sidebar';
 import { GoogleGenAI, Type } from '@google/genai';
 import { mergeTopology } from '@/lib/soulTopology';
-import { generalizeConcept, processTextToAction } from '@/lib/google-ai';
+import { generalizeConcept, processTextToTopology } from '@/lib/google-ai';
 
 interface DeveloperGraphViewProps {
   data: AppData;
@@ -171,7 +171,7 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
     setIsGenLoading(true);
     try {
       // Step 1: Extract basic 3-layer classification for the concept
-      const analysis = await processTextToAction(concept);
+      const analysis = await processTextToTopology(concept);
       const actionLabels = analysis.weightedActions.map(a => a.label);
       
       // Step 2: Use those layers to generate a deep abstract chain

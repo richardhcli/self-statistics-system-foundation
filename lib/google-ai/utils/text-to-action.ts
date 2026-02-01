@@ -66,9 +66,9 @@ async function estimateTimeAndProportions(ai: any, text: string, actions: string
 }
 
 /**
- * PRIMARY ORCHESTRATOR: processTextToAction
+ * PRIMARY ORCHESTRATOR: processTextToTopology
  */
-export const processTextToAction = async (text: string): Promise<TextToActionResponse> => {
+export const processTextToTopology = async (text: string): Promise<TextToActionResponse> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Step 1: Specific Actions + Proportions

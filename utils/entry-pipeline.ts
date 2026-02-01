@@ -1,5 +1,5 @@
 import { AppData, CdagTopology, JournalEntryData, TextToActionResponse } from '@/types';
-import { processTextToAction, generalizeConcept } from '@/lib/google-ai';
+import { processTextToTopology, generalizeConcept } from '@/lib/google-ai';
 import { mergeTopology, nodeExists } from '@/lib/soulTopology';
 import { applyScaledProgression } from '@/stores/player-statistics';
 
@@ -68,7 +68,7 @@ export const aiEntryAnalyzer = async (
 	currentData: AppData,
 	duration?: string
 ): Promise<AiAnalysisResult> => {
-	const analysis = await processTextToAction(entry);
+	const analysis = await processTextToTopology(entry);
 	const finalDuration = analysis.duration || duration;
 
 	const hasNewCharacteristic = analysis.characteristics.some(
