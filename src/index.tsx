@@ -1,8 +1,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './assets/css/global.css';
-import './assets/css/layout.css';
+import '@/assets/css/global.css';
+import '@/assets/css/layout.css';
 import App from '@/app/app';
 import { AppProvider } from '@/app/provider';
 
