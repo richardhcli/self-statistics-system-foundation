@@ -49,5 +49,6 @@ Low-level access to the application engine. Features batch data injection (AI, M
 - **Visuals**: D3.js with stable hierarchical layouts and rigid snapping.
 - **Persistence**: Local-First IndexedDB.
 - **Connectivity**: PWA-ready with Service Worker and Manifest support.
+- **Brain Logic**: Topology and propagation utilities live in `lib/soulTopology`.
 
 For deep-dives into the implementation, see the `/documentation` directory.

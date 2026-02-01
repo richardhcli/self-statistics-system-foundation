@@ -10,6 +10,8 @@ When a user provides input (voice or text), the system executes a chained classi
 2. **Skill Mapping**: Actions are aggregated into professional or personal "Skills" (e.g., "Frontend Engineering").
 3. **Attribute Characterization**: Skills are mapped to core RPG-style attributes (Vitality, Intellect, Wisdom, Social, Discipline, Creativity, Leadership).
 
+Implementation Note: The orchestration and topology updates live in `lib/soulTopology`.
+
 ### Deep Abstraction & Generalization
 If the classification pipeline detects a **new Characteristic** that doesn't yet exist in your `cdagTopology`, it triggers the **Generalization Engine**:
 - **Vertical Hierarchy**: It generates a chain of up to 10 increasingly abstract concepts.

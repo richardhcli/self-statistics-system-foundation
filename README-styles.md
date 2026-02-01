@@ -11,11 +11,12 @@ This project strictly adheres to the [Bulletproof React](https://github.com/alan
   - `[feature]/types/`: Domain-specific TypeScript definitions.
   - `[feature]/utils/`: Domain-specific helper functions.
   - `index.ts`: The public barrel file for the module.
-- `stores/`: Global business logic that spans multiple features (e.g., Topology, UserData, PlayerStatistics).
+- `stores/`: Global business logic that spans multiple features (e.g., Topology, UserData, PlayerStatistics). Store logic is minimized to declarations and API wrappers.
 - `lib/`: Standardized third-party abstractions and core infrastructure.
   - `api-client.ts`: Unified fetch wrapper for REST operations.
   - `google-ai/`: Gemini SDK integration and classification prompts.
   - `db.ts`: IndexedDB persistence logic.
+  - `soulTopology/`: Brain structure utilities (topology merge, propagation, AI generalization).
 - `hooks/`: Global cross-cutting concerns (e.g., `use-persistence.ts`, `use-app-data.ts`).
 - `components/layout/`: Shared structural components like `header.tsx` and `main-layout.tsx`.
 

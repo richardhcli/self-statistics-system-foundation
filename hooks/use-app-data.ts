@@ -4,7 +4,7 @@ import { AppData, CdagNodeData } from '@/types';
 import { saveData } from '@/lib/db';
 import { usePersistence } from '@/hooks/use-persistence';
 import { useSyncGraphFromTopology } from '@/hooks/sync-graph-from-topology';
-import * as topologyManager from '@/stores/cdag-topology';
+import * as topologyManager from '@/lib/soulTopology';
 import { INITIAL_APP_DATA } from '@/stores/user-data/constants';
 
 /**

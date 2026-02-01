@@ -6,10 +6,11 @@ The `stores/` directory contains global business logic and state structures that
 ## 🏗 Store Hierarchy
 
 ### 1. `cdag-topology`
-- **Responsibility**: Logic for building and modifying the Brain's structure.
+- **Responsibility**: Store declaration and API wrappers for the topology state.
 - **Key Files**: 
-  - `utils/merge-topology.ts`: Handles merging AI-generated fragments.
-  - `utils/back-parent-propagation.ts`: The algorithm for calculating how EXP flows up the tree.
+  - `types.ts`: Topology node and graph types.
+  - `api/`: Sync endpoints for topology snapshots.
+- **Brain Logic Location**: `lib/soulTopology` now owns merging, propagation, and AI-driven hierarchy utilities.
 
 ### 2. `player-statistics`
 - **Responsibility**: Core leveling and progression mechanics.
@@ -24,6 +25,6 @@ The `stores/` directory contains global business logic and state structures that
 
 ## 🔄 Data Flow
 When an update occurs:
-1. Specific logic is executed in `cdag-topology` or `player-statistics`.
+1. Brain structure logic runs in `lib/soulTopology` alongside `player-statistics` progression.
 2. The results are aggregated into the `AppData` object managed by `user-data`.
 3. The `use-persistence` hook detects the change in `AppData` and commits the entire block to IndexedDB or triggers a remote Sync.

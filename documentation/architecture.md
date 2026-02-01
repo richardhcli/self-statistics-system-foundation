@@ -28,10 +28,11 @@ Core infrastructure abstractions.
 - `db.ts`: IndexedDB configuration and CRUD wrappers.
 - `google-ai/`: Comprehensive Gemini SDK integration and prompt templates.
 - `api-client.ts`: Standardized fetch wrapper for future REST operations.
+- `soulTopology/`: Brain structure utilities (topology merge, propagation, AI generalization).
 
 ### `/stores`
 Global business logic that spans multiple features.
-- **`cdag-topology/`**: The logical hierarchy manager.
+- **`cdag-topology/`**: Store declaration and API wrappers for the topology state.
 - **`player-statistics/`**: The core progression engine (EXP propagation).
 - **`user-data/`**: The **Centralized Synchronization Hub** that unifies all state into `AppData`.
 

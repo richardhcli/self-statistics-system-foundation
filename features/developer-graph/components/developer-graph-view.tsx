@@ -4,7 +4,7 @@ import DAGCanvas from './dag-canvas';
 import { EditorSidebar } from './editor-sidebar';
 import { PropertySidebar } from './property-sidebar';
 import { GoogleGenAI, Type } from '@google/genai';
-import { mergeTopology, nodeExists } from '@/stores/cdag-topology';
+import { mergeTopology } from '@/lib/soulTopology';
 import { generalizeConcept, processTextToAction } from '@/lib/google-ai';
 
 interface DeveloperGraphViewProps {

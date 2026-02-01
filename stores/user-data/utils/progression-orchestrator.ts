@@ -1,6 +1,6 @@
 
 import { AppData } from '@/types';
-import { calculateParentPropagation } from '@/stores/cdag-topology';
+import { calculateParentPropagation } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from './scaled-logic';
 import { updatePlayerStatsState } from './exp-state-manager';
 
