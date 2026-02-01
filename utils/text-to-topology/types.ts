@@ -12,6 +12,7 @@ export interface EntryOrchestratorContext {
 	actions?: string[];
 	useAI?: boolean;
 	duration?: string;
+	dateInfo?: any;
 }
 
 export type EntryPipelineResult = {

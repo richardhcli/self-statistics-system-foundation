@@ -1,5 +1,4 @@
-import { CdagTopology, TextToActionResponse } from '@/types';
-import { GeneralizationLink } from './types';
+import { CdagTopology, TextToActionResponse, GeneralizationLink } from '@/types';
 
 /**
  * buildIncomingTopologyFromAnalysis

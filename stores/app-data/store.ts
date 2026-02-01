@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AppData } from '@/types';
-import { INITIAL_APP_DATA } from '../user-data/constants';
+import { INITIAL_APP_DATA } from './constants';
 
 interface AppDataStore {
   // State

@@ -1,6 +1,6 @@
 
 import { apiClient } from '@/lib/api-client';
-import { AppData } from '../types';
+import { AppData } from '../../user-data/types';
 
 /**
  * MODULE: Centralized AppData Sync

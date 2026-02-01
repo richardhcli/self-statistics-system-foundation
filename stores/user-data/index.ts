@@ -1,9 +1,9 @@
-
-export * from './types';
-export * from './api/user-information';
-export * from './api/sync';
-export * from './utils/data-portability';
-export * from './utils/progression-orchestrator';
-export * from './utils/scaled-logic';
-export * from './utils/exp-state-manager';
-export * from './utils/get-current-data';
+/**
+ * @deprecated Use stores/app-data instead. This is a compatibility barrel.
+ */
+export * from '../app-data';
+export * from '../app-data/api/user-information';
+export * from '../app-data/api/sync';
+export * from '../../utils/player-data-update/progression-orchestrator';
+export * from '../../utils/player-data-update/scaled-logic';
+export * from '../../utils/player-data-update/exp-state-manager';

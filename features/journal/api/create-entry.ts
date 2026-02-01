@@ -2,6 +2,7 @@ import { useAppDataStore } from '@/stores/app-data';
 import { entryOrchestrator } from '@/utils/text-to-topology/entry-pipeline';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
+import { JournalEntryData } from '@/types';
 
 /**
  * createJournalEntry
@@ -22,9 +23,20 @@ export const createJournalEntry = async (
   const { entry, actions = [], useAI = false, dateInfo, duration } = context;
   const date = getNormalizedDate(dateInfo);
 
-  const { setData } = useAppDataStore.getState();
+  const { setData, data } = useAppDataStore.getState();
 
-  const result = await entryOrchestrator({ entry, actions, useAI, duration });
+  const loadingEntry: JournalEntryData = {
+    content: 'loading',
+    duration: 'loading',
+    actions: ['loading'],
+    metadata: {
+      totalExp: 0,
+      levelsGained: 0,
+      nodeIncreases: {}
+    }
+  };
 
-  setData(updateJournalHTML(result.data, date, result.entryData));
+  setData(updateJournalHTML(data, date, loadingEntry));
+
+  await entryOrchestrator({ entry, actions, useAI, duration, dateInfo });
 };

@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Download, Upload, AlertTriangle, FileJson, Loader2, CheckCircle2 } from 'lucide-react';
 import { AppData } from '@/types';
-import { exportAppState, parseAndValidateBackup } from '@/stores/user-data';
+import { exportAppState, parseAndValidateBackup } from '@/stores/app-data';
 
 interface DataPortabilityProps {
   data: AppData;

@@ -1,6 +1,6 @@
 import { generalizeConcept, processTextToLocalTopologySinglePrompt } from '@/lib/google-ai';
 import { nodeExists } from '@/lib/soulTopology';
-import { getCurrentData } from '@/stores/user-data';
+import { getCurrentData } from '@/stores/app-data';
 import { buildIncomingTopologyFromAnalysis } from './build-incoming-topology-from-analysis';
 import { CdagTopology, GeneralizationLink } from '@/types';
 

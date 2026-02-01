@@ -4,7 +4,7 @@ import { injectTestData, injectTopologyData, injectBrainTopologyData } from '../
 import { clearAllTables } from '@/lib/db';
 import { useAppDataStore } from '@/stores/app-data';
 import { WipeConfirmationModal } from './wipe-confirmation-modal';
-import { INITIAL_APP_DATA } from '@/stores/user-data/constants';
+import { INITIAL_APP_DATA } from '@/stores/app-data';
 
 const DataInjectionPanel: React.FC = () => {
   const [loading, setLoading] = useState<'ai' | 'manual' | 'clear' | 'topology' | 'brain' | null>(null);

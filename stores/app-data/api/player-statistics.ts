@@ -1,6 +1,6 @@
 
 import { apiClient } from '@/lib/api-client';
-import { PlayerStatistics } from '../types';
+import { PlayerStatistics } from '../../user-data/types';
 
 export const getStats = (baseUrl: string): Promise<PlayerStatistics> => {
   return apiClient(`${baseUrl}/player-statistics`);

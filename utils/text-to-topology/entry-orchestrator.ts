@@ -3,7 +3,10 @@ import { buildIncomingTopologyFromActions } from './build-incoming-topology-from
 import { dataUpdater } from './data-updater';
 import { EntryOrchestratorContext, EntryPipelineResult } from './types';
 import { mergeTopology } from '@/lib/soulTopology';
-import { getCurrentData } from '@/stores/user-data';
+import { getCurrentData } from '@/stores/app-data';
+import { useAppDataStore } from '@/stores/app-data';
+import { getNormalizedDate } from '@/features/journal/utils/time-utils';
+import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
 
 /**
  * entryOrchestrator
@@ -16,10 +19,9 @@ import { getCurrentData } from '@/stores/user-data';
 export const entryOrchestrator = async (
 	context: EntryOrchestratorContext
 ): Promise<EntryPipelineResult> => {
-	const { useAI = false, entry, duration, actions = [] } = context;
+	const { useAI = false, entry, duration, actions = [], dateInfo } = context;
 	const currentData = getCurrentData();
 
-	// Determine topology fragment and duration based on AI flag
 	let cdagTopologyFragment;
 	let estimatedDuration = duration;
 
@@ -31,9 +33,13 @@ export const entryOrchestrator = async (
 		cdagTopologyFragment = buildIncomingTopologyFromActions(actions, currentData.cdagTopology);
 	}
 
-	// Merge topology into current data
 	const mergedData = mergeTopology(currentData, cdagTopologyFragment);
 
-	// Apply data updates (stats, entry metadata, etc.)
-	return dataUpdater(mergedData, { ...context, duration: estimatedDuration }, useAI);
+	const result = dataUpdater(mergedData, { ...context, duration: estimatedDuration }, useAI);
+
+	const { setData } = useAppDataStore.getState();
+	const date = getNormalizedDate(dateInfo);
+	setData(updateJournalHTML(result.data, date, result.entryData));
+
+	return result;
 };

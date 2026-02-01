@@ -1,5 +1,5 @@
 
-import { PlayerStatistics, NodeStats } from '../types';
+import { PlayerStatistics, NodeStats } from '../../stores/user-data/types';
 
 const LVL_THRESHOLD = 10;
 
