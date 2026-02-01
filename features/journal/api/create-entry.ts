@@ -1,5 +1,5 @@
-import { AppData, TextToActionResponse } from '@/types';
-import { entryOrchestrator } from '@/utils/entry-pipeline';
+import { useAppDataStore } from '@/stores/app-data';
+import { entryOrchestrator } from '@/utils/text-to-topology/entry-pipeline';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils';
 
@@ -7,6 +7,8 @@ import { updateJournalHTML } from '@/features/journal/utils/journal-entry-utils'
  * createJournalEntry
  * Full lifecycle of a journal entry: AI analysis, topology merging, 
  * EXP propagation, and data persistence.
+ * 
+ * Retrieves current state and persists updates via global Zustand store.
  */
 export const createJournalEntry = async (
   context: { 
@@ -16,21 +18,13 @@ export const createJournalEntry = async (
     dateInfo?: any;
     duration?: string;
   },
-  setData: (fn: (prev: AppData) => AppData) => void,
-  currentAppData: AppData // Pass current state for characteristic existence check
-): Promise<TextToActionResponse | null> => {
+): Promise<void> => {
   const { entry, actions = [], useAI = false, dateInfo, duration } = context;
   const date = getNormalizedDate(dateInfo);
 
-  const processor = await entryOrchestrator(
-    { entry, actions, useAI, duration },
-    currentAppData
-  );
+  const { setData } = useAppDataStore.getState();
 
-  setData(prev => {
-    const { data: nextData, entryData } = processor.applyDataUpdates(prev);
-    return updateJournalHTML(nextData, date, entryData);
-  });
+  const result = await entryOrchestrator({ entry, actions, useAI, duration });
 
-  return processor.analysis;
+  setData(updateJournalHTML(result.data, date, result.entryData));
 };

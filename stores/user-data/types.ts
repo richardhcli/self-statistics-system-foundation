@@ -22,6 +22,7 @@ export interface AIConfig {
   temperature: number;
   liveTranscription: boolean;
   voiceSensitivity: number;
+  apiKey?: string;
 }
 
 /**

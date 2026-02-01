@@ -116,19 +116,16 @@ const App: React.FC = () => {
     setIsProcessing(true);
     try {
       const journalInfo = await processVoiceToText(audioBase64);
-      const analysis = await createJournalEntry({ 
+      await createJournalEntry({ 
         entry: journalInfo.content, 
         useAI: true, 
         dateInfo: journalInfo 
-      }, setData, data);
+      });
 
-      if (analysis) {
-        await triggerIntegration('JOURNAL_AI_PROCESSED', {
-          originalText: journalInfo.content,
-          analysis,
-          timestamp: journalInfo.time
-        });
-      }
+      await triggerIntegration('JOURNAL_AI_PROCESSED', {
+        originalText: journalInfo.content,
+        timestamp: journalInfo.time
+      });
       
       setView('journal');
     } finally { 
@@ -143,19 +140,16 @@ const App: React.FC = () => {
     }
     setIsProcessing(true);
     try { 
-      const analysis = await createJournalEntry({ 
+      await createJournalEntry({ 
         entry: content, 
         useAI: true, 
         dateInfo: { year: y, month: m, day: d } 
-      }, setData, data); 
+      });
 
-      if (analysis) {
-        await triggerIntegration('JOURNAL_AI_PROCESSED', {
-          originalText: content,
-          analysis,
-          source: 'manual_quick'
-        });
-      }
+      await triggerIntegration('JOURNAL_AI_PROCESSED', {
+        originalText: content,
+        source: 'manual_quick'
+      });
     }
     finally { 
       setIsProcessing(false); 
@@ -171,18 +165,17 @@ const App: React.FC = () => {
   }) => {
     setIsProcessing(true);
     try {
-      const analysis = await createJournalEntry({
+      await createJournalEntry({
         entry: payload.content,
         actions: payload.actions,
         useAI: payload.useAI,
         duration: payload.duration,
         dateInfo: payload.time ? { time: payload.time } : undefined
-      }, setData, data);
+      });
 
-      if (payload.useAI && analysis) {
+      if (payload.useAI) {
         await triggerIntegration('JOURNAL_AI_PROCESSED', {
           originalText: payload.content,
-          analysis,
           source: 'manual_detailed'
         });
       }
@@ -199,20 +192,17 @@ const App: React.FC = () => {
 
     setIsProcessing(true);
     try {
-      const analysis = await createJournalEntry({
+      await createJournalEntry({
         entry: entry.content,
         useAI: true,
         dateInfo: { year, month, day, time },
         duration: entry.duration
-      }, setData, data);
+      });
 
-      if (analysis) {
-        await triggerIntegration('JOURNAL_AI_PROCESSED', {
-          originalText: entry.content,
-          analysis,
-          source: 'retroactive_parse'
-        });
-      }
+      await triggerIntegration('JOURNAL_AI_PROCESSED', {
+        originalText: entry.content,
+        source: 'retroactive_parse'
+      });
     } finally {
       setIsProcessing(false);
     }

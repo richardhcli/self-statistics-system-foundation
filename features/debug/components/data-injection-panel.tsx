@@ -1,30 +1,25 @@
 import React, { useState } from 'react';
 import { Database, Sparkles, UserCheck, Loader2, Trash2, Network, Brain } from 'lucide-react';
-import { AppData } from '@/types';
 import { injectTestData, injectTopologyData, injectBrainTopologyData } from '../api/test-injections';
 import { clearAllTables } from '@/lib/db';
+import { useAppDataStore } from '@/stores/app-data';
 import { WipeConfirmationModal } from './wipe-confirmation-modal';
 import { INITIAL_APP_DATA } from '@/stores/user-data/constants';
 
-interface DataInjectionPanelProps {
-  data: AppData;
-  setData: (fn: (prev: AppData) => AppData) => void;
-}
-
-const DataInjectionPanel: React.FC<DataInjectionPanelProps> = ({ data, setData }) => {
+const DataInjectionPanel: React.FC = () => {
   const [loading, setLoading] = useState<'ai' | 'manual' | 'clear' | 'topology' | 'brain' | null>(null);
   const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
+  const { setData } = useAppDataStore();
   
   const handleInject = async (isAI: boolean) => { 
     setLoading(isAI ? 'ai' : 'manual'); 
-    // Pass current data to injectTestData as required by its updated signature
-    try { await injectTestData(data, setData, isAI); } finally { setLoading(null); } 
+    try { await injectTestData(isAI); } finally { setLoading(null); } 
   };
   
   const handleTopologyInject = async () => {
     setLoading('topology');
     try { 
-      await injectTopologyData(setData); 
+      await injectTopologyData(); 
       alert("Complex Neural Topology Injected.");
     } finally { setLoading(null); }
   };
@@ -32,7 +27,7 @@ const DataInjectionPanel: React.FC<DataInjectionPanelProps> = ({ data, setData }
   const handleBrainInject = async () => {
     setLoading('brain');
     try { 
-      await injectBrainTopologyData(setData); 
+      await injectBrainTopologyData(); 
       alert("Brain Topology Injected.");
     } finally { setLoading(null); }
   };
@@ -41,7 +36,7 @@ const DataInjectionPanel: React.FC<DataInjectionPanelProps> = ({ data, setData }
     setLoading('clear'); 
     try { 
       await clearAllTables(); 
-      setData(() => ({ ...INITIAL_APP_DATA })); 
+      setData({ ...INITIAL_APP_DATA }); 
       setIsWipeModalOpen(false);
     } finally { setLoading(null); } 
   };

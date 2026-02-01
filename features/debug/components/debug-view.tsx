@@ -33,7 +33,7 @@ const DebugView: React.FC<DebugViewProps> = ({
       <div className="grid grid-cols-1 gap-6">
         <SystemLog data={data} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <DataInjectionPanel data={data} setData={setData} />
+            <DataInjectionPanel />
           <DirectInput nodes={data.visualGraph.nodes} recordExperience={recordExperience} />
         </div>
         <PlayerStatsView stats={data.playerStatistics} />

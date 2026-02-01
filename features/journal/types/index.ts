@@ -15,6 +15,12 @@ export interface WeightedAction {
   weight: number;
 }
 
+export interface GeneralizationLink {
+  child: string;
+  parent: string;
+  weight: number;
+}
+
 /**
  * AI Response structure for the refined action pipeline.
  * Represents the 3-layer semantic decomposition of human effort.
@@ -28,6 +34,8 @@ export interface TextToActionResponse {
   skills: string[];
   /** The highest level: abstract human traits or qualities (e.g., "Intellect") */
   characteristics: string[];
+  /** Optional abstraction chain from characteristics to higher-level concepts */
+  generalizationChain?: GeneralizationLink[];
 }
 
 export interface JournalEntryData {
