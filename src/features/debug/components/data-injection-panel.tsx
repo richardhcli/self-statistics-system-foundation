@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Database, Sparkles, UserCheck, Loader2, Trash2, Network, Brain } from 'lucide-react';
 import { createInjectTestDataHook, createInjectTopologyDataHook, createInjectBrainTopologyDataHook } from '../api/test-injections';
-import { clearAllTables } from '@/lib/db';
+import { deleteDatabase } from '@/lib/db';
 import { deserializeRootState, INITIAL_ROOT_STATE } from '@/stores/root';
 import { WipeConfirmationModal } from './wipe-confirmation-modal';
 
@@ -36,7 +36,7 @@ const DataInjectionPanel: React.FC = () => {
   const handleClear = async () => { 
     setLoading('clear'); 
     try { 
-      await clearAllTables(); 
+      await deleteDatabase(); 
       deserializeRootState({ ...INITIAL_ROOT_STATE }); 
       setIsWipeModalOpen(false);
     } finally { setLoading(null); } 

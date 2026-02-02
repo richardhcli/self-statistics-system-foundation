@@ -67,3 +67,18 @@ export const clearAllTables = async (): Promise<void> => {
     tx.onerror = () => reject(tx.error);
   });
 };
+
+/**
+ * deleteDatabase
+ * Completely deletes the IndexedDB database for a full reset.
+ */
+export const deleteDatabase = async (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => {
+      console.warn('Database deletion blocked. Close all tabs using this database.');
+    };
+  });
+};
