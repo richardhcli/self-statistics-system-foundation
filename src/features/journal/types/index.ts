@@ -9,7 +9,8 @@
  * not the system's generation method.
  * 
  * @module features/journal/types
- * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns
+ * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns when reading from global store
+ * @see {@link /documentation/state-management/LOCAL_STATE.md} for state patterns when using local component state (this file)
  */
 
 // ============================================================
