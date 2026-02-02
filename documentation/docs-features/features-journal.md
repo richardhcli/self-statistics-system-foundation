@@ -136,32 +136,37 @@ interface JournalFeatureProps {
 Displays journal entries in chronological hierarchy (year > month > day > time).
 
 **Features**:
-- Recursive dropdown navigation
-- Inline quick entry forms
-- Loading states during processing
-- Uses local UI store for dropdown states
+- Recursive dropdown navigation with expand/collapse states
+- Inline quick entry forms (TextOnlyManualEntryForm) at day level
+- Plus button to add entries to specific days
+- Loading states during initialization
+- Uses local React useState for dropdown states (not global store)
+- Chronological sorting at all levels (earliest first)
 
 ## Functional Components
 
-### VoiceRecorder
-Captures audio with real-time level visualization. Transcribes via Gemini.
+#### VoiceRecorder
+Captures audio with real-time level visualization. Transcribes via Gemini API.
 
 **Features**:
-- Microphone capture with visualization
-- Waveform display using Canvas
-- Base64 audio encoding
-- Async processing with loading states
+- Microphone capture with permission handling
+- Real-time audio level visualization using Canvas
+- WebM audio encoding to Base64
+- Async transcription with loading states
+- Error handling for microphone access
+- Voice entries always use AI analysis
 
 ### ManualEntryForm
-Simplified text logging with optional time taken. AI classification is always enabled.
+Simplified text logging with optional duration override. AI classification is always enabled.
 
 **Features**:
-- Rich text entry
-- Optional time taken input
+- Rich text entry field
+- Optional duration input (overrides automatic timing)
 - AI analysis always on (no manual action tags)
+- Submit button with loading states
 
-### TextOnlyManualEntryForm
-Inline text-only entry form used when adding entries inside a day view. This path does not use AI.
+#### TextOnlyManualEntryForm
+Inline text-only entry form used when adding entries inside a day view. This path does NOT use AI.
 
 **Features**:
 - Minimal inline textarea
@@ -241,45 +246,59 @@ If you log an activity that falls under a new category, the AI automatically gen
 
 ## API Layer
 
-### Key Functions
+### Key Hooks & Functions
 
-#### createJournalEntry
+#### useCreateJournalEntry
 ```typescript
-export const createJournalEntry = async (
-  context: { 
-    entry: string; 
-    actions?: string[]; 
-    useAI?: boolean; 
-    dateInfo?: any;
-    duration?: string;
-  },
-): Promise<void>
+const createJournalEntry = useCreateJournalEntry();
+
+await createJournalEntry({
+  entry: string;       // Content text
+  actions?: string[];  // Manual action tags (if useAI=false)
+  useAI?: boolean;     // Enable AI analysis (default: false)
+  dateInfo?: any;      // Optional date override
+  duration?: string;   // Optional duration override
+});
 ```
 
-Creates a journal entry with immediate UI feedback followed by async processing.
+React hook that provides a function to create journal entries with immediate UI feedback followed by async processing.
 
-#### upsertJournalEntry
+**Flow**:
+1. Creates loading placeholder immediately at normalized timestamp
+2. Processes entry via `entryOrchestrator`
+3. Updates entry with final data (actions, results, metadata)
+
+#### useJournalActions
 ```typescript
-export const upsertJournalEntry = (
-  date: { year: string; month: string | number; day: string; time: string },
-  entryData: JournalEntryData
-): void
+const { upsertEntry } = useJournalActions();
+
+upsertEntry(dateKey: string, entryData: JournalEntryData);
 ```
 
-Updates or inserts a journal entry at the specified date. Automatically recalculates XP totals.
+Provides Zustand store actions for direct journal manipulation.
+- `dateKey` format: `"YYYY/Month/DD/HH:mm:ss.SSS"`
+- Automatically recalculates XP totals at all hierarchy levels
 
-#### entryOrchestrator
+#### useEntryOrchestrator
 ```typescript
-export const entryOrchestrator = async (
-  context: EntryOrchestratorContext
-): Promise<EntryPipelineResult>
+const { applyEntryUpdates } = useEntryOrchestrator();
+
+const result = await applyEntryUpdates({
+  entry: string;
+  actions?: string[];
+  useAI?: boolean;
+  dateInfo?: DateInfo;
+  duration?: string;
+});
 ```
 
 Orchestrates the full entry processing pipeline:
-1. AI analysis (if enabled)
-2. Topology merging
-3. XP calculation
-4. Store updates
+1. AI analysis (if `useAI=true`)
+2. Topology fragment merging into graph store
+3. XP calculation and propagation
+4. Duration scaling
+5. Player statistics update
+6. Returns `EntryPipelineResult` with actions and performance data
 
 ## Usage
 
@@ -301,11 +320,14 @@ function App() {
 ### Accessing Journal Data
 
 ```typescript
-import { useJournalStore } from '@/features/journal/hooks/use-journal-store';
+import { useJournalStore } from '@/stores/journal';
 
 function MyComponent() {
-  const { journal, setJournal } = useJournalStore();
+  const journal = useJournalStore((state) => state.journal);
   const entry = journal[year]?.[month]?.[day]?.[time];
+  
+  // Or use actions
+  const { upsertEntry } = useJournalActions();
 }
 ```
 
@@ -345,21 +367,23 @@ onIntegrationEvent?: (eventName: string, payload: any) => Promise<void>
 ```
 features/journal/
 ├── components/
-│   ├── journal-feature.tsx          # Main orchestrator
-│   ├── journal-view.tsx             # Display entries
-│   ├── voice-recorder.tsx           # Voice input
-│   ├── manual-entry-form.tsx        # Text input
-│   └── journal-entry-item/          # Entry display
+│   ├── journal-feature.tsx              # Main orchestrator
+│   ├── journal-view.tsx                 # Display entries
+│   ├── voice-recorder.tsx               # Voice input
+│   ├── manual-entry-form.tsx            # Detailed text input (AI)
+│   ├── textonly-manual-entry-form.tsx   # Inline quick entry (no AI)
+│   └── journal-entry-item/
+│       ├── index.tsx                    # Re-export
+│       ├── journal-entry-item.tsx       # Entry display component
+│       └── entry-results.tsx            # Results breakdown UI
 ├── api/
-│   ├── create-entry.ts              # Create entries
-│   ├── get-journal.ts               # Fetch journal
-│   └── update-journal.ts            # Update journal
-├── hooks/
-│   └── use-journal-store.ts         # Global journal store hook
+│   └── create-entry.ts                  # Entry creation hook
+├── types/
+│   └── index.ts                         # TypeScript interfaces
 ├── utils/
-│   ├── journal-entry-utils.ts       # Entry utilities
-│   └── time-utils.ts                # Date/time helpers
-└── index.ts                         # Feature exports
+│   ├── journal-entry-utils.ts           # Entry utilities (minutesToText, etc)
+│   └── time-utils.ts                    # Date/time helpers
+└── index.ts                             # Feature exports
 ```
 
 ## Performance
