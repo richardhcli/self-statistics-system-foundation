@@ -1,13 +1,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { VisualGraph } from '@/types';
+import { useVisualGraph } from '../store';
 import { useDagLayout } from '../hooks/use-dag-layout';
 import { useGraphRenderer } from '../hooks/use-graph-renderer';
 import { GraphLegend } from './graph-legend';
-
-interface GraphViewProps {
-  data: VisualGraph;
-}
 
 /**
  * Component: GraphView
@@ -16,13 +12,16 @@ interface GraphViewProps {
  * Combines stable layered layout logic with strict D3 snapping interaction.
  * Supports multi-node selection via Set-based state.
  */
-const GraphView: React.FC<GraphViewProps> = ({ data }) => {
+const GraphView: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 700 });
   
   // Track multiple selected node IDs using a Set for O(1) lookups
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+
+  // Get visual graph data from local store
+  const { graph: data } = useVisualGraph();
 
   useEffect(() => {
     const updateDimensions = () => {

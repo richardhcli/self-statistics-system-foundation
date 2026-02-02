@@ -28,7 +28,8 @@ export const useDagLayout = (data: VisualGraph, width: number, height: number) =
   const VERTICAL_GAP = 120;
 
   const layoutData = useMemo(() => {
-    if (data.nodes.length === 0 || !width || !height) {
+    // Defensive check for undefined data or empty arrays
+    if (!data || !data.nodes || data.nodes.length === 0 || !width || !height) {
       return { nodes: [], edges: [], VERTICAL_SPACING: VERTICAL_GAP, HORIZONTAL_SPACING: HORIZONTAL_GAP };
     }
 
