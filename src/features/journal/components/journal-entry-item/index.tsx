@@ -6,9 +6,8 @@ import { EntryResults } from './entry-results';
 
 const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProcessing, onParseEntry }) => {
   const [showResults, setShowResults] = useState(false);
-  const isParsed = !!entry.weightedActions && entry.weightedActions.length > 0;
-  const hasActions = isParsed || (entry.actions && entry.actions.length > 0);
-  const hasResults = !!entry.metadata?.nodeIncreases;
+  const isParsed = entry.metadata.flags.aiAnalyzed && Object.keys(entry.actions).length > 0;
+  const hasResults = !!entry.result?.nodeIncreases;
   
   // Format the time string to HH:mm:ss
   const displayTime = time.split('.')[0];
@@ -24,11 +23,11 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
           </div>
 
           <div className="flex flex-col items-center gap-1">
-            {entry.duration ? (
+            {entry.metadata.duration ? (
               <>
                 <Hourglass className="w-3.5 h-3.5 text-indigo-400" />
                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter text-center leading-tight">
-                  {entry.duration}
+                  {entry.metadata.duration}
                 </span>
               </>
             ) : (
@@ -37,11 +36,11 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
           </div>
 
           <div className="flex flex-col items-center gap-1">
-            {entry.metadata ? (
+            {entry.result ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                 <span className="text-[10px] font-black text-slate-600">
-                  +{entry.metadata.totalExp.toFixed(1)}
+                  +{entry.result.totalExpIncrease.toFixed(1)}
                 </span>
               </>
             ) : (
@@ -58,19 +57,15 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
 
           <div className="mt-auto pt-2 border-t border-slate-50 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              {hasActions ? (
+              {isParsed ? (
                 <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
-                  {entry.weightedActions?.map((wa, idx) => (
-                    <span key={`wa-${idx}`} className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase border border-indigo-100/50">
+                  {Object.entries(entry.actions).map(([action, weight], idx) => (
+                    <span key={`action-${idx}`} className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase border border-indigo-100/50">
                       <Tag className="w-2.5 h-2.5" />
-                      {wa.label}
-                      <span className="ml-1 opacity-40 font-mono text-[8px]">({(wa.weight * 100).toFixed(0)}%)</span>
-                    </span>
-                  ))}
-                  
-                  {entry.actions?.map((act, idx) => (
-                    <span key={`manual-${idx}`} className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-black uppercase border border-slate-200/50">
-                      <Tag className="w-2.5 h-2.5" />{act}
+                      {action}
+                      {entry.metadata.flags.aiAnalyzed && (
+                        <span className="ml-1 opacity-40 font-mono text-[8px]">({((weight as number) * 100).toFixed(0)}%)</span>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -104,8 +99,8 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
             </div>
 
             {/* Results Dropdown */}
-            {showResults && entry.metadata?.nodeIncreases && (
-              <EntryResults nodeIncreases={entry.metadata.nodeIncreases} />
+            {showResults && entry.result?.nodeIncreases && (
+              <EntryResults nodeIncreases={entry.result.nodeIncreases} />
             )}
           </div>
         </div>

@@ -22,7 +22,7 @@ const updateJournalHTMLLocal = (
   if (!newJournal[year][normMonth][day]) newJournal[year][normMonth][day] = { metadata: { totalExp: 0 } };
   
   const existingEntry = newJournal[year][normMonth][day][time] || {};
-  const expDiff = (entryData.metadata?.totalExp || 0) - (existingEntry.metadata?.totalExp || 0);
+  const expDiff = (entryData.result?.totalExpIncrease || 0) - (existingEntry.result?.totalExpIncrease || 0);
 
   newJournal[year][normMonth][day][time] = { ...existingEntry, ...entryData };
 

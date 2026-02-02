@@ -37,12 +37,11 @@ export const useCreateJournalEntry = () => {
 
       const loadingEntry: JournalEntryData = {
         content: entry,
-        duration: 'loading',
-        actions: ['loading'],
+        actions: { 'loading': 1 },
         metadata: {
-          totalExp: 0,
-          levelsGained: 0,
-          nodeIncreases: {}
+          flags: { aiAnalyzed: useAI },
+          timePosted: new Date().toISOString(),
+          duration: 'loading'
         }
       };
 

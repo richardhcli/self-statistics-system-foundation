@@ -4,6 +4,7 @@ import { useJournalActions } from '@/stores/journal';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { useJournal } from '@/stores/journal';
 import { processVoiceToText } from '@/lib/google-ai';
+import { JournalEntryData, JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder';
@@ -22,7 +23,6 @@ import VoiceRecorder from './voice-recorder';
  * - Handles all journal-related business logic internally
  * - Provides integration points for webhooks/external systems via callbacks
  */
-import { JournalFeatureProps } from '../types';
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
   const journal = useJournal();
@@ -68,7 +68,15 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
       // Empty entry - just create placeholder for UI
       const dateObj = getNormalizedDate({ year: y, month: m, day: d });
       const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
-      journalActions.upsertEntry(dateKey, { content } as any);
+      const placeholderEntry: JournalEntryData = {
+        content,
+        actions: {},
+        metadata: {
+          flags: { aiAnalyzed: false },
+          timePosted: new Date().toISOString()
+        }
+      };
+      journalActions.upsertEntry(dateKey, placeholderEntry);
       return;
     }
 
@@ -139,7 +147,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
         entry: entry.content,
         useAI: true,
         dateInfo: { year, month, day, time },
-        duration: entry.duration
+        duration: entry.metadata.duration
       });
 
       if (onIntegrationEvent) {

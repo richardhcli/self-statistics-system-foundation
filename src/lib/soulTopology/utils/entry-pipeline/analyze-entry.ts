@@ -156,11 +156,18 @@ export const analyzeEntry = async (
 	
 	const topologyFragment = transformAnalysisToTopology(analysis, generalizationChain);
 	
+	// Extract action weights from AI analysis
+	const actionWeights: Record<string, number> = {};
+	analysis.weightedActions.forEach(wa => {
+		actionWeights[wa.label] = wa.weight;
+	});
+	
 	console.log('✅ [Complete] Topology fragment created:', {
 		nodeCount: Object.keys(topologyFragment.nodes).length,
 		edgeCount: Object.keys(topologyFragment.edges).length,
-		estimatedDuration
+		estimatedDuration,
+		actionCount: Object.keys(actionWeights).length
 	});
 
-	return { topologyFragment, estimatedDuration };
+	return { topologyFragment, estimatedDuration, actionWeights };
 };

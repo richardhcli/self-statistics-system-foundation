@@ -1,6 +1,80 @@
 # Feature: Journal
 
-The Journal is the primary data ingestion point, transforming raw input into structured neural data. As of the latest refactor, the journal feature is a fully self-contained, modular React feature following modern architectural patterns.
+**Last updated**: 2026-02-02 - Schema refactor to user-centric model
+
+The Journal is the primary data ingestion point, transforming raw input into structured neural data. As of the latest refactor, the journal feature uses a user-centric schema that reflects what the user sees rather than how the system generates it.
+
+## Journal Entry Schema
+
+### Current Structure (v2 - User-Centric)
+
+```typescript
+interface JournalEntryData {
+  content: string;                     // Raw text content
+  actions: Record<string, number>;     // Action → weight mapping
+  result?: {                           // Performance metrics (post-processing)
+    levelsGained: number;
+    totalExpIncrease: number;
+    nodeIncreases: Record<string, number>;
+  };
+  metadata: {                          // Entry metadata
+    flags: { aiAnalyzed: boolean };
+    timePosted: string;
+    duration?: string;
+  };
+}
+```
+
+### Design Philosophy
+
+**User-Centric**: Schema reflects the user's viewing perspective, not the system's generation method.
+
+**Unified Action Weighting**:
+- AI mode: Provides semantic weights (`{ "Debugging": 0.7, "Code review": 0.3 }`)
+- Manual mode: Defaults to equal weights (`{ "Coding": 1, "Exercise": 1 }`)
+- Both use the same `actions: Record<string, number>` structure
+
+**Separated Concerns**:
+- `result`: Calculated performance data (EXP, levels, node impacts)
+- `metadata`: Entry generation metadata (flags, timestamp, duration)
+
+### Examples
+
+**AI-Analyzed Entry**:
+```typescript
+{
+  content: "Spent time debugging the authentication system",
+  actions: { "Debugging": 0.8, "System design": 0.2 },
+  result: {
+    levelsGained: 2,
+    totalExpIncrease: 45.3,
+    nodeIncreases: { "Debugging": 18.2, "Software engineering": 15.1, "Intellect": 12.0 }
+  },
+  metadata: {
+    flags: { aiAnalyzed: true },
+    timePosted: "2026-02-02T14:30:00Z",
+    duration: "120"
+  }
+}
+```
+
+**Manual Entry**:
+```typescript
+{
+  content: "Morning workout session",
+  actions: { "Exercise": 1 },
+  result: {
+    levelsGained: 1,
+    totalExpIncrease: 12.5,
+    nodeIncreases: { "Exercise": 5.0, "Strength training": 4.0, "Vitality": 3.5 }
+  },
+  metadata: {
+    flags: { aiAnalyzed: false },
+    timePosted: "2026-02-02T07:00:00Z",
+    duration: "60"
+  }
+}
+```
 
 ## Architecture Overview
 
@@ -94,40 +168,69 @@ Allows for text logging with optional duration and custom action tags.
 ```
 User Input (Voice/Text)
     ↓
-[Immediate Store Update]
+[Immediate Store Update with Loading Placeholder]
     ↓
-upsertJournalEntry(date, { content: 'loading', ... })
+{
+  content: "...",
+  actions: { "loading": 1 },
+  metadata: { flags: { aiAnalyzed: useAI }, timePosted: "...", duration: "loading" }
+}
     ↓
-[Display Loading State]
+[AI Processing / Manual Topology Creation] (async)
     ↓
-[AI Processing] (async)
+Entry Orchestrator:
+  1. Analyze entry (if AI) → extract actionWeights
+  2. Merge topology fragment into graph store
+  3. Calculate experience propagation
+  4. Scale based on duration
+  5. Update player statistics
     ↓
-entryOrchestrator
+[Store Update with Final Data]
     ↓
-[Store Update with Results]
+{
+  content: "...",
+  actions: { "Debugging": 0.7, "Code review": 0.3 },
+  result: { levelsGained: 2, totalExpIncrease: 45.3, nodeIncreases: {...} },
+  metadata: { flags: { aiAnalyzed: true }, timePosted: "...", duration: "120" }
+}
     ↓
-upsertJournalEntry(date, { content, actions, metadata, ... })
-    ↓
-[Display Final Entry]
+[Display Final Entry with Results]
 ```
 
 **Critical**: The store is updated **twice**:
 1. **Immediately** with a loading placeholder (for responsiveness)
-2. **After AI processing** with final data
+2. **After processing** with final data (including performance results)
 
-This ensures the UI always displays something to the user while processing happens in the background.
+## Performance Tracking
 
-## Neural Impact Analysis
+### Neural Impact Analysis
 
-Every processed entry calculates its contribution to the user's growth:
+Every processed entry calculates its contribution to the user's growth, stored in the `result` object:
 
-- **Impact Breakdown**: The `EntryResults` component lists every node (Action, Skill, and Characteristic) that received EXP.
-- **Automatic Generalization**: If you log an activity that falls under a new category, the AI automatically generates a bridge to the "progression" root node. This ensures the Concept Graph always remains a connected, single-root system.
+- **levelsGained**: Number of nodes that leveled up from this entry
+- **totalExpIncrease**: Total EXP awarded across all affected nodes
+- **nodeIncreases**: Detailed breakdown showing which nodes received how much EXP
 
-## Deterministic Classification
+The `EntryResults` component displays this breakdown when the user expands an entry's results section.
+
+### Action Weighting System
+
+**AI Mode**: Semantic analysis determines proportional weights based on entry content
+- Example: "Spent 3 hours debugging, then wrote documentation" → `{ "Debugging": 0.8, "Technical writing": 0.2 }`
+- Weights always sum to ~1.0 (normalized automatically)
+
+**Manual Mode**: User-specified actions default to weight 1
+- Example: Tags "Exercise, Reading" → `{ "Exercise": 1, "Reading": 1 }`
+- System treats multiple manual actions equally
+
+### Automatic Generalization
+
+If you log an activity that falls under a new category, the AI automatically generates a bridge to the "progression" root node. This ensures the Concept Graph always remains a connected, single-root system.
+
+### Deterministic Classification
 
 - **Zero-Temperature Logic**: AI classification is deterministic. This means your "Player Stats" are a rigorous mathematical reflection of your logged activities, free from the randomness of typical LLM outputs.
-- **Metadata Tracking**: Impact data is persisted within the entry's `metadata.nodeIncreases` field for historical auditing.
+- **Audit Trail**: Performance data is persisted within the entry's `result` object for historical analysis.
 
 ## API Layer
 

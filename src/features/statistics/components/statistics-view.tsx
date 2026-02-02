@@ -49,9 +49,9 @@ const StatisticsView: React.FC = () => {
             const entry = journal[y][m][d][t];
             if (entry.content) totalEntries++;
             
-            // Fix: Derived domain statistics from node increases in metadata instead of non-existent domainType field
-            if (entry.metadata?.nodeIncreases) {
-              Object.keys(entry.metadata.nodeIncreases).forEach(nodeId => {
+            // Fix: Derived domain statistics from node increases in result instead of metadata
+            if (entry.result?.nodeIncreases) {
+              Object.keys(entry.result.nodeIncreases).forEach(nodeId => {
                 const nodeData = nodes[nodeId];
                 if (nodeData?.type === 'characteristic') {
                   // Normalize keys for case-insensitive matching

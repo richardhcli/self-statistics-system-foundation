@@ -52,31 +52,30 @@ export const useEntryOrchestrator = () => {
         useAI?: boolean;
       }
     ): Promise<{ 
-      totalIncrease: number; 
+      totalExpIncrease: number; 
       levelsGained: number; 
       nodeIncreases: Record<string, number>;
-      actions: string[];
+      actions: Record<string, number>;
     }> => {
       const { actions = [], duration, useAI = false } = options;
 
       let topologyFragment: GraphState;
       let estimatedDuration = duration;
-      let finalActions = actions;
+      let actionWeights: Record<string, number>;
 
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
         const aiResult = await analyzeEntry(entry, { nodes, edges, version: 2 }, duration);
         topologyFragment = aiResult.topologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
-        
-        // Extract actions from topology fragment (action nodes are those with incoming edges)
-        finalActions = Object.keys(topologyFragment.nodes).filter(
-          id => topologyFragment.nodes[id].type === 'none' || 
-                Object.values(topologyFragment.edges).some(e => e.target === id)
-        );
+        actionWeights = aiResult.actionWeights; // Use AI-provided weights
       } else {
+        // Manual mode: all actions have weight 1
+        actionWeights = {};
+        actions.forEach(action => {
+          actionWeights[action] = 1;
+        });
         topologyFragment = transformActionsToTopology(actions, { nodes, edges, version: 2 });
-        finalActions = actions;
       }
 
       // Step 2: Merge topology fragment into store
@@ -87,10 +86,8 @@ export const useEntryOrchestrator = () => {
       });
 
       // Step 3: Calculate experience propagation from topology (use updated topology)
-      const initialSeeds: Record<string, number> = {};
-      finalActions.forEach((action) => {
-        initialSeeds[action] = 1.0;
-      });
+      // Use action weights as initial seeds
+      const initialSeeds: Record<string, number> = { ...actionWeights };
 
       const mergedNodes = { ...nodes, ...topologyFragment.nodes };
       const mergedEdges = { ...edges, ...topologyFragment.edges };
@@ -104,29 +101,34 @@ export const useEntryOrchestrator = () => {
       const { totalIncrease, levelsGained } = updateStats(scaledExpMap);
 
       // Step 6: Update user's most recent action
-      if (finalActions.length > 0) {
-        updateMostRecentAction(finalActions[0]);
+      const actionNames = Object.keys(actionWeights);
+      if (actionNames.length > 0) {
+        updateMostRecentAction(actionNames[0]);
       }
 
-      // Step 7: Create and upsert journal entry
+      // Step 7: Create and upsert journal entry with new schema
       const entryData: JournalEntryData = {
         content: entry,
-        duration: estimatedDuration,
-        actions: finalActions.length > 0 ? finalActions : undefined,
-        metadata: {
-          totalExp: totalIncrease,
+        actions: actionWeights,
+        result: {
           levelsGained,
+          totalExpIncrease: totalIncrease,
           nodeIncreases: scaledExpMap,
+        },
+        metadata: {
+          flags: { aiAnalyzed: useAI },
+          timePosted: new Date().toISOString(),
+          duration: estimatedDuration,
         },
       };
 
       journalActions.upsertEntry(dateKey, entryData);
 
       return { 
-        totalIncrease, 
+        totalExpIncrease: totalIncrease, 
         levelsGained, 
         nodeIncreases: scaledExpMap,
-        actions: finalActions,
+        actions: actionWeights,
       };
     },
     [nodes, edges, journalActions, updateStats, updateMostRecentAction, setGraph]

@@ -39,9 +39,10 @@ export interface AiEntryAnalysisResult {
  * AnalyzeEntryResult
  * 
  * Simplified return type from aiEntryAnalyzer.
- * Combines topology fragment and estimated duration for use by orchestrator.
+ * Combines topology fragment, estimated duration, and action weights for use by orchestrator.
  */
 export interface AnalyzeEntryResult {
 	topologyFragment: GraphState;
 	estimatedDuration: string;
+	actionWeights: Record<string, number>;
 }

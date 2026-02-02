@@ -5,28 +5,45 @@
  * Defines data structures for journal entry storage, component props,
  * and performance tracking metadata following the Separated Selector Facade Pattern.
  * 
+ * USER-CENTRIC SCHEMA: Structures data from the user's viewing perspective,
+ * not the system's generation method.
+ * 
  * @module features/journal/types
  * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns
  */
-
-import { WeightedAction } from '@/lib/soulTopology/types';
 
 // ============================================================
 // JOURNAL DATA MODELS
 // ============================================================
 
 /**
- * Performance metadata for a single journal entry.
- * Tracks EXP gains and progression impact after AI processing.
+ * Performance result data for a processed journal entry.
+ * Contains calculated metrics after entry has been analyzed and integrated into the topology.
  * 
- * @property {number} totalExp - Total EXP awarded for this entry
- * @property {number} levelsGained - Number of node level-ups triggered
- * @property {Record<string, number>} [nodeIncreases] - Detailed breakdown: node label → EXP gained
+ * @property {number} levelsGained - Number of node level-ups triggered by this entry
+ * @property {number} totalExpIncrease - Total EXP awarded across all affected nodes
+ * @property {Record<string, number>} nodeIncreases - Detailed breakdown: node label → EXP gained
  */
-export interface JournalMetadata {
-  totalExp: number;
+export interface JournalEntryResult {
   levelsGained: number;
-  nodeIncreases?: Record<string, number>;
+  totalExpIncrease: number;
+  nodeIncreases: Record<string, number>;
+}
+
+/**
+ * Entry-specific metadata tracking generation method and timing.
+ * 
+ * @property {Object} flags - Boolean flags for entry characteristics
+ * @property {boolean} flags.aiAnalyzed - True if entry was processed by AI semantic analysis
+ * @property {string} timePosted - ISO timestamp of when entry was created
+ * @property {string} [duration] - Time spent on activity (format: "30", "2h", "90 mins")
+ */
+export interface JournalEntryMetadata {
+  flags: {
+    aiAnalyzed: boolean;
+  };
+  timePosted: string;
+  duration?: string;
 }
 
 /**
@@ -41,22 +58,40 @@ export interface FolderMetadata {
 
 /**
  * Individual journal entry data structure.
- * Supports both AI-processed and manually tagged entries.
+ * User-centric design: structured by what the user sees, not how it was generated.
+ * 
+ * UNIFIED ACTION WEIGHTING:
+ * - AI mode: Provides semantic weights (e.g., { "Debugging": 0.7, "Code review": 0.3 })
+ * - Manual mode: Defaults to equal weights (e.g., { "Coding": 1, "Exercise": 1 })
  * 
  * @property {string} content - Raw text content of the journal entry
- * @property {WeightedAction[]} [weightedActions] - AI-extracted actions with proportional weights
- * @property {string[]} [actions] - Manually assigned action tags (legacy/manual mode)
- * @property {string} [duration] - Time spent (format: "30", "2h", "90 mins")
- * @property {JournalMetadata} [metadata] - Performance tracking data post-processing
- * @deprecated {string} [action] - Legacy singular action field (backward compatibility)
+ * @property {Record<string, number>} actions - Action name → weight mapping (sum should be ~1.0 for AI, any value for manual)
+ * @property {JournalEntryResult} [result] - Performance metrics (present after processing)
+ * @property {JournalEntryMetadata} metadata - Entry generation metadata and flags
+ * 
+ * @example
+ * // AI-analyzed entry
+ * {
+ *   content: "Spent time debugging the authentication system",
+ *   actions: { "Debugging": 0.8, "System design": 0.2 },
+ *   result: { levelsGained: 2, totalExpIncrease: 45.3, nodeIncreases: {...} },
+ *   metadata: { flags: { aiAnalyzed: true }, timePosted: "2026-02-02T14:30:00Z", duration: "120" }
+ * }
+ * 
+ * @example
+ * // Manual entry
+ * {
+ *   content: "Morning workout session",
+ *   actions: { "Exercise": 1 },
+ *   result: { levelsGained: 1, totalExpIncrease: 12.5, nodeIncreases: {...} },
+ *   metadata: { flags: { aiAnalyzed: false }, timePosted: "2026-02-02T07:00:00Z", duration: "60" }
+ * }
  */
 export interface JournalEntryData {
   content: string;
-  weightedActions?: WeightedAction[];
-  actions?: string[];
-  duration?: string;
-  metadata?: JournalMetadata;
-  action?: string; // Deprecated
+  actions: Record<string, number>;
+  result?: JournalEntryResult;
+  metadata: JournalEntryMetadata;
 }
 
 /**
