@@ -1,0 +1,1 @@
+This folder is a library customized for google-ai functions, such as gemini api calls and prompts. 
