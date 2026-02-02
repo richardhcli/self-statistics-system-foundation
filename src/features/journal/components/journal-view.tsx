@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { JournalStore, JournalViewProps } from '../types';
 import { ChevronRight, ChevronDown, Plus, Loader2 } from 'lucide-react';
-import JournalEntryItem from './journal-entry-item';
+import JournalEntryItem from './journal-entry-item/index';
 import TextOnlyManualEntryForm from './textonly-manual-entry-form';
 
 
