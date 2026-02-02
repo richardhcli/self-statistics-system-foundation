@@ -4,19 +4,18 @@ import { JournalStore, JournalEntryData, JournalYear } from '@/features/journal/
 import { indexedDBStorage } from '@/lib/persist-middleware';
 
 interface JournalStoreState {
-  // State
+  // PURE DATA (Persisted to IndexedDB)
   entries: JournalStore;
 
-  // Getters
-  getEntries: () => JournalStore;
-  getEntriesByDate: (date: string) => JournalEntryData | undefined;
-
-  // Actions (nested in stable object for performance)
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
     setEntries: (entries: JournalStore) => void;
     updateEntry: (dateKey: string, entry: JournalEntryData) => void;
     deleteEntry: (dateKey: string) => void;
     upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
+    // Getters moved here - they're logic, not data
+    getEntries: () => JournalStore;
+    getEntriesByDate: (date: string) => JournalEntryData | undefined;
   };
 }
 
@@ -34,23 +33,22 @@ interface JournalStoreState {
 export const useJournalStore = create<JournalStoreState>()(
   persist(
     (set, get) => ({
+  // PURE DATA (will be persisted)
   entries: {},
 
-  // Getters
-  getEntries: () => get().entries,
-  getEntriesByDate: (date: string) => {
-    const entries = get().entries;
-    // Navigate hierarchical structure: YYYY/MM/DD/timeKey
-    const parts = date.split('/');
-    if (parts.length !== 4) return undefined;
-    
-    const [year, month, day, timeKey] = parts;
-    return entries[year]?.[month]?.[day]?.[timeKey];
-  },
-
-  // Actions (stable object reference - never recreated)
+  // LOGIC/ACTIONS (never persisted - stable object reference)
   actions: {
     setEntries: (entries: JournalStore) => set({ entries }),
+    
+    // Getters - logic functions, not state
+    getEntries: () => get().entries,
+    getEntriesByDate: (date: string) => {
+      const entries = get().entries;
+      const parts = date.split('/');
+      if (parts.length !== 4) return undefined;
+      const [year, month, day, timeKey] = parts;
+      return entries[year]?.[month]?.[day]?.[timeKey];
+    },
     
     updateEntry: (dateKey: string, entry: JournalEntryData) => {
       set((state) => {
@@ -113,9 +111,21 @@ export const useJournalStore = create<JournalStoreState>()(
       name: 'journal-store-v1',
       storage: indexedDBStorage,
       version: 1,
-      // For future migrations: transform state for schema changes
+      
+      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
+      // Only serialize data, never actions/getters
+      partialize: (state) => ({
+        entries: state.entries,
+      }),
+      
+      // Merge function: prioritize code's actions over any persisted junk
+      merge: (persistedState: any, currentState: JournalStoreState) => ({
+        ...currentState,
+        ...persistedState,
+        actions: currentState.actions, // Always use fresh actions from code
+      }),
+      
       migrate: (state: any, version: number) => {
-        // If version mismatch, clear data (will be re-initialized on next app start)
         if (version !== 1) {
           console.warn('[Journal Store] Schema version mismatch - clearing persisted data');
           return { entries: {} };

@@ -33,7 +33,7 @@ interface JournalFeatureProps {
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
   const journal = useJournal();
-  const { upsertEntry } = useJournalActions();
+  const journalActions = useJournalActions();
   const createJournalEntry = useCreateJournalEntry();
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -75,7 +75,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
       // Empty entry - just create placeholder for UI
       const dateObj = getNormalizedDate({ year: y, month: m, day: d });
       const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
-      upsertEntry(dateKey, { content } as any);
+      journalActions.upsertEntry(dateKey, { content } as any);
       return;
     }
 

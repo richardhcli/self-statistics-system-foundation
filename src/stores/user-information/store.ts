@@ -9,20 +9,19 @@ export interface UserInformation {
 }
 
 interface UserInformationStoreState {
-  // State
+  // PURE DATA (Persisted to IndexedDB)
   info: UserInformation;
 
-  // Getters
-  getInfo: () => UserInformation;
-  getName: () => string;
-  getUserClass: () => string | undefined;
-
-  // Actions (nested in stable object for performance)
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
     setInfo: (info: UserInformation) => void;
     updateName: (name: string) => void;
     updateUserClass: (userClass: string) => void;
     updateMostRecentAction: (action: string) => void;
+    // Getters moved here - they're logic, not data
+    getInfo: () => UserInformation;
+    getName: () => string;
+    getUserClass: () => string | undefined;
   };
 }
 
@@ -40,21 +39,22 @@ interface UserInformationStoreState {
 export const useUserInformationStore = create<UserInformationStoreState>()(
   persist(
     (set, get) => ({
+    // PURE DATA (will be persisted)
     info: {
       name: 'Pioneer',
       userClass: 'Neural Architect',
       mostRecentAction: 'None',
     },
 
-    // Getters
-    getInfo: () => get().info,
-    getName: () => get().info.name,
-    getUserClass: () => get().info.userClass,
-
-    // Actions (stable object reference - never recreated)
+    // LOGIC/ACTIONS (never persisted - stable object reference)
     actions: {
       setInfo: (info: UserInformation) => set({ info }),
       
+      // Getters - logic functions, not state
+      getInfo: () => get().info,
+      getName: () => get().info.name,
+      getUserClass: () => get().info.userClass,
+
       updateName: (name: string) => {
         set((state) => ({
           info: { ...state.info, name },
@@ -78,6 +78,19 @@ export const useUserInformationStore = create<UserInformationStoreState>()(
       name: 'user-information-store-v1',
       storage: indexedDBStorage,
       version: 1,
+      
+      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
+      partialize: (state) => ({
+        info: state.info,
+      }),
+      
+      // Merge function: prioritize code's actions over any persisted junk
+      merge: (persistedState: any, currentState: UserInformationStoreState) => ({
+        ...currentState,
+        ...persistedState,
+        actions: currentState.actions,
+      }),
+      
       migrate: (state: any, version: number) => {
         if (version !== 1) {
           console.warn('[User Information Store] Schema version mismatch - clearing persisted data');

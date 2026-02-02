@@ -2,24 +2,57 @@
 
 **Date**: February 1, 2026  
 **Status**: ✅ COMPLETE  
-**Version**: 1.0
+**Version**: 2.0 - Pure Data Architecture
 
 ---
 
 ## Executive Summary
 
-This application uses a **Local-First, Sync-Behind** architecture where IndexedDB serves as the primary source of truth. All data is immediately persisted to IndexedDB (no network wait), ensuring the UI is always optimistic and responsive.
+This application uses a **Local-First, Sync-Behind** architecture with **Zero-Function Persistence**. IndexedDB serves as the primary source of truth for DATA, while CODE is the source of truth for LOGIC.
 
 ### Key Design Principles
 
-- **Primary Source**: IndexedDB (local)
-- **Secondary Source**: Backend API (remote, optional)
+- **Primary Source**: IndexedDB (local) for DATA only
+- **Code Authority**: All actions/getters defined in code, never persisted
 - **UI Philosophy**: Optimistic (never waits for network)
-- **Write Flow**: UI → Zustand → IndexedDB (Immediate) → Sync to Server (Background)
-- **Read Flow**: UI → Zustand → IndexedDB (Immediate)
-- **Conflict Resolution**: Local data is authoritative until server explicitly rejects a change
+- **Write Flow**: UI → Zustand → IndexedDB (Data Only) → Sync to Server (Background)
+- **Read Flow**: UI → Zustand → IndexedDB (Data Only)
+- **Persistence Strategy**: `partialize` whitelist - only serialize data, never functions
 
 ---
+
+## Pure Data Architecture
+
+### The "State vs. Logic" Separation
+
+**CRITICAL PRINCIPLE**: IndexedDB stores DATA. Code defines LOGIC. Never mix them.
+
+```typescript
+interface StoreState {
+  // PURE DATA (Persisted to IndexedDB via partialize whitelist)
+  entries: JournalStore;
+  stats: PlayerStatistics;
+  info: UserInformation;
+
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
+  actions: {
+    setEntries: (entries: JournalStore) => void;
+    upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
+    getEntries: () => JournalStore;  // Getters are logic, not data
+    getEntriesByDate: (date: string) => JournalEntryData | undefined;
+  };
+}
+```
+
+### Why Zero-Function Persistence?
+
+**Problem**: If you persist function references, you get:
+- ❌ Stale logic (old function bodies from disk)
+- ❌ Broken closures (functions lose their scope)
+- ❌ Security risks (arbitrary code execution)
+- ❌ Bloated storage (functions serialize to massive strings)
+
+**Solution**: Use `partialize` to whitelist ONLY data keys.
 
 ## Architecture Layers
 
@@ -75,7 +108,7 @@ This application uses a **Local-First, Sync-Behind** architecture where IndexedD
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │    ASYNC: WRITE TO INDEXEDDB (non-blocking)                │
-│           (idb-keyval handles async I/O)                    │
+│  partialize filters: ONLY data keys, NO actions/getters    │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ▼
@@ -246,39 +279,57 @@ useMyStore.getState().actions.setData(newData);  // ✅ Access via actions objec
 
 ## IndexedDB Storage Details
 
-### Database Structure
+### Storage Structure Example
 
 ```
 Database: "idb-keyval-store" (default from idb-keyval)
 Object Store: "keyval"
 
-Keys:
-├── journal-store-v1         → JSON string of JournalStore
-├── cdag-topology-store-v1   → JSON string of CdagTopology
-├── player-statistics-store-v1 → JSON string of PlayerStatistics
-├── user-information-store-v1 → JSON string of UserInformation
-├── ai-config-store-v1       → JSON string of AIConfig
-└── user-integrations-store-v1 → JSON string of IntegrationStore
+Keys (ONLY DATA, no functions):
+├── journal-store-v1         → { entries: {...} }
+├── player-statistics-store-v1 → { stats: {...} }
+├── user-information-store-v1 → { info: {...} }
+└── user-integrations-store-v1 → { integrations: {...} }
+
+❌ NEVER stored:
+├── actions object
+├── getter functions
+├── computed values
+└── derived state
 ```
 
-### Access Pattern
+### What Gets Persisted (partialize Whitelist)
 
-- **Read**: IndexedDB → JSON string → Parse → Zustand hydrate
-- **Write**: Zustand mutation → Persist middleware → Serialize → IndexedDB write
-- **All operations are async and non-blocking**
+| Store | Persisted Keys | Size |
+|-------|---------------|------|
+| journal | `entries` | ~1-10MB |
+| player-statistics | `stats` | ~10-100KB |
+| user-information | `info` | ~1KB |
+| user-integrations | `integrations` | ~10-50KB |
+| cdag-topology | `nodes`, `edges` | ~100KB-1MB |
+| ai-config | `config` | ~1KB |
 
-### Storage Limits
+**Total Storage**: ~1-15MB typical (browser limit ~50MB)
 
-- **Per-Store Quota**: ~5-50MB typical (browser-dependent)
-- **Total IndexedDB**: ~50MB per origin (varies by browser, user settings)
-- **Compression**: No compression; consider for future optimization
+---
 
-### Debugging in Browser
+## Best Practices
 
-```javascript
-// View persisted data in DevTools:
-// Application → IndexedDB → idb-keyval-store → keyval → browse keys
-```
+### ✅ DO
+
+1. **Keep Data Pure**: Only JSON-serializable values in persisted keys
+2. **Use partialize**: Explicitly whitelist data keys
+3. **Use merge**: Ensure code's actions always win over persisted state
+4. **Getters in Actions**: Move all getter functions into the actions object
+5. **Compute on Read**: Calculate derived data in useMemo, don't persist it
+
+### ❌ DON'T
+
+1. **Don't Persist Functions**: Never include actions/getters in partialize
+2. **Don't Persist Computed Values**: Calculate totalLevel, not store it
+3. **Don't Persist Metadata**: Timestamps, counts - derive from real data
+4. **Don't Trust Old Data**: Always validate/migrate on version mismatch
+5. **Don't Skip merge**: Without it, stale persisted actions could load
 
 ---
 

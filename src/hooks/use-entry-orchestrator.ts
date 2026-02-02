@@ -28,7 +28,7 @@ import type { GraphState } from '@/stores/cdag-topology';
  */
 export const useEntryOrchestrator = () => {
   // Store action hooks (stable, won't cause re-renders)
-  const { upsertEntry } = useJournalActions();
+  const journalActions = useJournalActions();
   const { updateStats } = usePlayerStatisticsActions();
   const { updateMostRecentAction } = useUserInformationActions();
   const { addNode, addEdge, setGraph } = useGraphActions();
@@ -121,7 +121,7 @@ export const useEntryOrchestrator = () => {
         },
       };
 
-      upsertEntry(dateKey, entryData);
+      journalActions.upsertEntry(dateKey, entryData);
 
       return { 
         totalIncrease, 
@@ -130,7 +130,7 @@ export const useEntryOrchestrator = () => {
         actions: finalActions,
       };
     },
-    [nodes, edges, updateStats, updateMostRecentAction, upsertEntry, setGraph]
+    [nodes, edges, journalActions, updateStats, updateMostRecentAction, setGraph]
   );
 
   return {

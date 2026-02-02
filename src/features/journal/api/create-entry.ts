@@ -16,7 +16,7 @@ import { useCallback } from 'react';
  * await createEntry({ entry: "...", useAI: true, dateInfo: {...} });
  */
 export const useCreateJournalEntry = () => {
-  const { upsertEntry } = useJournalActions();
+  const journalActions = useJournalActions();
   const { applyEntryUpdates } = useEntryOrchestrator();
 
   const createJournalEntry = useCallback(
@@ -47,7 +47,7 @@ export const useCreateJournalEntry = () => {
       };
 
       // Create loading placeholder at the normalized date
-      upsertEntry(dateKey, loadingEntry);
+      journalActions.upsertEntry(dateKey, loadingEntry);
 
       // Process entry with orchestrator
       await applyEntryUpdates(dateKey, entry, { 
@@ -56,7 +56,7 @@ export const useCreateJournalEntry = () => {
         duration 
       });
     },
-    [upsertEntry, applyEntryUpdates]
+    [journalActions, applyEntryUpdates]
   );
 
   return createJournalEntry;

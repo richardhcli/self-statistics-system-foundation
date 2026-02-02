@@ -4,22 +4,21 @@ import { IntegrationStore, IntegrationLog, IntegrationConfig, ObsidianConfig } f
 import { indexedDBStorage } from '@/lib/persist-middleware';
 
 interface UserIntegrationsStoreState {
-  // State
+  // PURE DATA (Persisted to IndexedDB)
   integrations: IntegrationStore;
 
-  // Getters
-  getIntegrations: () => IntegrationStore;
-  getConfig: () => IntegrationConfig;
-  getObsidianConfig: () => ObsidianConfig;
-  getLogs: () => IntegrationLog[];
-
-  // Actions (nested in stable object for performance)
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
     setIntegrations: (integrations: IntegrationStore) => void;
     updateConfig: (config: IntegrationConfig) => void;
     updateObsidianConfig: (config: ObsidianConfig) => void;
     addLog: (log: IntegrationLog) => void;
     clearLogs: () => void;
+    // Getters moved here - they're logic, not data
+    getIntegrations: () => IntegrationStore;
+    getConfig: () => IntegrationConfig;
+    getObsidianConfig: () => ObsidianConfig;
+    getLogs: () => IntegrationLog[];
   };
 }
 
@@ -37,6 +36,7 @@ interface UserIntegrationsStoreState {
 export const useUserIntegrationsStore = create<UserIntegrationsStoreState>()(
   persist(
     (set, get) => ({
+    // PURE DATA (will be persisted)
     integrations: {
       config: { webhookUrl: '', enabled: false },
       obsidianConfig: {
@@ -50,15 +50,15 @@ export const useUserIntegrationsStore = create<UserIntegrationsStoreState>()(
       logs: [],
     },
 
-    // Getters
-    getIntegrations: () => get().integrations,
-    getConfig: () => get().integrations.config,
-    getObsidianConfig: () => get().integrations.obsidianConfig,
-    getLogs: () => get().integrations.logs,
-
-    // Actions (stable object reference - never recreated)
+    // LOGIC/ACTIONS (never persisted - stable object reference)
     actions: {
       setIntegrations: (integrations: IntegrationStore) => set({ integrations }),
+
+      // Getters - logic functions, not state
+      getIntegrations: () => get().integrations,
+      getConfig: () => get().integrations.config,
+      getObsidianConfig: () => get().integrations.obsidianConfig,
+      getLogs: () => get().integrations.logs,
 
       updateConfig: (config: IntegrationConfig) => {
         set((state) => ({
@@ -92,6 +92,19 @@ export const useUserIntegrationsStore = create<UserIntegrationsStoreState>()(
       name: 'user-integrations-store-v1',
       storage: indexedDBStorage,
       version: 1,
+      
+      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
+      partialize: (state) => ({
+        integrations: state.integrations,
+      }),
+      
+      // Merge function: prioritize code's actions over any persisted junk
+      merge: (persistedState: any, currentState: UserIntegrationsStoreState) => ({
+        ...currentState,
+        ...persistedState,
+        actions: currentState.actions,
+      }),
+      
       migrate: (state: any, version: number) => {
         if (version !== 1) {
           console.warn('[User Integrations Store] Schema version mismatch - clearing persisted data');

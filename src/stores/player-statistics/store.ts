@@ -5,15 +5,10 @@ import { updatePlayerStatsState } from './utils/exp-state-manager';
 import { indexedDBStorage } from '@/lib/persist-middleware';
 
 interface PlayerStatisticsStoreState {
-  // State
+  // PURE DATA (Persisted to IndexedDB)
   stats: PlayerStatistics;
 
-  // Getters
-  getStats: () => PlayerStatistics;
-  getNodeStats: (nodeLabel: string) => NodeStats | undefined;
-  getTotalLevel: () => number;
-
-  // Actions (nested in stable object for performance)
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
     setStats: (stats: PlayerStatistics) => void;
     updateStats: (expIncreases: Record<string, number>) => {
@@ -25,6 +20,10 @@ interface PlayerStatisticsStoreState {
       totalIncrease: number;
       levelsGained: number;
     };
+    // Getters moved here - they're logic, not data
+    getStats: () => PlayerStatistics;
+    getNodeStats: (nodeLabel: string) => NodeStats | undefined;
+    getTotalLevel: () => number;
   };
 }
 
@@ -42,19 +41,20 @@ interface PlayerStatisticsStoreState {
 export const usePlayerStatisticsStore = create<PlayerStatisticsStoreState>()(
   persist(
     (set, get) => ({
+    // PURE DATA (will be persisted)
     stats: { progression: { experience: 0, level: 1 } },
 
-    // Getters
-    getStats: () => get().stats,
-    getNodeStats: (nodeLabel: string) => get().stats[nodeLabel],
-    getTotalLevel: () => {
-      const stats = get().stats;
-      return Object.values(stats).reduce((sum, node) => sum + node.level, 0);
-    },
-
-    // Actions (stable object reference - never recreated)
+    // LOGIC/ACTIONS (never persisted - stable object reference)
     actions: {
       setStats: (stats: PlayerStatistics) => set({ stats }),
+
+      // Getters - logic functions, not state
+      getStats: () => get().stats,
+      getNodeStats: (nodeLabel: string) => get().stats[nodeLabel],
+      getTotalLevel: () => {
+        const stats = get().stats;
+        return Object.values(stats).reduce((sum, node) => sum + node.level, 0);
+      },
 
       updateStats: (expIncreases: Record<string, number>) => {
         const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
@@ -74,6 +74,19 @@ export const usePlayerStatisticsStore = create<PlayerStatisticsStoreState>()(
       name: 'player-statistics-store-v1',
       storage: indexedDBStorage,
       version: 1,
+      
+      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
+      partialize: (state) => ({
+        stats: state.stats,
+      }),
+      
+      // Merge function: prioritize code's actions over any persisted junk
+      merge: (persistedState: any, currentState: PlayerStatisticsStoreState) => ({
+        ...currentState,
+        ...persistedState,
+        actions: currentState.actions,
+      }),
+      
       migrate: (state: any, version: number) => {
         if (version !== 1) {
           console.warn('[Player Statistics Store] Schema version mismatch - clearing persisted data');

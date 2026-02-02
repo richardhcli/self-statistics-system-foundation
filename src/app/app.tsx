@@ -12,6 +12,11 @@ import { DebugView } from '@/features/debug';
 import { IntegrationView, sendWebhook } from '@/features/integration';
 import { sendToObsidian } from '@/features/integration/api/obsidian-service';
 import { useUserIntegrations, useUserIntegrationsActions } from '@/stores/user-integrations';
+import { clearIndexedDB } from '@/testing';
+
+// Clear IndexedDB on app load (debugging hydration issues)
+// TEMPORARY: Remove this after debugging
+clearIndexedDB().catch(console.error);
 
 const App: React.FC = () => {
   const { isInitialized } = usePersistence();
