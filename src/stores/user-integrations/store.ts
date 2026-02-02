@@ -14,11 +14,6 @@ interface UserIntegrationsStoreState {
     updateObsidianConfig: (config: ObsidianConfig) => void;
     addLog: (log: IntegrationLog) => void;
     clearLogs: () => void;
-    // Getters moved here - they're logic, not data
-    getIntegrations: () => IntegrationStore;
-    getConfig: () => IntegrationConfig;
-    getObsidianConfig: () => ObsidianConfig;
-    getLogs: () => IntegrationLog[];
   };
 }
 
@@ -53,12 +48,6 @@ export const useUserIntegrationsStore = create<UserIntegrationsStoreState>()(
     // LOGIC/ACTIONS (never persisted - stable object reference)
     actions: {
       setIntegrations: (integrations: IntegrationStore) => set({ integrations }),
-
-      // Getters - logic functions, not state
-      getIntegrations: () => get().integrations,
-      getConfig: () => get().integrations.config,
-      getObsidianConfig: () => get().integrations.obsidianConfig,
-      getLogs: () => get().integrations.logs,
 
       updateConfig: (config: IntegrationConfig) => {
         set((state) => ({

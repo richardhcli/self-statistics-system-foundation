@@ -11,15 +11,10 @@ export interface AIConfig {
 }
 
 interface AIConfigStoreState {
-  // State
+  // PURE DATA (Persisted to IndexedDB)
   config: AIConfig;
 
-  // Getters
-  getConfig: () => AIConfig;
-  getModel: () => string;
-  getTemperature: () => number;
-
-  // Actions (nested in stable object for performance)
+  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
     setConfig: (config: AIConfig) => void;
     updateModel: (model: string) => void;
@@ -50,12 +45,7 @@ export const useAiConfigStore = create<AIConfigStoreState>()(
     voiceSensitivity: 0.5,
   },
 
-  // Getters
-  getConfig: () => get().config,
-  getModel: () => get().config.model,
-  getTemperature: () => get().config.temperature,
-
-  // Actions (stable object reference - never recreated)
+  // LOGIC/ACTIONS (never persisted - stable object reference)
   actions: {
     setConfig: (config: AIConfig) => set({ config }),
 

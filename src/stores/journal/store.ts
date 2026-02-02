@@ -13,9 +13,6 @@ interface JournalStoreState {
     updateEntry: (dateKey: string, entry: JournalEntryData) => void;
     deleteEntry: (dateKey: string) => void;
     upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
-    // Getters moved here - they're logic, not data
-    getEntries: () => JournalStore;
-    getEntriesByDate: (date: string) => JournalEntryData | undefined;
   };
 }
 
@@ -39,16 +36,6 @@ export const useJournalStore = create<JournalStoreState>()(
   // LOGIC/ACTIONS (never persisted - stable object reference)
   actions: {
     setEntries: (entries: JournalStore) => set({ entries }),
-    
-    // Getters - logic functions, not state
-    getEntries: () => get().entries,
-    getEntriesByDate: (date: string) => {
-      const entries = get().entries;
-      const parts = date.split('/');
-      if (parts.length !== 4) return undefined;
-      const [year, month, day, timeKey] = parts;
-      return entries[year]?.[month]?.[day]?.[timeKey];
-    },
     
     updateEntry: (dateKey: string, entry: JournalEntryData) => {
       set((state) => {

@@ -3,9 +3,10 @@ import { JournalStore } from '../types';
 
 /**
  * API: Fetch journal entries for serialization/remote sync.
+ * Direct state access (not through hooks) for non-React contexts.
  */
 export const getJournalEntries = (): JournalStore => {
-  return useJournalStore.getState().getEntries();
+  return useJournalStore.getState().entries;
 };
 
 /**

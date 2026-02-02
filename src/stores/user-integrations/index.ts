@@ -5,7 +5,7 @@ import { IntegrationStore } from '@/features/integration/types';
  * API: Fetch user integrations for serialization/remote sync.
  */
 export const getUserIntegrations = (): IntegrationStore => {
-  return useUserIntegrationsStore.getState().getIntegrations();
+  return useUserIntegrationsStore.getState().integrations;
 };
 
 /**

@@ -5,7 +5,7 @@ import { UserInformation } from './store';
  * API: Fetch user information for serialization/remote sync.
  */
 export const getUserInformation = (): UserInformation => {
-  return useUserInformationStore.getState().getInfo();
+  return useUserInformationStore.getState().info;
 };
 
 /**

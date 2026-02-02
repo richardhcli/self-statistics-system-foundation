@@ -20,10 +20,6 @@ interface PlayerStatisticsStoreState {
       totalIncrease: number;
       levelsGained: number;
     };
-    // Getters moved here - they're logic, not data
-    getStats: () => PlayerStatistics;
-    getNodeStats: (nodeLabel: string) => NodeStats | undefined;
-    getTotalLevel: () => number;
   };
 }
 
@@ -47,14 +43,6 @@ export const usePlayerStatisticsStore = create<PlayerStatisticsStoreState>()(
     // LOGIC/ACTIONS (never persisted - stable object reference)
     actions: {
       setStats: (stats: PlayerStatistics) => set({ stats }),
-
-      // Getters - logic functions, not state
-      getStats: () => get().stats,
-      getNodeStats: (nodeLabel: string) => get().stats[nodeLabel],
-      getTotalLevel: () => {
-        const stats = get().stats;
-        return Object.values(stats).reduce((sum, node) => sum + node.level, 0);
-      },
 
       updateStats: (expIncreases: Record<string, number>) => {
         const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(

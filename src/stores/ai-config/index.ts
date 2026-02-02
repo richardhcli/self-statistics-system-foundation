@@ -5,7 +5,7 @@ import { AIConfig } from './store';
  * API: Fetch AI config for serialization/remote sync.
  */
 export const getAiConfig = (): AIConfig => {
-  return useAiConfigStore.getState().getConfig();
+  return useAiConfigStore.getState().config;
 };
 
 /**

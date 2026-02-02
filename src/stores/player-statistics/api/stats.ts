@@ -24,7 +24,7 @@ export const updateStats = (baseUrl: string, stats: PlayerStatistics): Promise<v
  * Local API: Fetch player statistics for serialization/remote sync.
  */
 export const getPlayerStatistics = (): PlayerStatistics => {
-  return usePlayerStatisticsStore.getState().getStats();
+  return usePlayerStatisticsStore.getState().stats;
 };
 
 /**

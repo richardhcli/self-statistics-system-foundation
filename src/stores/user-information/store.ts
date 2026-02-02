@@ -18,10 +18,6 @@ interface UserInformationStoreState {
     updateName: (name: string) => void;
     updateUserClass: (userClass: string) => void;
     updateMostRecentAction: (action: string) => void;
-    // Getters moved here - they're logic, not data
-    getInfo: () => UserInformation;
-    getName: () => string;
-    getUserClass: () => string | undefined;
   };
 }
 
@@ -50,11 +46,6 @@ export const useUserInformationStore = create<UserInformationStoreState>()(
     actions: {
       setInfo: (info: UserInformation) => set({ info }),
       
-      // Getters - logic functions, not state
-      getInfo: () => get().info,
-      getName: () => get().info.name,
-      getUserClass: () => get().info.userClass,
-
       updateName: (name: string) => {
         set((state) => ({
           info: { ...state.info, name },

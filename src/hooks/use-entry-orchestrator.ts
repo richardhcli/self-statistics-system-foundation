@@ -68,7 +68,7 @@ export const useEntryOrchestrator = () => {
 
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
-        const aiResult = await aiEntryAnalyzer(entry, { nodes, edges }, duration);
+        const aiResult = await aiEntryAnalyzer(entry, { nodes, edges, version: 2 }, duration);
         topologyFragment = aiResult.topologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
         
@@ -78,7 +78,7 @@ export const useEntryOrchestrator = () => {
                 Object.values(topologyFragment.edges).some(e => e.target === id)
         );
       } else {
-        topologyFragment = buildIncomingTopologyFromActions(actions, { nodes, edges });
+        topologyFragment = buildIncomingTopologyFromActions(actions, { nodes, edges, version: 2 });
         finalActions = actions;
       }
 
