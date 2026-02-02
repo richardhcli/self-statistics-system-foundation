@@ -160,18 +160,15 @@ export interface EntryResultsProps {
 
 /**
  * Props for manual journal entry form component.
- * Supports both AI-powered and manual tagging workflows.
+ * Simplified AI-only workflow with minimal inputs.
  * 
- * @property {function} onSubmit - Callback with form data (content, time, duration, tags, AI flag)
+ * @property {function} onSubmit - Callback with form data (content, duration)
  * @property {boolean} isProcessing - Loading state during submission
  */
 export interface ManualEntryFormProps {
   onSubmit: (data: {
     content: string;
-    time?: string;
     duration?: string;
-    actions?: string[];
-    useAI: boolean;
   }) => void;
   isProcessing: boolean;
 }

@@ -60,7 +60,20 @@ const nodes = useGraphNodes();  // Read state
 const { addNode, removeNode } = useGraphActions();  // Write actions
 ```
 
-### 3. TestInjections
+### 3. DebuggingManualJournalEntryForm
+**File:** `src/features/debug/components/debugging-manual-journal-entry-form.tsx`
+
+Debug-only manual journal entry form for testing AI and manual action pipelines.
+
+**Features:**
+- Direct action tagging (comma-separated)
+- AI toggle for forcing analysis vs manual actions
+- Optional time and duration overrides
+
+**Usage:**
+- Accessible via Debug Console → Manual Journal Entry tab
+
+### 4. TestInjections
 **File:** `src/features/debug/api/test-injections.ts`
 
 Batch data injection utilities for testing.

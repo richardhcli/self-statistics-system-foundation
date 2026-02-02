@@ -1,32 +1,40 @@
 
 import React, { useState } from 'react';
-import { Type, Clock, Hourglass, Tag, Send, Sparkles, Loader2 } from 'lucide-react';
+import { Type, Hourglass, Send, Loader2 } from 'lucide-react';
 import { ManualEntryFormProps } from '../types';
 
+/**
+ * ManualEntryForm Component
+ * 
+ * Simplified journal entry form for user-facing input.
+ * AI classification is always enabled; no manual action tagging is provided.
+ * 
+ * Fields:
+ * - Content: Raw text entry
+ * - Time Taken: Optional duration override
+ * 
+ * @param {ManualEntryFormProps} props - Component props
+ * @returns {JSX.Element} Simplified manual entry form
+ */
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSubmit, isProcessing }) => {
   const [content, setContent] = useState('');
-  const [time, setTime] = useState('');
   const [duration, setDuration] = useState('');
-  const [actions, setActions] = useState('');
-  const [useAI, setUseAI] = useState(true);
 
+  /**
+   * Handles form submission with AI classification always enabled
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     onSubmit({
       content,
-      time: time || undefined,
       duration: duration || undefined,
-      actions: actions.split(',').map(a => a.trim()).filter(Boolean),
-      useAI
     });
 
     // Reset form
     setContent('');
-    setTime('');
     setDuration('');
-    setActions('');
   };
 
   return (
@@ -48,57 +56,20 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSubmit, isProcessin
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tight ml-1">
-              <Clock className="w-3 h-3" /> Time Input (Optional)
-            </label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tight ml-1">
-              <Hourglass className="w-3 h-3" /> Time Taken (Optional)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 45 mins"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
-            />
-          </div>
-        </div>
-
         <div className="space-y-1">
           <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tight ml-1">
-            <Tag className="w-3 h-3" /> Actions (Optional, comma separated)
+            <Hourglass className="w-3 h-3" /> Time Taken (Optional)
           </label>
           <input
             type="text"
-            placeholder="e.g. Coding, Debugging"
-            value={actions}
-            onChange={(e) => setActions(e.target.value)}
+            placeholder="e.g. 45 mins"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
           />
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <button
-            type="button"
-            onClick={() => setUseAI(!useAI)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-              useAI ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'
-            }`}
-          >
-            <Sparkles className={`w-3 h-3 ${useAI ? 'animate-pulse' : ''}`} />
-            AI Classification: {useAI ? 'ON' : 'OFF'}
-          </button>
-
+        <div className="flex items-center justify-end pt-2">
           <button
             type="submit"
             disabled={isProcessing || !content.trim()}

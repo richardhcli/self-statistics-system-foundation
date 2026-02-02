@@ -101,31 +101,25 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
 
   /**
    * Handle detailed manual entry (from manual entry form)
-   * Supports custom time, duration, actions, and AI toggle
+   * AI classification is always enabled for this form
    */
   const handleDetailedManualEntry = async (payload: {
     content: string;
-    time?: string;
     duration?: string;
-    actions?: string[];
-    useAI: boolean;
   }) => {
     setIsProcessing(true);
     try {
       await createJournalEntry({
         entry: payload.content,
-        actions: payload.actions,
-        useAI: payload.useAI,
+        useAI: true,
         duration: payload.duration,
-        dateInfo: payload.time ? { time: payload.time } : undefined
       });
 
-      if (payload.useAI && onIntegrationEvent) {
+      if (onIntegrationEvent) {
         await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
           originalText: payload.content,
           source: 'manual_detailed',
           duration: payload.duration,
-          actions: payload.actions
         });
       }
     } finally {

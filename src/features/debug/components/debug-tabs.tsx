@@ -1,11 +1,11 @@
 import React from 'react';
-import { Terminal, Network } from 'lucide-react';
+import { Terminal, Network, Edit3 } from 'lucide-react';
 
 /**
  * Debug subtab type definition
  * Defines available tabs within the debug console
  */
-export type DebugTab = 'console' | 'graph';
+export type DebugTab = 'console' | 'graph' | 'manual-journal-entry';
 
 /**
  * Props for DebugTabs component
@@ -32,6 +32,7 @@ const DebugTabs: React.FC<DebugTabsProps> = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'console' as DebugTab, icon: Terminal, label: 'Debug Console' },
     { id: 'graph' as DebugTab, icon: Network, label: 'Graph Editor' },
+    { id: 'manual-journal-entry' as DebugTab, icon: Edit3, label: 'Manual Journal Entry' },
   ];
 
   return (

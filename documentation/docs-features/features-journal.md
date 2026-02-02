@@ -153,13 +153,12 @@ Captures audio with real-time level visualization. Transcribes via Gemini.
 - Async processing with loading states
 
 ### ManualEntryForm
-Allows for text logging with optional duration and custom action tags.
+Simplified text logging with optional time taken. AI classification is always enabled.
 
 **Features**:
 - Rich text entry
-- Optional time/duration inputs
-- Manual action tags
-- AI toggle (on/off)
+- Optional time taken input
+- AI analysis always on (no manual action tags)
 
 ## Data Flow
 
