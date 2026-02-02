@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Clock, Hourglass, Zap, Sparkles, Loader2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
-import { JournalEntryItemProps } from '../types';
-import { EntryResults } from './journal-entry-item/entry-results';
-import { minutesToText } from '../utils/journal-entry-utils';
+import { JournalEntryItemProps } from '../../types';
+import { EntryResults } from './entry-results';
+import { minutesToText } from '../../utils/journal-entry-utils';
 
 /**
  * Component: JournalEntryItem
