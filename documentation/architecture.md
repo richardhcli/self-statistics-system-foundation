@@ -25,10 +25,7 @@ Domain-specific modules. Each feature is self-contained with its own components,
 
 ### `/lib`
 Core infrastructure abstractions.
-- `db.ts`: IndexedDB configuration and CRUD wrappers.
-- `google-ai/`: Comprehensive Gemini SDK integration and prompt templates.
-- `api-client.ts`: Standardized fetch wrapper for future REST operations.
-- `soulTopology/`: Brain structure utilities (topology merge, propagation, AI generalization).
+collection of pure, data-agnostic functions
 
 ### `/stores`
 Global business logic that spans multiple features, organized as independent Zustand stores.
