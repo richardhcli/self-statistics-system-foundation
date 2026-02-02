@@ -68,37 +68,3 @@ Response Format (JSON):
 }
 `;
 
-export const SINGLE_PROMPT_TOPOLOGY_PROMPT = (text: string) => `
-System Instruction: You are a high-fidelity semantic parser and structural ontologist for a journaling app.
-Goal: From a single journal entry, produce the complete 3-layer semantic decomposition AND a generalization chain.
-
-Pipeline Summary:
-1) Extract 1-5 general actions (active-verb labels). Avoid overly specific tasks or metrics.
-2) Estimate total duration and assign weights (0.1-1.0) to each action. Weights should sum to 1.0.
-3) Map actions to 1-2 representative skills/competencies.
-4) Map skills to 1-2 high-level characteristics (RPG-like attributes).
-5) Starting from a provided characteristic, generate a vertical abstraction chain of up to 5 higher-level concepts.
-   Stop if you reach the ultimate concept: "progression".
-
-Rules:
-- Return JSON only. No extra text.
-- The first child in the chain must be one of the characteristics.
-- Each chain link must include a weight (0.0 to 1.0) representing proportion of the parent comprised by the child.
-
-Entry: "${text}"
-
-Response Format (JSON):
-{
-  "duration": "30 mins",
-  "weightedActions": [
-    { "label": "Debugging", "weight": 0.6 },
-    { "label": "Technical writing", "weight": 0.4 }
-  ],
-  "skills": ["Software engineering"],
-  "characteristics": ["Intellect"],
-  "generalizationChain": [
-    { "child": "Intellect", "parent": "Mastery", "weight": 0.7 },
-    { "child": "Mastery", "parent": "progression", "weight": 0.6 }
-  ]
-}
-`;

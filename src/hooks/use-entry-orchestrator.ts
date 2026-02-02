@@ -12,13 +12,12 @@ import type { GraphState } from '@/stores/cdag-topology';
  * Entry Orchestrator Hook
  * 
  * Coordinates cross-store updates during journal entry processing.
- * Implements the Orchestrator pattern (Pattern B/C hybrid):
+ * Implements the Orchestrator pattern:
  * - Consumes multiple independent stores
  * - Applies business logic across store boundaries
  * - Dispatches sequential updates with React 18+ batching
  * 
- * This is the ONLY hook that should coordinate multiple stores.
- * Individual features should NEVER directly orchestrate cross-store logic.
+ * Individual features should NEVER directly orchestrate cross-store logic. 
  * 
  * Usage:
  * const { applyEntryUpdates } = useEntryOrchestrator();

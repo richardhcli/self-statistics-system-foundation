@@ -51,7 +51,12 @@ Features:
 ## General utilities:
 - **Topology utilities** (graph-fragment merge, node checks, node creation / update / deletion)
 - **Entry Pipeline** (`utils/entry-pipeline`) - Pure utilities for converting journal entries into topology fragments
-  - `analyzeEntry()` - AI-driven analysis with generalization chain
+  - `analyzeEntry()` - Intelligent AI-driven analysis with:
+    * Automatic response validation and sanitization
+    * Smart weight normalization (ensures sum to 1.0)
+    * Intelligent generalization decisions (skips unnecessary API calls)
+    * Graceful error handling with detailed logging
+    * Fallback generalization for new concepts
   - `transformAnalysisToTopology()` - 3-layer hierarchy builder from analysis result
   - `transformActionsToTopology()` - Simple action-only topology builder
   - `EntryOrchestratorContext` - Domain type for entry processing events

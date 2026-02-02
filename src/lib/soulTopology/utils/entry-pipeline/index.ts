@@ -6,10 +6,21 @@
  * This module implements the core "text-to-graph" pipeline that transforms
  * user input into semantic topology changes.
  * 
+ * ARCHITECTURE:
+ * - Pure functions with no store imports or React dependencies
+ * - Data-In, Data-Out pattern for all transformations
+ * - Fully testable in isolation (Node.js/Vitest)
+ * - Intelligent validation and error handling throughout
+ * 
+ * WORKFLOW:
+ * 1. Journal Entry → [analyzeEntry] → Semantic Analysis
+ * 2. Semantic Analysis → [transformAnalysisToTopology] → GraphState Fragment
+ * 3. Manual Actions → [transformActionsToTopology] → GraphState Fragment
+ * 
  * Public API:
- * - analyzeEntry: AI-driven entry analysis with generalization
- * - transformAnalysisToTopology: Pure transform (analysis -> GraphState)
- * - transformActionsToTopology: Pure transform (actions -> GraphState)
+ * - analyzeEntry: AI-driven entry analysis with intelligent generalization
+ * - transformAnalysisToTopology: Pure transform (analysis → 3-layer GraphState)
+ * - transformActionsToTopology: Pure transform (actions → GraphState)
  * - Types: EntryOrchestratorContext, AnalyzeEntryResult, AiEntryAnalysisResult
  * 
  * These utilities are agnostic to React/storage and can be tested in isolation.
