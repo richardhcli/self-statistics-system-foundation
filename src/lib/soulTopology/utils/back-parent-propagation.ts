@@ -1,4 +1,29 @@
-import type { SoulTopologyStore } from '../config/store';
+import { NodeData, EdgeData } from '@/types';
+
+/**
+ * Helper to build parent relationships from edges for propagation
+ */
+const buildParentMap = (
+  nodes: Record<string, NodeData>,
+  edges: Record<string, EdgeData>
+): Record<string, Record<string, number>> => {
+  const parentMap: Record<string, Record<string, number>> = {};
+  
+  // Initialize all nodes
+  Object.keys(nodes).forEach(nodeId => {
+    parentMap[nodeId] = {};
+  });
+  
+  // Build parent relationships from edges
+  Object.values(edges).forEach(edge => {
+    if (!parentMap[edge.target]) {
+      parentMap[edge.target] = {};
+    }
+    parentMap[edge.target][edge.source] = edge.weight || 1.0;
+  });
+  
+  return parentMap;
+};
 
 /**
  * Calculates experience propagation using a "Path-Weighted Cumulative Averaging" approach.
@@ -19,14 +44,34 @@ import type { SoulTopologyStore } from '../config/store';
  * 2. After all seeds are processed:
  *    - Normalize the accumulated sums by the hit counts (Path-Averaging).
  * 
- * @param topology - The logical hierarchy (Child -> Parents).
+ * @param nodes - The node lookup table from GraphState
+ * @param edges - The edge lookup table from GraphState (optional, defaults to empty)
  * @param initialValues - The starting EXP values (seeds from the journal entry).
  * @returns A map of every node in the topology and its resulting propagated EXP.
  */
 export const calculateParentPropagation = (
-  topology: SoulTopologyStore,
-  initialValues: Record<string, number>
+  nodes: Record<string, NodeData> | Record<string, { parents: Record<string, number> }>,
+  edgesOrInitialValues: Record<string, EdgeData> | Record<string, number>,
+  initialValuesArg?: Record<string, number>
 ): Record<string, number> => {
+  // Handle both old and new API signatures for backward compatibility
+  let parentMap: Record<string, Record<string, number>>;
+  let initialValues: Record<string, number>;
+  
+  if (initialValuesArg !== undefined) {
+    // New API: (nodes, edges, initialValues)
+    const edges = edgesOrInitialValues as Record<string, EdgeData>;
+    initialValues = initialValuesArg;
+    parentMap = buildParentMap(nodes as Record<string, NodeData>, edges);
+  } else {
+    // Old API: (topology, initialValues) - topology has .parents property
+    initialValues = edgesOrInitialValues as Record<string, number>;
+    parentMap = {};
+    Object.entries(nodes).forEach(([nodeId, nodeData]) => {
+      parentMap[nodeId] = (nodeData as any).parents || {};
+    });
+  }
+
   const accumulatedSum: Record<string, number> = {};
   const contributionCount: Record<string, number> = {};
   
@@ -44,7 +89,7 @@ export const calculateParentPropagation = (
       accumulatedSum[label] = (accumulatedSum[label] || 0) + (seedValue * weight);
       contributionCount[label] = (contributionCount[label] || 0) + 1;
 
-      const parents = topology[label]?.parents || {};
+      const parents = parentMap[label] || {};
       Object.entries(parents).forEach(([parentLabel, edgeWeight]) => {
         queue.push({
           label: parentLabel,

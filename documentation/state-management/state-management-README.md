@@ -13,5 +13,6 @@ This project follows a **Local-First** architecture where client-side storage is
 ## Core Rules of Engagement
 * **Local-First Master**: IndexedDB is the Primary Source of Truth. The Server is a passive storage cache.
 * **Utility Purity**: Utility functions must be **pure** (Data In → Data Out). They must never call hooks or access stores directly.
-* **The Orchestrator Pattern**: Operations spanning multiple stores must be handled by **Orchestrator Hooks** to ensure atomic updates and store decoupling.
+* **The Orchestrator Pattern**: Operations spanning multiple stores must be handled by **Orchestrator Hooks** to ensure atomic updates and store decoupling. See [ORCHESTRATOR_PATTERN.md](./ORCHESTRATOR_PATTERN.md) for detailed guidelines.
+* **Type Safety**: When interfacing between legacy and modern formats, always use conversion utilities to prevent runtime errors.
 * **No Parameter Drilling**: Avoid passing `AppData` or `setData` through multiple function layers. Use the appropriate store hooks or `getState()` for non-React code.

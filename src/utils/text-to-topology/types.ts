@@ -1,10 +1,10 @@
-import { CdagTopology, GeneralizationLink, JournalEntryData, TextToActionResponse } from '@/types';
+import { GraphState, GeneralizationLink, JournalEntryData, TextToActionResponse } from '@/types';
 
 export interface AiAnalysisResult {
 	analysis: TextToActionResponse;
 	finalDuration?: string;
 	generalizationChain: GeneralizationLink[];
-	mergedTopology: CdagTopology;
+	topologyFragment: GraphState;
 }
 
 export interface EntryOrchestratorContext {

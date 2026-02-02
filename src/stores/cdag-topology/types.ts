@@ -60,18 +60,3 @@ export interface GraphState {
   lastSyncTimestamp?: string;
 }
 
-/**
- * Legacy type for migration compatibility
- * @deprecated Use NodeData + EdgeData instead
- */
-export interface CdagNodeData {
-  parents: Record<string, number>;
-  type: NodeType;
-}
-
-/**
- * Legacy type for migration compatibility
- * @deprecated Use GraphState instead
- */
-export type CdagTopology = Record<string, CdagNodeData>;
-

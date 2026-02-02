@@ -69,7 +69,7 @@ export const useEntryOrchestrator = () => {
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
         const aiResult = await aiEntryAnalyzer(entry, { nodes, edges }, duration);
-        topologyFragment = aiResult.cdagTopologyFragment;
+        topologyFragment = aiResult.topologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
         
         // Extract actions from topology fragment (action nodes are those with incoming edges)
@@ -95,7 +95,9 @@ export const useEntryOrchestrator = () => {
         initialSeeds[action] = 1.0;
       });
 
-      const propagated = calculateParentPropagation({ ...nodes, ...topologyFragment.nodes }, initialSeeds);
+      const mergedNodes = { ...nodes, ...topologyFragment.nodes };
+      const mergedEdges = { ...edges, ...topologyFragment.edges };
+      const propagated = calculateParentPropagation(mergedNodes, mergedEdges, initialSeeds);
 
       // Step 4: Scale based on duration
       const multiplier = parseDurationToMultiplier(estimatedDuration);

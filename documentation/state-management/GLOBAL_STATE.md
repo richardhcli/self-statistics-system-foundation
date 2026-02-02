@@ -1,4 +1,5 @@
 # Global State Protocol (Zustand)
+Immutable file: this will always be the code standard for global states. 
 
 ## Overview
 This project utilizes the **Separated Selector Facade Pattern** for all global stores. This architecture ensures high performance by maintaining reference stability, preventing unnecessary re-renders, and avoiding the "Maximum update depth exceeded" errors common in large-scale React applications.

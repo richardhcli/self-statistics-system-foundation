@@ -1,10 +1,9 @@
 import { generalizeConcept, processTextToLocalTopologySinglePrompt } from '@/lib/google-ai';
-import { nodeExists } from '@/lib/soulTopology';
 import { buildIncomingTopologyFromAnalysis } from './build-incoming-topology-from-analysis';
-import { CdagTopology, GeneralizationLink } from '@/types';
+import { GraphState, GeneralizationLink } from '@/types';
 
 export interface AiEntryAnalyzerResult {
-	cdagTopologyFragment: CdagTopology;
+	topologyFragment: GraphState;
 	estimatedDuration: string;
 }
 
@@ -14,13 +13,13 @@ export interface AiEntryAnalyzerResult {
  * Returns only the topology fragment and estimated duration.
  *
  * @param entry - Raw journal entry text
- * @param currentTopology - Current CDAG topology for checking existing nodes
+ * @param currentTopology - Current GraphState for checking existing nodes
  * @param duration - Optional user-provided duration override
  * @returns Topology fragment and estimated duration
  */
 export const aiEntryAnalyzer = async (
 	entry: string,
-	currentTopology: CdagTopology,
+	currentTopology: GraphState,
 	duration?: string
 ): Promise<AiEntryAnalyzerResult> => {
 	console.log('📍 1: Processing text to local topology using single prompt...');
@@ -30,7 +29,7 @@ export const aiEntryAnalyzer = async (
 	const estimatedDuration = analysis.duration || duration || 'unknown';
 
 	const hasNewCharacteristic = analysis.characteristics.some(
-		c => !nodeExists(currentTopology, c)
+		c => !currentTopology.nodes[c]
 	);
 
 	let generalizationChain: GeneralizationLink[] = analysis.generalizationChain || [];
@@ -44,7 +43,7 @@ export const aiEntryAnalyzer = async (
 		generalizationChain = genResult.chain || [];
 	}
 
-	const cdagTopologyFragment = buildIncomingTopologyFromAnalysis(analysis, generalizationChain);
+	const topologyFragment = buildIncomingTopologyFromAnalysis(analysis, generalizationChain);
 
-	return { cdagTopologyFragment, estimatedDuration };
+	return { topologyFragment, estimatedDuration };
 };

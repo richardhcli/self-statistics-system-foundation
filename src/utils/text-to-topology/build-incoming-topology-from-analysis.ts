@@ -1,4 +1,4 @@
-import { CdagTopology, TextToActionResponse, GeneralizationLink } from '@/types';
+import { GraphState, NodeData, EdgeData, TextToActionResponse, GeneralizationLink } from '@/types';
 
 /**
  * buildIncomingTopologyFromAnalysis
@@ -6,40 +6,106 @@ import { CdagTopology, TextToActionResponse, GeneralizationLink } from '@/types'
  *
  * @param analysis - AI analysis result containing weighted actions, skills, and characteristics
  * @param generalizationChain - Optional generalization links to merge as ancestors
- * @returns A topology fragment representing the derived hierarchy
+ * @returns A GraphState fragment representing the derived hierarchy
  */
 export const buildIncomingTopologyFromAnalysis = (
 	analysis: TextToActionResponse,
 	generalizationChain: GeneralizationLink[]
-): CdagTopology => {
-	const incomingTopology: CdagTopology = {};
+): GraphState => {
+	const nodes: Record<string, NodeData> = {};
+	const edges: Record<string, EdgeData> = {};
+	const timestamp = new Date().toISOString();
+
 	const topCharacteristic = analysis.characteristics[0] || 'General Domain';
 	const primarySkill = analysis.skills[0] || 'General Activity';
 
-	// Base 3-layer structure
-	incomingTopology[topCharacteristic] = { parents: {}, type: 'characteristic' };
-	incomingTopology[primarySkill] = {
-		parents: { [topCharacteristic]: 1.0 },
-		type: 'skill'
+	// Base 3-layer structure - create nodes
+	nodes[topCharacteristic] = {
+		id: topCharacteristic,
+		label: topCharacteristic,
+		type: 'characteristic',
+		createdAt: timestamp,
+		updatedAt: timestamp,
 	};
 
+	nodes[primarySkill] = {
+		id: primarySkill,
+		label: primarySkill,
+		type: 'skill',
+		createdAt: timestamp,
+		updatedAt: timestamp,
+	};
+
+	// Create edge from skill to characteristic
+	const skillEdgeId = `${topCharacteristic}->${primarySkill}`;
+	edges[skillEdgeId] = {
+		id: skillEdgeId,
+		source: topCharacteristic,
+		target: primarySkill,
+		weight: 1.0,
+		createdAt: timestamp,
+		updatedAt: timestamp,
+	};
+
+	// Create action nodes and edges
 	analysis.weightedActions.forEach(wa => {
-		incomingTopology[wa.label] = {
-			parents: { [primarySkill]: wa.weight },
-			type: 'action'
+		nodes[wa.label] = {
+			id: wa.label,
+			label: wa.label,
+			type: 'action',
+			createdAt: timestamp,
+			updatedAt: timestamp,
+		};
+
+		const actionEdgeId = `${primarySkill}->${wa.label}`;
+		edges[actionEdgeId] = {
+			id: actionEdgeId,
+			source: primarySkill,
+			target: wa.label,
+			weight: wa.weight,
+			createdAt: timestamp,
+			updatedAt: timestamp,
 		};
 	});
 
 	// Merge generalization chain if it exists
 	generalizationChain.forEach(link => {
-		if (!incomingTopology[link.child]) {
-			incomingTopology[link.child] = { parents: {}, type: 'none' };
+		// Create nodes if they don't exist
+		if (!nodes[link.child]) {
+			nodes[link.child] = {
+				id: link.child,
+				label: link.child,
+				type: 'none',
+				createdAt: timestamp,
+				updatedAt: timestamp,
+			};
 		}
-		if (!incomingTopology[link.parent]) {
-			incomingTopology[link.parent] = { parents: {}, type: 'none' };
+		if (!nodes[link.parent]) {
+			nodes[link.parent] = {
+				id: link.parent,
+				label: link.parent,
+				type: 'none',
+				createdAt: timestamp,
+				updatedAt: timestamp,
+			};
 		}
-		incomingTopology[link.child].parents[link.parent] = link.weight;
+
+		// Create edge
+		const linkEdgeId = `${link.parent}->${link.child}`;
+		edges[linkEdgeId] = {
+			id: linkEdgeId,
+			source: link.parent,
+			target: link.child,
+			weight: link.weight,
+			createdAt: timestamp,
+			updatedAt: timestamp,
+		};
 	});
 
-	return incomingTopology;
+	return {
+		nodes,
+		edges,
+		version: 2,
+		lastSyncTimestamp: timestamp,
+	};
 };
