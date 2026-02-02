@@ -9,7 +9,7 @@ import { AnalyzeEntryResult } from './types';
  * Intelligent entry analysis orchestrator with validation and smart generalization.
  * 
  * WORKFLOW:
- * 1. Extract semantic data via single-prompt AI analysis
+ * 1. Extract semantic data via single-prompt AI analysis (structured layer mappings)
  * 2. Validate AI response quality and structure
  * 3. Intelligently decide if generalization is needed:
  *    - Skip if chain already present and valid
@@ -18,29 +18,29 @@ import { AnalyzeEntryResult } from './types';
  * 4. Transform validated analysis into topology fragment
  * 
  * ERROR HANDLING:
- * - Gracefully handles AI failures (returns safe defaults)
+ * - Gracefully handles AI failures (returns empty arrays, safe defaults)
  * - Validates weight distributions (must sum to 1.0)
- * - Sanitizes empty/invalid arrays
+ * - Validates structured mappings integrity
  * - Provides detailed logging for debugging
  * 
  * @param entry - Raw journal entry text (user input)
  * @param currentTopology - Current GraphState to check for existing nodes
- * @param duration - Optional user-provided duration override
- * @returns Topology fragment and estimated duration
+ * @param durationOverride - Optional user-provided duration override (integer minutes or string)
+ * @returns Topology fragment and estimated duration in minutes
  * 
  * @example
  * const result = await analyzeEntry(
  *   "I spent 2 hours studying machine learning algorithms",
  *   currentTopology,
- *   "2h"
+ *   120
  * );
  * // result.topologyFragment contains validated action/skill/characteristic nodes
- * // result.estimatedDuration is either provided, extracted, or defaulted
+ * // result.estimatedDuration is "120" (string representation of minutes)
  */
 export const analyzeEntry = async (
 	entry: string,
 	currentTopology: GraphState,
-	duration?: string
+	durationOverride?: number | string
 ): Promise<AnalyzeEntryResult> => {
 	// ============================================================
 	// STEP 1: AI Semantic Extraction
@@ -51,10 +51,10 @@ export const analyzeEntry = async (
 	const analysis = await processTextToLocalTopologySinglePrompt(entry);
 	
 	console.log('✅ [AI Response] Received:', {
-		duration: analysis.duration,
+		durationMinutes: analysis.durationMinutes,
 		actionCount: analysis.weightedActions.length,
-		skillCount: analysis.skills.length,
-		characteristicCount: analysis.characteristics.length,
+		skillMappingCount: analysis.skillMappings.length,
+		characteristicMappingCount: analysis.characteristicMappings.length,
 		chainLength: analysis.generalizationChain?.length || 0
 	});
 
@@ -79,25 +79,23 @@ export const analyzeEntry = async (
 		}
 	}
 	
-	// Sanitize empty arrays
-	if (analysis.skills.length === 0) {
-		console.warn('⚠️ [Validation] No skills extracted, using default "General Activity"');
-		analysis.skills = ['General Activity'];
+	// Validate mapping integrity (every action should have a skill mapping)
+	if (analysis.skillMappings.length === 0 && analysis.weightedActions.length > 0) {
+		console.warn('⚠️ [Validation] No skill mappings provided, topology will be incomplete');
 	}
 	
-	if (analysis.characteristics.length === 0) {
-		console.warn('⚠️ [Validation] No characteristics extracted, using default "General Domain"');
-		analysis.characteristics = ['General Domain'];
+	if (analysis.characteristicMappings.length === 0 && analysis.skillMappings.length > 0) {
+		console.warn('⚠️ [Validation] No characteristic mappings provided, topology will be incomplete');
 	}
 
 	// ============================================================
 	// STEP 3: Duration Resolution
 	// ============================================================
-	const estimatedDuration = duration || analysis.duration || 'unknown';
+	const estimatedDuration = durationOverride 
+		? (typeof durationOverride === 'number' ? durationOverride.toString() : durationOverride)
+		: analysis.durationMinutes.toString();
 	
-	if (estimatedDuration === 'unknown') {
-		console.warn('⚠️ [Duration] Unable to determine duration, defaulting to "unknown"');
-	}
+	console.log(`⏱️ [Duration] Resolved to: ${estimatedDuration} ${typeof durationOverride === 'number' || !isNaN(Number(estimatedDuration)) ? 'minutes' : ''}`);
 
 	// ============================================================
 	// STEP 4: Intelligent Generalization Decision
@@ -113,8 +111,11 @@ export const analyzeEntry = async (
 	if (hasValidChain) {
 		console.log(`✅ [Generalization] Using AI-provided chain (${generalizationChain.length} links)`);
 	} else {
+		// Extract unique characteristics from characteristicMappings
+		const characteristics = [...new Set(analysis.characteristicMappings.map(m => m.parent))];
+		
 		// Check if any characteristics are genuinely new
-		const newCharacteristics = analysis.characteristics.filter(
+		const newCharacteristics = characteristics.filter(
 			c => !currentTopology.nodes[c]
 		);
 		
@@ -123,12 +124,13 @@ export const analyzeEntry = async (
 			console.log('   Requesting concept generalization from fallback AI...');
 			
 			const actionLabels = analysis.weightedActions.map(a => a.label);
+			const skills = [...new Set(analysis.skillMappings.map(m => m.parent))];
 			
 			try {
 				const genResult = await generalizeConcept(
 					actionLabels,
-					analysis.skills,
-					analysis.characteristics
+					skills,
+					characteristics
 				);
 				
 				if (genResult.chain && genResult.chain.length > 0) {

@@ -1,11 +1,33 @@
 
 /**
- * Utility for parsing duration strings and scaling EXP multipliers.
+ * Utility for converting duration to EXP multipliers.
+ * 
+ * Duration is now provided as integer minutes from AI analysis.
+ * 30 minutes = 1.0 EXP base unit.
  */
 
-export const parseDurationToMultiplier = (duration?: string): number => {
+/**
+ * parseDurationToMultiplier
+ * 
+ * Converts duration (in minutes or as override) to EXP multiplier.
+ * 
+ * @param duration - Integer minutes OR legacy string override
+ * @returns EXP multiplier (30 minutes = 1.0)
+ * 
+ * @example
+ * parseDurationToMultiplier(60) // returns 2.0 (60 mins / 30)
+ * parseDurationToMultiplier(30) // returns 1.0 (30 mins / 30)
+ * parseDurationToMultiplier(undefined) // returns 1.0 (default)
+ */
+export const parseDurationToMultiplier = (duration?: number | string): number => {
   if (!duration) return 1.0;
   
+  // If integer, use directly
+  if (typeof duration === 'number') {
+    return duration / 30;
+  }
+  
+  // Legacy string fallback (for user overrides)
   const lower = duration.toLowerCase();
   let minutes = 0;
 

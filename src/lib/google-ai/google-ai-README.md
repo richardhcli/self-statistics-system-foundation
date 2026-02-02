@@ -64,8 +64,16 @@ GraphState { nodes, edges }
     label: string;               // "Debugging", "Writing"
     weight: number;              // 0.1-1.0, sum = 1.0
   }>;                            
-  skills: string[];              // ["Software engineering"]
-  characteristics: string[];     // ["Intellect"]
+  skillMappings: Array<{         // NEW: Explicit action→skill connections
+    child: string;               // Action label
+    parent: string;              // Skill label
+    weight: number;              // Proportion of skill (0.1-1.0)
+  }>;
+  characteristicMappings: Array<{  // NEW: Explicit skill→characteristic connections
+    child: string;               // Skill label
+    parent: string;              // Characteristic label
+    weight: number;              // Proportion of characteristic (0.1-1.0)
+  }>;
   generalizationChain: Array<{   // Abstraction hierarchy
     child: string;               
     parent: string;              
@@ -73,6 +81,12 @@ GraphState { nodes, edges }
   }>;                            
 }
 ```
+
+**Key Structure Changes** (2026-02-02):
+- Duration now returned as integer minutes (`durationMinutes: 90`)
+- `skillMappings` replaced `skills: string[]` - explicit action→skill connections
+- `characteristicMappings` replaced `characteristics: string[]` - explicit skill→characteristic connections
+- Every parent-child relationship now has an explicit weight for precise graph construction
 
 **Use Case**: Primary entry processing path for AI-enabled journal entries
 

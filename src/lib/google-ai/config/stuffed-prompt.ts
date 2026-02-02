@@ -2,20 +2,20 @@
  * SINGLE_PROMPT_TOPOLOGY_PROMPT
  * 
  * Consolidated AI prompt for complete entry-to-topology processing.
- * Extracts actions, estimates duration, maps to skills/characteristics,
+ * Extracts actions, estimates duration, maps to skills/characteristics with explicit parent-child relationships,
  * and generates abstraction hierarchy in a single API call.
  * 
  * Design Philosophy:
- * - Explicit constraints prevent hallucination
+ * - Explicit parent-child mappings for every layer connection
+ * - Integer duration for precise time tracking
  * - Structured examples guide consistent output format
  * - Weight validation rules ensure mathematical soundness
- * - Clear termination conditions for generalization chain
  */
 export const SINGLE_PROMPT_TOPOLOGY_PROMPT = (text: string) => `
 You are a high-fidelity semantic parser and structural ontologist for a human characterization system.
 
 # TASK
-Analyze the journal entry below and produce a complete 3-layer semantic decomposition with abstraction chain.
+Analyze the journal entry below and produce a complete multi-layer semantic decomposition with explicit parent-child mappings.
 
 # PIPELINE (Execute in order)
 
@@ -33,10 +33,16 @@ EXAMPLES:
 ❌ Bad: "Fixed 3 bugs", "Read page 42", "Wrote 500 lines", "Ran 5km"
 
 ## STEP 2: DURATION ESTIMATION
-Estimate total time spent on all actions combined.
+Estimate total time spent in INTEGER MINUTES.
 
-FORMAT: Use natural language (e.g., "30 mins", "2 hours", "1.5 hrs")
-DEFAULT: If unclear, use "30 mins"
+FORMAT: Return a number (e.g., 30, 60, 120, 180)
+DEFAULT: If unclear, use 30 (representing 30 minutes)
+
+EXAMPLES:
+- "30 mins" → 30
+- "2 hours" → 120
+- "1.5 hrs" → 90
+- "quick session" → 30
 
 ## STEP 3: ACTION WEIGHTING
 Assign relative weights to each action based on estimated time/effort proportion.
@@ -48,20 +54,35 @@ RULES:
 
 EXAMPLE:
 - If entry mentions "mostly debugging with some documentation"
-- Weights: [{ "Debugging": 0.7 }, { "Technical writing": 0.3 }] ✅
+- Weights: [{ "label": "Debugging", "weight": 0.7 }, { "label": "Technical writing", "weight": 0.3 }] ✅
 
-## STEP 4: SKILL MAPPING
-Identify 1-2 trainable skills/competencies that encompass the actions.
+## STEP 4: SKILL MAPPING (STRUCTURED)
+Identify 1-3 trainable skills/competencies and map them EXPLICITLY to the actions.
 
 DEFINITION: A skill is a capability developed through repeated action practice.
 
-EXAMPLES:
-- Actions: ["Debugging", "Code review"] → Skills: ["Software engineering"]
-- Actions: ["Squatting", "Deadlifting"] → Skills: ["Strength training"]
-- Actions: ["Reading research papers", "Note-taking"] → Skills: ["Academic research"]
+FORMAT: Return an array of { child: "<action>", parent: "<skill>", weight: <0.1-1.0> }
+- child = action label from Step 1
+- parent = skill that encompasses this action
+- weight = proportion of skill comprised by this action
 
-## STEP 5: CHARACTERISTIC ABSTRACTION
-Map skills to 1-2 high-level human characteristics (RPG-style attributes).
+EXAMPLES:
+- Actions: ["Debugging", "Code review"]
+- Skill Mappings: [
+    { "child": "Debugging", "parent": "Software engineering", "weight": 0.6 },
+    { "child": "Code review", "parent": "Software engineering", "weight": 0.4 }
+  ]
+
+- Actions: ["Squatting", "Deadlifting"]
+- Skill Mappings: [
+    { "child": "Squatting", "parent": "Strength training", "weight": 0.5 },
+    { "child": "Deadlifting", "parent": "Strength training", "weight": 0.5 }
+  ]
+
+RULE: Every action MUST appear as a child in at least one skill mapping.
+
+## STEP 5: CHARACTERISTIC ABSTRACTION (STRUCTURED)
+Map skills to 1-2 high-level human characteristics and create EXPLICIT mappings.
 
 CATEGORY REFERENCE (use these or similar):
 - Intellect: Analytical thinking, technical proficiency, problem-solving
@@ -72,17 +93,35 @@ CATEGORY REFERENCE (use these or similar):
 - Creativity: Innovation, artistic expression, design thinking
 - Leadership: Vision, strategic influence, direction-setting
 
-RULE: Choose the MOST SPECIFIC characteristic that fits.
+FORMAT: Return an array of { child: "<skill>", parent: "<characteristic>", weight: <0.1-1.0> }
+- child = skill label from Step 4
+- parent = characteristic that encompasses this skill
+- weight = proportion of characteristic comprised by this skill
 
-## STEP 6: GENERALIZATION CHAIN
+EXAMPLES:
+- Skills: ["Software engineering"]
+- Characteristic Mappings: [
+    { "child": "Software engineering", "parent": "Intellect", "weight": 0.8 }
+  ]
+
+- Skills: ["Strength training", "Cardio training"]
+- Characteristic Mappings: [
+    { "child": "Strength training", "parent": "Vitality", "weight": 0.5 },
+    { "child": "Cardio training", "parent": "Vitality", "weight": 0.5 }
+  ]
+
+RULE: Every skill MUST appear as a child in at least one characteristic mapping.
+
+## STEP 6: GENERALIZATION CHAIN (OPTIONAL)
 Generate a vertical abstraction hierarchy starting from one characteristic.
 
 RULES:
 - Start with ONE of the characteristics from Step 5
 - Each parent must be MORE GENERAL than its child
-- Generate 1-5 links (child→parent pairs)
+- Generate 0-5 links (child→parent pairs)
 - STOP if you reach "progression" (ultimate root concept)
 - Each link has a weight (0.1-1.0) = proportion of parent comprised by child
+- If no meaningful generalization exists, return empty array
 
 EXAMPLE CHAINS:
 - "Intellect" → "Cognitive mastery" → "Self-improvement" → "progression"
@@ -98,12 +137,16 @@ WEIGHT GUIDANCE:
 Return ONLY valid JSON with this exact structure:
 
 {
-  "duration": "<time estimate>",
+  "durationMinutes": <integer>,
   "weightedActions": [
     { "label": "<action>", "weight": <0.1-1.0> }
   ],
-  "skills": ["<skill1>", "<skill2>"],
-  "characteristics": ["<char1>", "<char2>"],
+  "skillMappings": [
+    { "child": "<action>", "parent": "<skill>", "weight": <0.1-1.0> }
+  ],
+  "characteristicMappings": [
+    { "child": "<skill>", "parent": "<characteristic>", "weight": <0.1-1.0> }
+  ],
   "generalizationChain": [
     { "child": "<characteristic>", "parent": "<more general>", "weight": <0.1-1.0> },
     { "child": "<more general>", "parent": "<even more general>", "weight": <0.1-1.0> }
@@ -111,12 +154,12 @@ Return ONLY valid JSON with this exact structure:
 }
 
 # VALIDATION CHECKLIST
+- [ ] durationMinutes is a positive integer
 - [ ] weightedActions weights sum to 1.0
 - [ ] All weights are between 0.1 and 1.0
-- [ ] skills array has 1-2 items
-- [ ] characteristics array has 1-2 items
-- [ ] generalizationChain starts with a characteristic from the list
-- [ ] generalizationChain terminates at "progression" or has ≤5 links
+- [ ] Every action appears as a child in skillMappings
+- [ ] Every skill appears as a child in characteristicMappings
+- [ ] generalizationChain is empty OR starts with a characteristic and terminates at "progression" or has ≤5 links
 - [ ] All strings use consistent capitalization
 
 # JOURNAL ENTRY

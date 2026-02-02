@@ -5,29 +5,31 @@ import { GraphState, NodeData, EdgeData, TextToActionResponse, GeneralizationLin
  * 
  * Pure transformation function: Converts AI analysis result into a topology fragment.
  * 
- * Builds a 3-layer base hierarchy:
- * 1. Top characteristic (domain)
- * 2. Primary skill (activity category)
- * 3. Action nodes (concrete tasks)
+ * Uses STRUCTURED parent-child mappings to build the complete hierarchy:
+ * 1. Action nodes (concrete tasks)
+ * 2. Skill nodes + edges from skillMappings
+ * 3. Characteristic nodes + edges from characteristicMappings
+ * 4. Generalization chain nodes + edges (optional)
  * 
- * Then enriches with any generalization chain links that extend the hierarchy upward.
- * 
+ * Handles empty arrays gracefully - only creates nodes/edges that exist.
  * No side effects. No external dependencies beyond types.
  * 
- * @param analysis - AI analysis result containing weighted actions, skills, and characteristics
- * @param generalizationChain - Optional generalization links to merge as ancestors
- * @returns A GraphState fragment representing the derived hierarchy ready to merge
+ * @param analysis - AI analysis result with structured layer mappings
+ * @param generalizationChain - Optional generalization links (fallback if AI didn't provide)
+ * @returns A GraphState fragment representing the complete hierarchy ready to merge
  * 
  * @example
  * const analysis = {
- *   weightedActions: [{ label: "studying", weight: 0.8 }],
- *   skills: ["memorization"],
- *   characteristics: ["intelligence"]
+ *   durationMinutes: 60,
+ *   weightedActions: [{ label: "Debugging", weight: 1.0 }],
+ *   skillMappings: [{ child: "Debugging", parent: "Software engineering", weight: 0.8 }],
+ *   characteristicMappings: [{ child: "Software engineering", parent: "Intellect", weight: 0.9 }],
+ *   generalizationChain: []
  * };
  * 
  * const fragment = transformAnalysisToTopology(analysis, []);
- * // Returns GraphState with nodes: intelligence, memorization, studying
- * // Returns edges: intelligence -> memorization -> studying
+ * // Returns GraphState with nodes: Intellect, Software engineering, Debugging
+ * // Returns edges: Intellect -> Software engineering (0.9), Software engineering -> Debugging (0.8)
  */
 export const transformAnalysisToTopology = (
 	analysis: TextToActionResponse,
@@ -37,38 +39,9 @@ export const transformAnalysisToTopology = (
 	const edges: Record<string, EdgeData> = {};
 	const timestamp = new Date().toISOString();
 
-	const topCharacteristic = analysis.characteristics[0] || 'General Domain';
-	const primarySkill = analysis.skills[0] || 'General Activity';
-
-	// Base 3-layer structure - create nodes
-	nodes[topCharacteristic] = {
-		id: topCharacteristic,
-		label: topCharacteristic,
-		type: 'characteristic',
-		createdAt: timestamp,
-		updatedAt: timestamp,
-	};
-
-	nodes[primarySkill] = {
-		id: primarySkill,
-		label: primarySkill,
-		type: 'skill',
-		createdAt: timestamp,
-		updatedAt: timestamp,
-	};
-
-	// Create edge from characteristic to skill (parent -> child)
-	const skillEdgeId = `${topCharacteristic}->${primarySkill}`;
-	edges[skillEdgeId] = {
-		id: skillEdgeId,
-		source: topCharacteristic,
-		target: primarySkill,
-		weight: 1.0,
-		createdAt: timestamp,
-		updatedAt: timestamp,
-	};
-
-	// Create action nodes and edges from skill to actions
+	// ============================================================
+	// LAYER 1: Create action nodes from weightedActions
+	// ============================================================
 	analysis.weightedActions.forEach(wa => {
 		nodes[wa.label] = {
 			id: wa.label,
@@ -77,22 +50,72 @@ export const transformAnalysisToTopology = (
 			createdAt: timestamp,
 			updatedAt: timestamp,
 		};
+	});
 
-		const actionEdgeId = `${primarySkill}->${wa.label}`;
-		edges[actionEdgeId] = {
-			id: actionEdgeId,
-			source: primarySkill,
-			target: wa.label,
-			weight: wa.weight,
+	// ============================================================
+	// LAYER 2: Create skill nodes and edges from skillMappings
+	// ============================================================
+	analysis.skillMappings.forEach(mapping => {
+		// Create skill node if it doesn't exist
+		if (!nodes[mapping.parent]) {
+			nodes[mapping.parent] = {
+				id: mapping.parent,
+				label: mapping.parent,
+				type: 'skill',
+				createdAt: timestamp,
+				updatedAt: timestamp,
+			};
+		}
+
+		// Create edge from skill to action (parent -> child)
+		const edgeId = `${mapping.parent}->${mapping.child}`;
+		edges[edgeId] = {
+			id: edgeId,
+			source: mapping.parent,
+			target: mapping.child,
+			weight: mapping.weight,
 			createdAt: timestamp,
 			updatedAt: timestamp,
 		};
 	});
 
-	// Merge generalization chain if it exists
-	// This extends the hierarchy upward with additional ancestors
-	generalizationChain.forEach(link => {
-		// Create nodes if they don't exist
+	// ============================================================
+	// LAYER 3: Create characteristic nodes and edges from characteristicMappings
+	// ============================================================
+	analysis.characteristicMappings.forEach(mapping => {
+		// Create characteristic node if it doesn't exist
+		if (!nodes[mapping.parent]) {
+			nodes[mapping.parent] = {
+				id: mapping.parent,
+				label: mapping.parent,
+				type: 'characteristic',
+				createdAt: timestamp,
+				updatedAt: timestamp,
+			};
+		}
+
+		// Create edge from characteristic to skill (parent -> child)
+		const edgeId = `${mapping.parent}->${mapping.child}`;
+		edges[edgeId] = {
+			id: edgeId,
+			source: mapping.parent,
+			target: mapping.child,
+			weight: mapping.weight,
+			createdAt: timestamp,
+			updatedAt: timestamp,
+		};
+	});
+
+	// ============================================================
+	// LAYER 4: Merge generalization chain if provided
+	// ============================================================
+	// Use fallback chain if analysis didn't provide one
+	const finalChain = (analysis.generalizationChain && analysis.generalizationChain.length > 0)
+		? analysis.generalizationChain
+		: generalizationChain;
+
+	finalChain.forEach(link => {
+		// Create nodes if they don't exist (with type 'none' for abstract concepts)
 		if (!nodes[link.child]) {
 			nodes[link.child] = {
 				id: link.child,

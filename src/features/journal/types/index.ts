@@ -23,17 +23,17 @@ export interface GeneralizationLink {
 
 /**
  * AI Response structure for the refined action pipeline.
- * Represents the 3-layer semantic decomposition of human effort.
+ * Represents the 3-layer semantic decomposition with structured parent-child mappings.
  */
 export interface TextToActionResponse {
+  /** Estimated duration in integer minutes (e.g., 30, 120) */
+  durationMinutes: number;
   /** The most granular level: specific tasks performed */
   weightedActions: WeightedAction[];
-  /** The estimated time taken for the activity */
-  duration: string;
-  /** The intermediate level: clusters of actions (e.g., "Coding") */
-  skills: string[];
-  /** The highest level: abstract human traits or qualities (e.g., "Intellect") */
-  characteristics: string[];
+  /** Action-to-Skill mappings: explicit parent-child relationships */
+  skillMappings: GeneralizationLink[];
+  /** Skill-to-Characteristic mappings: explicit parent-child relationships */
+  characteristicMappings: GeneralizationLink[];
   /** Optional abstraction chain from characteristics to higher-level concepts */
   generalizationChain?: GeneralizationLink[];
 }

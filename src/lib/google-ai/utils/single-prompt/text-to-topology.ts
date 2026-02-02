@@ -8,11 +8,11 @@ import { withTimeout } from "../with-timeout";
  * processTextToLocalTopologySinglePrompt
  * SINGLE PROMPT ORCHESTRATOR - Entry → Topology Pipeline
  * 
- * Uses one prompt to return actions, time estimate, weighted actions,
- * skills, and characteristics in a single request.
+ * Uses one prompt to return structured parent-child mappings across all layers.
+ * Returns integer duration for precise time tracking.
  *
  * @param text - User's journal entry text
- * @returns TextToActionResponse containing actions, skills, characteristics, and duration
+ * @returns TextToActionResponse with structured layer mappings and integer duration
  */
 export const processTextToLocalTopologySinglePrompt = async (
   text: string
@@ -30,7 +30,7 @@ export const processTextToLocalTopologySinglePrompt = async (
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              duration: { type: Type.STRING },
+              durationMinutes: { type: Type.NUMBER },
               weightedActions: {
                 type: Type.ARRAY,
                 items: {
@@ -42,13 +42,29 @@ export const processTextToLocalTopologySinglePrompt = async (
                   required: ['label', 'weight']
                 }
               },
-              skills: {
+              skillMappings: {
                 type: Type.ARRAY,
-                items: { type: Type.STRING }
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    child: { type: Type.STRING },
+                    parent: { type: Type.STRING },
+                    weight: { type: Type.NUMBER }
+                  },
+                  required: ['child', 'parent', 'weight']
+                }
               },
-              characteristics: {
+              characteristicMappings: {
                 type: Type.ARRAY,
-                items: { type: Type.STRING }
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    child: { type: Type.STRING },
+                    parent: { type: Type.STRING },
+                    weight: { type: Type.NUMBER }
+                  },
+                  required: ['child', 'parent', 'weight']
+                }
               },
               generalizationChain: {
                 type: Type.ARRAY,
@@ -63,7 +79,7 @@ export const processTextToLocalTopologySinglePrompt = async (
                 }
               }
             },
-            required: ['duration', 'weightedActions', 'skills', 'characteristics', 'generalizationChain']
+            required: ['durationMinutes', 'weightedActions', 'skillMappings', 'characteristicMappings', 'generalizationChain']
           }
         }
       }),
@@ -71,22 +87,23 @@ export const processTextToLocalTopologySinglePrompt = async (
       'processTextToLocalTopologySinglePrompt'
     );
 
-    const parsed = JSON.parse(response.text || '{"duration":"unknown","weightedActions":[],"skills":[],"characteristics":[],"generalizationChain":[]}');
+    const parsed = JSON.parse(response.text || '{"durationMinutes":30,"weightedActions":[],"skillMappings":[],"characteristicMappings":[],"generalizationChain":[]}');
 
     return {
-      duration: parsed.duration || 'unknown',
+      durationMinutes: parsed.durationMinutes || 30,
       weightedActions: parsed.weightedActions || [],
-      skills: parsed.skills || [],
-      characteristics: parsed.characteristics || [],
+      skillMappings: parsed.skillMappings || [],
+      characteristicMappings: parsed.characteristicMappings || [],
       generalizationChain: parsed.generalizationChain || []
     };
   } catch (error) {
     console.warn('⚠️ Single prompt pipeline failed, returning defaults:', error);
     return {
-      duration: 'unknown',
+      durationMinutes: 30,
       weightedActions: [],
-      skills: [],
-      characteristics: []
+      skillMappings: [],
+      characteristicMappings: [],
+      generalizationChain: []
     };
   }
 };
