@@ -83,7 +83,7 @@ interface JournalEntryData {
 1. **Getting User Input**
    - Display voice recorder component for audio-based input
    - Display manual entry form for text-based input
-   - Support both quick inline entries and detailed form submissions
+   - Support quick inline entries (text-only, no AI) and detailed form submissions
 
 2. **Updating Global Journal Store**
    - Update journal store **immediately** upon user input (before AI processing)
@@ -159,6 +159,14 @@ Simplified text logging with optional time taken. AI classification is always en
 - Rich text entry
 - Optional time taken input
 - AI analysis always on (no manual action tags)
+
+### TextOnlyManualEntryForm
+Inline text-only entry form used when adding entries inside a day view. This path does not use AI.
+
+**Features**:
+- Minimal inline textarea
+- No AI analysis or action tagging
+- Uses manual-only pipeline for quick entries
 
 ## Data Flow
 

@@ -60,8 +60,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   /**
    * Handle quick manual entry (from journal view inline)
    * 1. If empty, just create placeholder in journal store
-   * 2. If has content, process with AI and update store
-   * 3. Trigger integration events
+   * 2. If has content, process WITHOUT AI and update store
    */
   const handleManualQuickEntry = async (y: string, m: string, d: string, content: string) => {
     if (!content.trim()) {
@@ -84,16 +83,9 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
     try { 
       await createJournalEntry({ 
         entry: content, 
-        useAI: true, 
+        useAI: false, 
         dateInfo: { year: y, month: m, day: d } 
       });
-
-      if (onIntegrationEvent) {
-        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
-          originalText: content,
-          source: 'manual_quick'
-        });
-      }
     } finally { 
       setIsProcessing(false); 
     }

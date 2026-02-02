@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { JournalStore, JournalViewProps } from '../types';
-import { ChevronRight, ChevronDown, Plus, Send, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Loader2 } from 'lucide-react';
 import JournalEntryItem from './journal-entry-item/index';
+import TextOnlyManualEntryForm from './textonly-manual-entry-form';
 
 const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onParseEntry, isProcessing }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -65,16 +66,26 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
                   {expanded[monthPath] && <div className="pl-4">
                     {Object.keys(data[year][month])
                       .filter(k => k !== 'metadata')
+
                       // Chronological sort: numeric day value
                       .sort((a, b) => parseInt(a) - parseInt(b))
                       .map(day => {
                         const dayPath = `${monthPath}-${day}`;
                         return <div key={day} className="border-l-2 border-slate-100 ml-2">
+
                           <div className="flex items-center justify-between px-4 py-2">
                             <button onClick={() => toggleExpanded(dayPath)} className="flex items-center text-slate-500">{expanded[dayPath] ? <ChevronDown className="w-4 h-4 mr-2" /> : <ChevronRight className="w-4 h-4 mr-2" />}<span className="text-xs font-bold uppercase">Day {day}</span></button>
                             <button onClick={() => setAddingToDay(addingToDay === dayPath ? null : dayPath)} className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Plus className="w-4 h-4" /></button>
                           </div>
-                          {addingToDay === dayPath && <div className="px-6 py-2 relative"><textarea autoFocus value={manualText} onChange={(e) => setManualText(e.target.value)} placeholder="What did you just finish doing?" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 resize-none min-h-[80px]" /><button onClick={() => handleManualSubmit(year, month, day)} disabled={!manualText.trim()} className="absolute bottom-6 right-8 p-2 bg-indigo-600 text-white rounded-lg shadow-lg"><Send className="w-3 h-3" /></button></div>}
+
+                          {addingToDay === dayPath && (
+                            <TextOnlyManualEntryForm
+                              value={manualText}
+                              onChange={setManualText}
+                              onSubmit={() => handleManualSubmit(year, month, day)}
+                              isSubmitDisabled={!manualText.trim()}
+                            />
+                          )}
                           {expanded[dayPath] && <div className="pl-6 py-4 space-y-4 pr-4">
                             {Object.keys(data[year][month][day])
                               .filter(k => k !== 'metadata')
