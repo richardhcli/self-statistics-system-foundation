@@ -1,14 +1,35 @@
 import { GraphState, NodeData, EdgeData, TextToActionResponse, GeneralizationLink } from '@/types';
 
 /**
- * buildIncomingTopologyFromAnalysis
- * Builds a base 3-layer topology from AI analysis and merges any generalization links.
- *
+ * transformAnalysisToTopology
+ * 
+ * Pure transformation function: Converts AI analysis result into a topology fragment.
+ * 
+ * Builds a 3-layer base hierarchy:
+ * 1. Top characteristic (domain)
+ * 2. Primary skill (activity category)
+ * 3. Action nodes (concrete tasks)
+ * 
+ * Then enriches with any generalization chain links that extend the hierarchy upward.
+ * 
+ * No side effects. No external dependencies beyond types.
+ * 
  * @param analysis - AI analysis result containing weighted actions, skills, and characteristics
  * @param generalizationChain - Optional generalization links to merge as ancestors
- * @returns A GraphState fragment representing the derived hierarchy
+ * @returns A GraphState fragment representing the derived hierarchy ready to merge
+ * 
+ * @example
+ * const analysis = {
+ *   weightedActions: [{ label: "studying", weight: 0.8 }],
+ *   skills: ["memorization"],
+ *   characteristics: ["intelligence"]
+ * };
+ * 
+ * const fragment = transformAnalysisToTopology(analysis, []);
+ * // Returns GraphState with nodes: intelligence, memorization, studying
+ * // Returns edges: intelligence -> memorization -> studying
  */
-export const buildIncomingTopologyFromAnalysis = (
+export const transformAnalysisToTopology = (
 	analysis: TextToActionResponse,
 	generalizationChain: GeneralizationLink[]
 ): GraphState => {
@@ -36,7 +57,7 @@ export const buildIncomingTopologyFromAnalysis = (
 		updatedAt: timestamp,
 	};
 
-	// Create edge from skill to characteristic
+	// Create edge from characteristic to skill (parent -> child)
 	const skillEdgeId = `${topCharacteristic}->${primarySkill}`;
 	edges[skillEdgeId] = {
 		id: skillEdgeId,
@@ -47,7 +68,7 @@ export const buildIncomingTopologyFromAnalysis = (
 		updatedAt: timestamp,
 	};
 
-	// Create action nodes and edges
+	// Create action nodes and edges from skill to actions
 	analysis.weightedActions.forEach(wa => {
 		nodes[wa.label] = {
 			id: wa.label,
@@ -69,6 +90,7 @@ export const buildIncomingTopologyFromAnalysis = (
 	});
 
 	// Merge generalization chain if it exists
+	// This extends the hierarchy upward with additional ancestors
 	generalizationChain.forEach(link => {
 		// Create nodes if they don't exist
 		if (!nodes[link.child]) {

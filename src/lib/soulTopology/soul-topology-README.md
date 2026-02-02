@@ -49,7 +49,13 @@ Features:
 - EXP propagation across the hierarchy
 
 ## General utilities:
-- Topology utilities (graph-fragment merge, node checks, node creation / update / deletion)
+- **Topology utilities** (graph-fragment merge, node checks, node creation / update / deletion)
+- **Entry Pipeline** (`utils/entry-pipeline`) - Pure utilities for converting journal entries into topology fragments
+  - `analyzeEntry()` - AI-driven analysis with generalization chain
+  - `transformAnalysisToTopology()` - 3-layer hierarchy builder from analysis result
+  - `transformActionsToTopology()` - Simple action-only topology builder
+  - `EntryOrchestratorContext` - Domain type for entry processing events
+  - These utilities are agnostic to storage/React and fully testable in isolation
 
 
 ## dependencies

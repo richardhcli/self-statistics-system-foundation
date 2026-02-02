@@ -4,10 +4,8 @@ import { usePlayerStatisticsActions } from '@/stores/player-statistics';
 import { useUserInformationActions } from '@/stores/user-information';
 import { useJournalActions } from '@/stores/journal';
 import { JournalEntryData } from '@/stores/journal';
-import { calculateParentPropagation } from '@/lib/soulTopology';
+import { calculateParentPropagation, analyzeEntry, transformActionsToTopology } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from '@/stores/player-statistics';
-import { aiEntryAnalyzer } from '@/utils/text-to-topology/ai-entry-analyzer';
-import { buildIncomingTopologyFromActions } from '@/utils/text-to-topology/build-incoming-topology-from-actions';
 import type { GraphState } from '@/stores/cdag-topology';
 
 /**
@@ -68,7 +66,7 @@ export const useEntryOrchestrator = () => {
 
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
-        const aiResult = await aiEntryAnalyzer(entry, { nodes, edges, version: 2 }, duration);
+        const aiResult = await analyzeEntry(entry, { nodes, edges, version: 2 }, duration);
         topologyFragment = aiResult.topologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
         
@@ -78,7 +76,7 @@ export const useEntryOrchestrator = () => {
                 Object.values(topologyFragment.edges).some(e => e.target === id)
         );
       } else {
-        topologyFragment = buildIncomingTopologyFromActions(actions, { nodes, edges, version: 2 });
+        topologyFragment = transformActionsToTopology(actions, { nodes, edges, version: 2 });
         finalActions = actions;
       }
 
