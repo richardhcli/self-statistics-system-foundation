@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ view, setView }) => {
   };
 
   return (
-    <header className="header-glass border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 select-none transition-colors">
+    <header className="header-glass border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 select-none transition-colors relative">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-8 flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -85,6 +85,7 @@ const Header: React.FC<HeaderProps> = ({ view, setView }) => {
           </nav>
         </div>
       </div>
+      <div className="header-progress-bar"></div>
     </header>
   );
 };

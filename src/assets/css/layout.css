@@ -26,3 +26,19 @@
 .dark .header-glass {
   background-color: rgba(15, 23, 42, 0.8);
 }
+
+/* Header Progress Bar */
+.header-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1f2937, #374151, #1f2937);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}

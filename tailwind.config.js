@@ -2,10 +2,18 @@ export default {
   darkMode: 'class',
   content: [
     './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',
-    './app/**/*.{js,ts,jsx,tsx}',
-    './features/**/*.{js,ts,jsx,tsx}',
-    './components/**/*.{js,ts,jsx,tsx}',
+    './src/**/*.{html,js,ts,jsx,tsx}',
+  ],
+  safelist: [
+    'bg-red-500',
+    'hover:bg-red-600',
+    'bg-indigo-600',
+    'hover:bg-indigo-700',
+    'scale-105',
+    'opacity-50',
+    'cursor-not-allowed',
+    'grayscale',
+    'text-indigo-500',
   ],
   theme: {
     extend: {

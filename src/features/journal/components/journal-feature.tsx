@@ -162,20 +162,27 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   };
 
   return (
-    <div className="space-y-6">
-      {/* Input Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <VoiceRecorder onProcessed={handleVoice} isProcessing={isProcessing} />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+      {/* Left Sidebar - Input Controls */}
+      <div className="lg:col-span-1 space-y-6">
+        {/* Voice Recorder Card */}
+        <div className="sticky top-24">
+          <VoiceRecorder onProcessed={handleVoice} isProcessing={isProcessing} />
+        </div>
+        
+        {/* Manual Entry Form */}
         <ManualEntryForm onSubmit={handleDetailedManualEntry} isProcessing={isProcessing} />
       </div>
 
-      {/* Display Section */}
-      <JournalView 
-        data={journal} 
-        onAddManualEntry={handleManualQuickEntry}
-        onParseEntry={handleParseEntry}
-        isProcessing={isProcessing}
-      />
+      {/* Right Content - Journal View */}
+      <div className="lg:col-span-2">
+        <JournalView 
+          data={journal} 
+          onAddManualEntry={handleManualQuickEntry}
+          onParseEntry={handleParseEntry}
+          isProcessing={isProcessing}
+        />
+      </div>
     </div>
   );
 };
