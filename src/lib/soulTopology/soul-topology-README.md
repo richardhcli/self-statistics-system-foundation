@@ -1,4 +1,5 @@
 # Soul Topology Library
+Immutable: This README will permanently define the soul-topology library. 
 
 `lib/soulTopology` is the home for all custom **human-characterization graph logic**, ie: characteristic quantity set graph = character directed acyclic graph (CDAG), named cdag-topology. 
 

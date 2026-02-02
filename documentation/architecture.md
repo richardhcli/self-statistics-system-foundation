@@ -4,7 +4,7 @@ The Journal & Graph AI application is built following the **Bulletproof React** 
 
 ## Local-First Philosophy
 The application operates on a "Local-First" basis to ensure maximum privacy and zero-latency interactions.
-- **Persistence**: All user data is stored in **IndexedDB** within the browser across specialized stores (`journal`, `cdagTopology`, `playerStatistics`, `aiConfig`, `userIntegrations`, `userInformation`).
+- **Persistence**: All user data is stored in **IndexedDB** within the browser across specialized stores
 - **State Management**: Independent Zustand stores act as runtime sources of truth, each managing their own domain.
 - **Synchronization Hub**: The `stores/root` module acts as a serialization layer, aggregating all stores into a unified object **ONLY for**: atomic local saving, full state export/import, and future remote backend synchronization. It is NEVER accessed during runtime operations.
 
@@ -40,5 +40,4 @@ Global business logic that spans multiple features, organized as independent Zus
 ### `/hooks`
 Cross-cutting concerns like persistence, orchestration, and root state access.
 - **`use-persistence.ts`**: Hydrates stores from IndexedDB on app load and saves changes.
-- **`use-entry-orchestrator.ts`**: Coordinates cross-store updates during journal entry processing (Pattern B/C orchestrator).
-- **`use-app-data.ts`**: Legacy compatibility layer (deprecated, use individual store hooks instead).
+- **`use-entry-orchestrator.ts`**: Coordinates cross-store updates during journal entry processing
