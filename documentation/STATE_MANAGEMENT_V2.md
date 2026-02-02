@@ -41,11 +41,12 @@ stores/
 │   ├── index.ts          # Public API
 │   ├── api/              # Serialization helpers
 │   └── utils/            # Pure calculation functions
-├── cdag-topology/        # Logical hierarchy (Second Brain)
-│   ├── store.ts          # Zustand store (private)
-│   ├── types.ts          # CdagTopology, NodeType
-│   ├── index.ts          # Public API
-│   └── api/              # Serialization helpers
+├── cdag-topology/        # Logical hierarchy graph store (Local-First)
+│   ├── store.ts          # Zustand store with idb-keyval persist (private)
+│   ├── types.ts          # GraphState (nodes/edges), NodeType, EdgeData
+│   ├── index.ts          # Public API (useGraphNodes, useGraphEdges, useGraphActions)
+│   ├── api/              # Serialization & migrations
+│   └── utils/            # Graph traversal helpers (DFS/BFS wrapped in useMemo)
 ├── user-information/     # User profile and identity
 │   ├── store.ts          # Zustand store (private)
 │   ├── types.ts          # UserInformation
@@ -107,6 +108,226 @@ export const useEntryOrchestrator = () => {
 - Orchestrators consume multiple stores via hooks
 - React 18+ automatic batching ensures atomic updates
 - Keeps stores decoupled and testable
+
+## Local-First Graph Store Architecture
+
+### Overview: IndexedDB as Master Source of Truth
+
+The **cdag-topology store** implements a local-first, IndexedDB-backed graph store optimized for high-performance graph operations:
+
+```
+Local IndexedDB (Master)
+    ↓ (idb-keyval persist middleware)
+ Zustand Store State
+    ↓ (React 18 batching)
+ Components (via atomic selectors)
+    ↓ (Optimistic updates)
+ Server (Backup/Sync)
+```
+
+### 1. Flat Normalization Schema: Node-Edge Lookup Tables
+
+**Core Principle**: Avoid nested children. Use Record<K, V> for O(1) reference-stable lookups.
+
+```typescript
+// stores/cdag-topology/types.ts
+export type NodeType = 'action' | 'skill' | 'characteristic' | 'none';
+
+export interface NodeData {
+  id: string;                    // Unique node identifier (slugified)
+  label: string;                 // Human-readable label
+  type: NodeType;                // Semantic categorization
+  level?: number;                // Optional hierarchy depth (computed)
+  metadata?: Record<string, any>; // Extensible properties
+}
+
+export interface EdgeData {
+  id: string;                    // Unique edge identifier
+  source: string;                // Source node ID (reference)
+  target: string;                // Target node ID (reference)
+  weight?: number;               // Edge weight/strength (0.1-1.0)
+  label?: string;                // Optional edge label
+}
+
+export interface GraphState {
+  nodes: Record<string, NodeData>;  // O(1) lookups by node ID
+  edges: Record<string, EdgeData>;  // O(1) lookups by edge ID
+  version: number;                  // Schema version for migrations
+}
+```
+
+**Why Flat Normalization?**
+- ✅ **Performance**: O(1) node/edge lookups and updates
+- ✅ **Reference Stability**: Updating a single node doesn't mutate the edges object
+- ✅ **Memory Efficiency**: Avoid deep clones on every update
+- ✅ **Render Optimization**: Atomic selector subscriptions prevent cascading re-renders
+- ✅ **Testability**: Easy shallow equality comparisons
+
+### 2. Persistence Strategy: Local-First Sync
+
+#### Source of Truth Hierarchy
+
+1. **IndexedDB (Primary)**: Local-first, always available, master copy
+2. **Zustand Store (Cache)**: In-memory working state, synced with IndexedDB
+3. **Server (Backup)**: Durable remote backup, not queried during normal operations
+
+#### Sync Direction: Local → Server
+
+```typescript
+// stores/cdag-topology/store.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { set, get } from 'idb-keyval';
+
+const useGraphStore = create<GraphState & GraphActions>(
+  persist(
+    (set, get) => ({
+      nodes: {},
+      edges: {},
+      version: 1,
+      
+      addNode: (node: NodeData) =>
+        set(state => ({
+          nodes: { ...state.nodes, [node.id]: node }
+        })),
+      
+      updateNode: (nodeId: string, updates: Partial<NodeData>) =>
+        set(state => ({
+          nodes: {
+            ...state.nodes,
+            [nodeId]: { ...state.nodes[nodeId], ...updates }
+          }
+        })),
+      
+      addEdge: (edge: EdgeData) =>
+        set(state => ({
+          edges: { ...state.edges, [edge.id]: edge }
+        })),
+    }),
+    {
+      name: 'cdag-topology-store',
+      storage: createJSONStorage(() => ({
+        getItem: async (key) => get(key),
+        setItem: async (key, value) => set(key, value),
+        removeItem: async (key) => { /* idb-keyval clear */ },
+      })),
+      version: 1,
+      migrate: (persistedState, version) => {
+        // Non-destructive migrations
+        // Preserve existing data during schema evolution
+        if (version < 1) {
+          return { ...persistedState, version: 1 };
+        }
+        return persistedState;
+      },
+    }
+  )
+);
+```
+
+**Migration Strategy** (Non-Destructive):
+- ✅ Version all stored schemas
+- ✅ Provide transformation functions for each version bump
+- ✅ Never reset data on version mismatch
+- ✅ Handle backward compatibility gracefully
+
+### 3. React Integration: The Facade Pattern
+
+#### Hook API: Atomic Selectors
+
+```typescript
+// stores/cdag-topology/index.ts
+
+// ✅ Selector: Reading specific graph data (prevents unnecessary re-renders)
+export const useGraphNodes = () => 
+  useGraphStore(state => state.nodes);
+
+export const useGraphEdges = () => 
+  useGraphStore(state => state.edges);
+
+export const useGraphNode = (nodeId: string) =>
+  useGraphStore(state => state.nodes[nodeId]);
+
+// ✅ Action Hook: Dispatching graph mutations
+export const useGraphActions = () => {
+  const addNode = useGraphStore(state => state.addNode);
+  const updateNode = useGraphStore(state => state.updateNode);
+  const addEdge = useGraphStore(state => state.addEdge);
+  // ... more actions
+  
+  return { addNode, updateNode, addEdge };
+};
+```
+
+#### Component Usage Pattern
+
+```typescript
+// ✅ Only re-renders when nodes change (not edges)
+const nodes = useGraphNodes();
+
+// ✅ Only re-renders when specific node changes
+const myNode = useGraphNode('my-concept');
+
+// ✅ Actions never cause re-renders (stable references)
+const { addNode, updateNode } = useGraphActions();
+<button onClick={() => addNode(newNode)}>Add</button>
+```
+
+#### Derived Computations: useMemo for Graph Traversals
+
+```typescript
+// features/developer-graph/hooks/use-graph-traversal.ts
+import { useMemo } from 'react';
+import { useGraphNodes, useGraphEdges } from '@/stores/cdag-topology';
+
+export const useAdjacencyList = () => {
+  const nodes = useGraphNodes();
+  const edges = useGraphEdges();
+  
+  // Memoize expensive adjacency list computation
+  // Only recalculates when nodes or edges change
+  return useMemo(() => {
+    const adj: Record<string, string[]> = {};
+    
+    Object.values(nodes).forEach(node => {
+      adj[node.id] = [];
+    });
+    
+    Object.values(edges).forEach(edge => {
+      adj[edge.source]?.push(edge.target);
+    });
+    
+    return adj;
+  }, [nodes, edges]);
+};
+
+export const useDfsTraversal = (startNodeId: string) => {
+  const adj = useAdjacencyList();
+  const nodes = useGraphNodes();
+  
+  return useMemo(() => {
+    const visited = new Set<string>();
+    const result: string[] = [];
+    
+    const dfs = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      result.push(nodeId);
+      
+      (adj[nodeId] || []).forEach(dfs);
+    };
+    
+    dfs(startNodeId);
+    return result;
+  }, [adj, nodes, startNodeId]);
+};
+```
+
+**Key Rules**:
+- ✅ All graph traversals (DFS, BFS, shortest path) wrapped in `useMemo()`
+- ✅ Dependencies must be atomic selectors (`state => state.nodes`), never full state
+- ✅ Compute-heavy operations happen inside memos, not in render path
+- ✅ Return values from memos should be stable references (objects with same structure)
 
 ## Feature-Specific State
 
@@ -322,3 +543,86 @@ const result = calculateScaledProgression(topology, stats, actions, duration);
 5. **Debuggability**: Clear data flow and single source of truth
 6. **Testability**: Pure functions and isolated stores
 7. **Maintainability**: Explicit orchestration patterns
+
+## ⚠️ Implementation Decisions Required
+
+### Question 1: Current cdag-topology Structure → New NodeData/EdgeData
+
+**Current Implementation** (types.ts):
+```typescript
+export type CdagTopology = Record<string, CdagNodeData>;
+export interface CdagNodeData {
+  parents: Record<string, number>;
+  type: NodeType;
+}
+```
+
+**New Specification** (flat schema):
+```typescript
+export interface NodeData {
+  id: string;
+  label: string;
+  type: NodeType;
+  metadata?: Record<string, any>;
+}
+
+export interface EdgeData {
+  id: string;
+  source: string;
+  target: string;
+  weight?: number;
+}
+```
+
+**Decision Required**:
+- ⚠️ How should parent relationships be migrated from implicit (`parents: Record`) to explicit edges?
+- ⚠️ Should `level` be computed on-the-fly or stored in NodeData?
+- ⚠️ What happens to bidirectional references (node knows parents, but edges have source/target)?
+
+### Question 2: Persistence Integration
+
+**Current**: No explicit IndexedDB sync specified in store.ts
+**New**: Zustand + idb-keyval + migrations
+
+**Decision Required**:
+- ⚠️ Should existing app data be migrated to new schema automatically on first load?
+- ⚠️ Should we keep a versioning/rollback strategy for incompatible changes?
+- ⚠️ What is the sync interval for Local → Server? (Immediate? Batched? On-blur?)
+
+### Question 3: Feature Integration - Developer Graph
+
+**Current Usage** (developer-graph-view.tsx):
+- Expects `useCdagTopology()` to return full topology object
+- Converts topology to nodes/edges for EditorSidebar
+
+**New Pattern**:
+- `useGraphNodes()` / `useGraphEdges()` for atomic selectors
+- Graph traversals wrapped in `useMemo()` in component hooks
+
+**Decision Required**:
+- ⚠️ Should developer-graph update to use new atomic selectors immediately or phase in gradually?
+- ⚠️ What about derived data like `useAdjacencyList()` - should it be in cdag-topology utils or feature-specific?
+
+### Question 4: Visual Graph vs CDAG Topology
+
+**Current State**:
+- `features/visual-graph`: Local state hook (useVisualGraph)
+- `stores/cdag-topology`: Global logical hierarchy
+
+**Relationship**:
+- Should visual-graph derive from cdag-topology (read-only projection)?
+- Or are they independent data models?
+
+**Decision Required**:
+- ⚠️ Is visual-graph purely for D3 rendering state, or should it sync back to cdag-topology when user makes edits?
+- ⚠️ Should there be a syncing orchestrator between them?
+
+### Question 5: Server Sync Protocol
+
+**Current**: `getVisualGraph()` / `updateVisualGraph()` API endpoints exist
+**New**: Local → Server direction
+
+**Decision Required**:
+- ⚠️ What triggers a server sync? (Auto-save interval? Explicit button? OnBlur?)
+- ⚠️ How should conflicts be resolved if user edits locally while server has changes?
+- ⚠️ Should graph mutations be optimistic or wait for server confirmation?

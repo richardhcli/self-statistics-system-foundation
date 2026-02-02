@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useCdagTopology } from '@/stores/cdag-topology';
+import { useGraphNodes } from '@/stores/cdag-topology';
 import { usePlayerStatistics, usePlayerStatisticsActions } from '@/stores/player-statistics';
 import DebugHeader from './debug-header';
 import SystemLog from './system-log';
@@ -11,10 +11,10 @@ import PlayerStatsView from './player-stats-view';
 import BrowserInfoView from './browser-info-view';
 import DataInjectionPanel from './data-injection-panel';
 const DebugView: React.FC = () => {
-  const topology = useCdagTopology();
+  const nodes = useGraphNodes();
   const stats = usePlayerStatistics();
   const { addExperience } = usePlayerStatisticsActions();
-  const nodeLabels = Object.keys(topology);
+  const nodeLabels = Object.keys(nodes);
 
   const recordExperience = (actions: string[], exp: number) => {
     actions.forEach((action) => addExperience(action, exp));

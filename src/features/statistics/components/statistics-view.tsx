@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useJournal } from '@/stores/journal';
-import { useCdagTopology } from '@/stores/cdag-topology';
+import { useGraphNodes } from '@/stores/cdag-topology';
 import { usePlayerStatistics } from '@/stores/player-statistics';
 import { useUserInformation } from '@/stores/user-information';
 import { StatsHeader } from './stats-header';
@@ -17,7 +17,7 @@ type TabType = 'player-status' | 'all-statistics';
 const StatisticsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('player-status');
   const journal = useJournal();
-  const topology = useCdagTopology();
+  const nodes = useGraphNodes();
   const playerStatistics = usePlayerStatistics();
   const userInformation = useUserInformation();
 
@@ -51,11 +51,11 @@ const StatisticsView: React.FC = () => {
             
             // Fix: Derived domain statistics from node increases in metadata instead of non-existent domainType field
             if (entry.metadata?.nodeIncreases) {
-              Object.keys(entry.metadata.nodeIncreases).forEach(nodeLabel => {
-                const topoNode = topology[nodeLabel];
-                if (topoNode?.type === 'characteristic') {
+              Object.keys(entry.metadata.nodeIncreases).forEach(nodeId => {
+                const nodeData = nodes[nodeId];
+                if (nodeData?.type === 'characteristic') {
                   // Normalize keys for case-insensitive matching
-                  const match = Object.keys(domainCounts).find(k => k.toLowerCase() === nodeLabel.toLowerCase());
+                  const match = Object.keys(domainCounts).find(k => k.toLowerCase() === nodeData.label.toLowerCase());
                   if (match) {
                     domainCounts[match] = (domainCounts[match] || 0) + 1;
                   }
@@ -104,8 +104,7 @@ const StatisticsView: React.FC = () => {
       playerExpProgress, 
       domains: domainCounts, 
       topNodes: sortedByExp.slice(0, 5),
-      // Fix: changed graph to visualGraph to match AppData interface
-      totalNodes: Object.keys(topology).length,
+      totalNodes: Object.keys(nodes).length,
       totalExp,
       totalLevels,
       expToday,
@@ -113,7 +112,7 @@ const StatisticsView: React.FC = () => {
       highestExpNode: sortedByExp[0] || null,
       highestLevelNode: sortedByLevel[0] || null
     };
-  }, [journal, topology, playerStatistics]);
+  }, [journal, nodes, playerStatistics]);
 
   const toggleView = () => {
     setActiveTab(prev => prev === 'player-status' ? 'all-statistics' : 'player-status');

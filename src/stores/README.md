@@ -22,7 +22,7 @@ This separation prevents unnecessary re-renders—components accessing only acti
 
 ### 2. `cdag-topology/`
 **Purpose**: Manage the logical concept hierarchy (Second Brain core)  
-**Exports**: `useCdagTopology()` + `useCdagTopologyActions()`  
+**Exports**: `useGraphNodes()`, `useGraphEdges()`, `useGraphNode()`, `useGraphActions()`, `useGraphState()`
 **State**: `nodes`, `edges`, metadata  
 **Actions**: `addNode()`, `addEdge()`, `updateNodeMetadata()`
 

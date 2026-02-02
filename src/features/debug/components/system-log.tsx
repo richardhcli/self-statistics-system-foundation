@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { Cpu } from 'lucide-react';
-import { useCdagTopology } from '@/stores/cdag-topology';
+import { useGraphNodes } from '@/stores/cdag-topology';
 
 const SystemLog: React.FC = () => {
-  const topology = useCdagTopology();
-  const nodeCount = Object.keys(topology).length;
+  const nodes = useGraphNodes();
+  const nodeCount = Object.keys(nodes).length;
 
   return (
   <div className="bg-slate-900 text-indigo-400 p-8 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">

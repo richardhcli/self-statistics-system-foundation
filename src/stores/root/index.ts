@@ -1,5 +1,5 @@
 import { getJournalEntries, setJournalEntries } from '@/stores/journal';
-import { getCdagTopology, setCdagTopology } from '@/stores/cdag-topology';
+import { getGraphData, setGraphData, type GraphState } from '@/stores/cdag-topology';
 import {
   getPlayerStatistics,
   setPlayerStatistics,
@@ -14,7 +14,6 @@ import {
   setUserIntegrations,
 } from '@/stores/user-integrations';
 import { JournalStore } from '@/stores/journal';
-import { CdagTopology } from '@/stores/cdag-topology';
 import { PlayerStatistics } from '@/stores/player-statistics';
 import { UserInformation } from '@/stores/user-information';
 import { AIConfig } from '@/stores/ai-config';
@@ -33,7 +32,7 @@ import { IntegrationStore } from '@/features/integration/types';
  */
 export interface RootState {
   journal: JournalStore;
-  cdagTopology: CdagTopology;
+  cdagTopology: GraphState;
   playerStatistics: PlayerStatistics;
   userInformation: UserInformation;
   aiConfig: AIConfig;
@@ -47,7 +46,7 @@ export interface RootState {
 export const serializeRootState = (): RootState => {
   return {
     journal: getJournalEntries(),
-    cdagTopology: getCdagTopology(),
+    cdagTopology: getGraphData(),
     playerStatistics: getPlayerStatistics(),
     userInformation: getUserInformation(),
     aiConfig: getAiConfig(),
@@ -61,7 +60,7 @@ export const serializeRootState = (): RootState => {
  */
 export const deserializeRootState = (state: RootState): void => {
   setJournalEntries(state.journal);
-  setCdagTopology(state.cdagTopology);
+  setGraphData(state.cdagTopology);
   setPlayerStatistics(state.playerStatistics);
   setUserInformation(state.userInformation);
   setAiConfig(state.aiConfig);
@@ -75,7 +74,15 @@ export const deserializeRootState = (state: RootState): void => {
 export const INITIAL_ROOT_STATE: RootState = {
   journal: {},
   cdagTopology: {
-    progression: { parents: {}, type: 'characteristic' },
+    nodes: {
+      progression: {
+        id: 'progression',
+        label: 'Progression',
+        type: 'characteristic',
+      },
+    },
+    edges: {},
+    version: 2,
   },
   playerStatistics: {
     progression: { experience: 0, level: 1 },

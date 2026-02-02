@@ -1,6 +1,7 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useVisualGraph } from '../store';
+import { useGraphNodes, useGraphEdges } from '@/stores/cdag-topology';
 import { useDagLayout } from '../hooks/use-dag-layout';
 import { useGraphRenderer } from '../hooks/use-graph-renderer';
 import { GraphLegend } from './graph-legend';
@@ -11,6 +12,8 @@ import { GraphLegend } from './graph-legend';
  * Concept Graph view orchestrator.
  * Combines stable layered layout logic with strict D3 snapping interaction.
  * Supports multi-node selection via Set-based state.
+ * 
+ * Syncs global cdag-topology store to local visual graph on mount.
  */
 const GraphView: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -21,7 +24,34 @@ const GraphView: React.FC = () => {
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
 
   // Get visual graph data from local store
-  const { graph: data } = useVisualGraph();
+  const { graph: data, setNodes, setEdges } = useVisualGraph();
+  
+  // Get global graph data
+  const globalNodes = useGraphNodes();
+  const globalEdges = useGraphEdges();
+
+  // Convert global graph data to visual format and sync on mount or when global data changes
+  useEffect(() => {
+    const visualNodes = Object.values(globalNodes).map((nodeData) => ({
+      id: nodeData.id,
+      label: nodeData.label,
+      level: 0, // Will be computed by layout
+      type: nodeData.type,
+      x: 0,
+      y: 0,
+    }));
+    
+    const visualEdges = Object.values(globalEdges).map((edgeData) => ({
+      id: edgeData.id,
+      source: edgeData.source,
+      target: edgeData.target,
+      label: edgeData.label,
+      proportion: edgeData.weight || 1.0,
+    }));
+    
+    setNodes(visualNodes);
+    setEdges(visualEdges);
+  }, [globalNodes, globalEdges, setNodes, setEdges]);
 
   useEffect(() => {
     const updateDimensions = () => {

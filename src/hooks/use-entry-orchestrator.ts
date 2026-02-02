@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useCdagTopologyActions, useCdagTopology } from '@/stores/cdag-topology';
+import { useGraphNodes, useGraphEdges, useGraphActions } from '@/stores/cdag-topology';
 import { usePlayerStatisticsActions } from '@/stores/player-statistics';
 import { useUserInformationActions } from '@/stores/user-information';
 import { useJournalActions } from '@/stores/journal';
@@ -8,7 +8,7 @@ import { calculateParentPropagation } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from '@/stores/player-statistics';
 import { aiEntryAnalyzer } from '@/utils/text-to-topology/ai-entry-analyzer';
 import { buildIncomingTopologyFromActions } from '@/utils/text-to-topology/build-incoming-topology-from-actions';
-import { CdagTopology } from '@/types';
+import type { GraphState } from '@/stores/cdag-topology';
 
 /**
  * Entry Orchestrator Hook
@@ -31,10 +31,11 @@ export const useEntryOrchestrator = () => {
   const { upsertEntry } = useJournalActions();
   const { updateStats } = usePlayerStatisticsActions();
   const { updateMostRecentAction } = useUserInformationActions();
-  const { mergeTopology } = useCdagTopologyActions();
+  const { addNode, addEdge, setGraph } = useGraphActions();
   
   // Store state selectors (only when needed for calculations)
-  const topology = useCdagTopology();
+  const nodes = useGraphNodes();
+  const edges = useGraphEdges();
 
   /**
    * Apply coordinated updates across journal, stats, topology, and user info stores.
@@ -61,28 +62,32 @@ export const useEntryOrchestrator = () => {
     }> => {
       const { actions = [], duration, useAI = false } = options;
 
-      let cdagTopologyFragment: CdagTopology;
+      let topologyFragment: GraphState;
       let estimatedDuration = duration;
       let finalActions = actions;
 
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
-        const aiResult = await aiEntryAnalyzer(entry, topology, duration);
-        cdagTopologyFragment = aiResult.cdagTopologyFragment;
+        const aiResult = await aiEntryAnalyzer(entry, { nodes, edges }, duration);
+        topologyFragment = aiResult.cdagTopologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
         
-        // Extract actions from topology fragment (keys are the action nodes)
-        finalActions = Object.keys(cdagTopologyFragment).filter(
-          label => cdagTopologyFragment[label].type === 'none' || 
-                   Object.keys(cdagTopologyFragment[label].parents).length > 0
+        // Extract actions from topology fragment (action nodes are those with incoming edges)
+        finalActions = Object.keys(topologyFragment.nodes).filter(
+          id => topologyFragment.nodes[id].type === 'none' || 
+                Object.values(topologyFragment.edges).some(e => e.target === id)
         );
       } else {
-        cdagTopologyFragment = buildIncomingTopologyFromActions(actions, topology);
+        topologyFragment = buildIncomingTopologyFromActions(actions, { nodes, edges });
         finalActions = actions;
       }
 
       // Step 2: Merge topology fragment into store
-      mergeTopology(cdagTopologyFragment);
+      setGraph({
+        nodes: { ...nodes, ...topologyFragment.nodes },
+        edges: { ...edges, ...topologyFragment.edges },
+        version: 2,
+      });
 
       // Step 3: Calculate experience propagation from topology (use updated topology)
       const initialSeeds: Record<string, number> = {};
@@ -90,7 +95,7 @@ export const useEntryOrchestrator = () => {
         initialSeeds[action] = 1.0;
       });
 
-      const propagated = calculateParentPropagation(topology, initialSeeds);
+      const propagated = calculateParentPropagation({ ...nodes, ...topologyFragment.nodes }, initialSeeds);
 
       // Step 4: Scale based on duration
       const multiplier = parseDurationToMultiplier(estimatedDuration);
@@ -125,7 +130,7 @@ export const useEntryOrchestrator = () => {
         actions: finalActions,
       };
     },
-    [topology, updateStats, updateMostRecentAction, upsertEntry, mergeTopology]
+    [nodes, edges, updateStats, updateMostRecentAction, upsertEntry, setGraph]
   );
 
   return {

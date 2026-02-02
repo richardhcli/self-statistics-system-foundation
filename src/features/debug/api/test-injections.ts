@@ -1,5 +1,5 @@
 import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
-import { useCdagTopologyActions } from '@/stores/cdag-topology';
+import { useGraphActions } from '@/stores/cdag-topology';
 import { 
   AI_TEST_ENTRIES, 
   MANUAL_TEST_ENTRIES, 
@@ -47,8 +47,9 @@ export const createInjectTestDataHook = () => {
  */
 export const createInjectTopologyDataHook = () => {
   return () => {
-    const { setTopology } = useCdagTopologyActions();
-    setTopology(COMPLEX_TOPOLOGY_DATA);
+    const { setGraph } = useGraphActions();
+    const { nodes, edges } = COMPLEX_TOPOLOGY_DATA;
+    setGraph({ nodes, edges, version: 2 });
   };
 };
 
@@ -59,7 +60,8 @@ export const createInjectTopologyDataHook = () => {
  */
 export const createInjectBrainTopologyDataHook = () => {
   return () => {
-    const { setTopology } = useCdagTopologyActions();
-    setTopology(BRAIN_TOPOLOGY_DATA);
+    const { setGraph } = useGraphActions();
+    const { nodes, edges } = BRAIN_TOPOLOGY_DATA;
+    setGraph({ nodes, edges, version: 2 });
   };
 };

@@ -1,37 +1,46 @@
 import { apiClient } from '@/lib/api-client';
-import { CdagTopology } from '../types';
-import { useCdagTopologyStore } from '../store';
+import { GraphState, NodeData, EdgeData } from '../types';
+import { useGraphStore } from '../store';
 
 /**
- * Remote API: Fetch topology from backend.
+ * Remote API: Fetch graph state from backend.
  */
-export const getTopology = (baseUrl: string): Promise<CdagTopology> => {
-  return apiClient(`${baseUrl}/cdag-topology`);
+export const getGraphState = (baseUrl: string): Promise<GraphState> => {
+  return apiClient(`${baseUrl}/api/graph`);
 };
 
 /**
- * Remote API: Persist topology to backend.
+ * Remote API: Persist graph state to backend.
  */
-export const updateTopology = (
+export const updateGraphState = (
   baseUrl: string,
-  topology: CdagTopology
+  graphState: GraphState
 ): Promise<void> => {
-  return apiClient(`${baseUrl}/cdag-topology`, {
-    data: topology,
+  return apiClient(`${baseUrl}/api/graph`, {
+    data: graphState,
     method: 'POST',
   });
 };
 
 /**
- * Local API: Get current topology for serialization.
+ * Local API: Get current graph data from store.
+ * Returns flat normalized state: nodes + edges + metadata
  */
-export const getCdagTopology = (): CdagTopology => {
-  return useCdagTopologyStore.getState().getTopology();
+export const getGraphData = (): GraphState => {
+  const state = useGraphStore.getState();
+  return {
+    nodes: state.nodes,
+    edges: state.edges,
+    version: state.version,
+    lastSyncTimestamp: state.lastSyncTimestamp,
+  };
 };
 
 /**
- * Local API: Load topology from storage/backend.
+ * Local API: Load graph data into store.
+ * Replaces entire graph with provided state.
  */
-export const setCdagTopology = (topology: CdagTopology): void => {
-  useCdagTopologyStore.getState().actions.setTopology(topology);
+export const setGraphData = (data: GraphState): void => {
+  useGraphStore.getState().setGraph(data);
 };
+

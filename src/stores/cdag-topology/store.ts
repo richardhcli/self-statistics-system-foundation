@@ -1,86 +1,135 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { CdagTopology, CdagNodeData } from './types';
-import { mergeTopology as mergeTopologyUtil } from '@/lib/soulTopology';
+import { GraphState, NodeData, EdgeData } from './types';
 import { indexedDBStorage } from '@/lib/persist-middleware';
 
-interface CdagTopologyStoreState {
-  // State
-  topology: CdagTopology;
-
-  // Getters
-  getTopology: () => CdagTopology;
-  getNode: (label: string) => CdagNodeData | undefined;
-  getAllNodes: () => string[];
-
-  // Actions (nested in stable object for performance)
-  actions: {
-    setTopology: (topology: CdagTopology) => void;
-    upsertNode: (label: string, nodeData: CdagNodeData) => void;
-    deleteNode: (label: string) => void;
-    mergeTopology: (newTopology: CdagTopology) => void;
-  };
+/**
+ * Internal store interface - includes state and action setters
+ */
+interface GraphStoreState extends GraphState {
+  // CRUD: Nodes
+  addNode: (node: NodeData) => void;
+  updateNode: (nodeId: string, updates: Partial<NodeData>) => void;
+  removeNode: (nodeId: string) => void;
+  
+  // CRUD: Edges
+  addEdge: (edge: EdgeData) => void;
+  updateEdge: (edgeId: string, updates: Partial<EdgeData>) => void;
+  removeEdge: (edgeId: string) => void;
+  
+  // Batch operations
+  setGraph: (graphState: GraphState) => void;
+  clear: () => void;
 }
 
 /**
- * CDAG Topology Store (Zustand with Persist Middleware)
- * Manages the logical hierarchical structure (The Second Brain core).
+ * CDAG Topology Store (Zustand with idb-keyval Persistence)
  * 
- * Persistence: Automatic via Zustand persist middleware + IndexedDB storage.
- * Local-First Architecture: Writes to IndexedDB immediately (no network wait).
+ * Architecture:
+ * - Flat normalized schema: Record<string, NodeData> + Record<string, EdgeData>
+ * - Persistence: idb-keyval (IndexedDB wrapper) via Zustand persist
+ * - Local-First: Changes saved to IndexedDB immediately
+ * - Manual Sync: Server sync triggered by explicit save button
  * 
- * This store is private - access ONLY via hooks:
- * - useCdagTopology() - for state selectors
- * - useCdagTopologyActions() - for dispatching updates
+ * This store is PRIVATE - access ONLY via public hooks:
+ * - useGraphNodes() - selector for nodes
+ * - useGraphEdges() - selector for edges
+ * - useGraphNode(id) - selector for single node
+ * - useGraphActions() - all mutation functions
  */
-export const useCdagTopologyStore = create<CdagTopologyStoreState>()(
+export const useGraphStore = create<GraphStoreState>()(
   persist(
     (set, get) => ({
-    topology: {
-      progression: { parents: {}, type: 'characteristic' },
-    },
+      // Initial state
+      nodes: {
+        progression: {
+          id: 'progression',
+          label: 'progression',
+          type: 'characteristic',
+        },
+      },
+      edges: {},
+      version: 2,
 
-    // Getters
-    getTopology: () => get().topology,
-    getNode: (label: string) => get().topology[label],
-    getAllNodes: () => Object.keys(get().topology),
-
-    // Actions (stable object reference - never recreated)
-    actions: {
-      setTopology: (topology: CdagTopology) => set({ topology }),
-
-      upsertNode: (label: string, nodeData: CdagNodeData) => {
+      // CRUD: Nodes
+      addNode: (node: NodeData) =>
         set((state) => ({
-          topology: {
-            ...state.topology,
-            [label]: nodeData,
+          nodes: { ...state.nodes, [node.id]: node },
+        })),
+
+      updateNode: (nodeId: string, updates: Partial<NodeData>) =>
+        set((state) => ({
+          nodes: {
+            ...state.nodes,
+            [nodeId]: state.nodes[nodeId]
+              ? { ...state.nodes[nodeId], ...updates, updatedAt: new Date().toISOString() }
+              : state.nodes[nodeId],
           },
-        }));
-      },
+        })),
 
-      deleteNode: (label: string) => {
+      removeNode: (nodeId: string) =>
         set((state) => {
-          const next = { ...state.topology };
-          delete next[label];
-          return { topology: next };
-        });
-      },
+          const { [nodeId]: _, ...remainingNodes } = state.nodes;
+          const remainingEdges = Object.fromEntries(
+            Object.entries(state.edges).filter(
+              ([_, edge]) => edge.source !== nodeId && edge.target !== nodeId
+            )
+          );
+          return { nodes: remainingNodes, edges: remainingEdges };
+        }),
 
-      mergeTopology: (newTopology: CdagTopology) => {
+      // CRUD: Edges
+      addEdge: (edge: EdgeData) =>
         set((state) => ({
-          topology: mergeTopologyUtil(state.topology, newTopology),
-        }));
-      }
-    }
+          edges: { ...state.edges, [edge.id]: edge },
+        })),
+
+      updateEdge: (edgeId: string, updates: Partial<EdgeData>) =>
+        set((state) => ({
+          edges: {
+            ...state.edges,
+            [edgeId]: state.edges[edgeId]
+              ? { ...state.edges[edgeId], ...updates, updatedAt: new Date().toISOString() }
+              : state.edges[edgeId],
+          },
+        })),
+
+      removeEdge: (edgeId: string) =>
+        set((state) => {
+          const { [edgeId]: _, ...remainingEdges } = state.edges;
+          return { edges: remainingEdges };
+        }),
+
+      // Batch operations
+      setGraph: (graphState: GraphState) =>
+        set({
+          nodes: graphState.nodes,
+          edges: graphState.edges,
+          version: graphState.version,
+          lastSyncTimestamp: graphState.lastSyncTimestamp,
+        }),
+
+      clear: () =>
+        set({
+          nodes: {},
+          edges: {},
+          version: 2,
+        }),
     }),
     {
-      name: 'cdag-topology-store-v1',
+      name: 'cdag-topology-store-v2',
       storage: indexedDBStorage,
-      version: 1,
+      version: 2,
+      // Non-destructive migration
       migrate: (state: any, version: number) => {
-        if (version !== 1) {
-          console.warn('[CDAG Topology Store] Schema version mismatch - clearing persisted data');
-          return { topology: { progression: { parents: {}, type: 'characteristic' } } };
+        if (version < 2) {
+          // Migration from old CdagTopology format is handled externally
+          // For now, just ensure structure is correct
+          return {
+            nodes: state.nodes || {},
+            edges: state.edges || {},
+            version: 2,
+          };
         }
         return state;
       },
@@ -89,32 +138,55 @@ export const useCdagTopologyStore = create<CdagTopologyStoreState>()(
 );
 
 /**
- * State Hook: Returns CDAG topology using fine-grained selector.
- * Only triggers re-renders when topology changes.
- * 
- * Usage:
- * const topology = useCdagTopology();
- * const progression = useCdagTopology(t => t.progression);
+ * Selector: Get all nodes
+ * ✅ Fine-grained: Only re-renders when nodes change
  */
-export const useCdagTopology = (
-  selector?: (state: CdagTopology) => any
-) => {
-  return useCdagTopologyStore((state) => {
-    if (!selector) return state.topology;
-    return selector(state.topology);
-  });
-};
+export const useGraphNodes = () => useGraphStore((state) => state.nodes);
 
 /**
- * Actions Hook: Returns stable action functions.
- * Components using only this hook will NOT re-render on data changes.
- * 
- * Uses Stable Actions Pattern: state.actions is a single object reference
- * that never changes, preventing unnecessary re-renders.
+ * Selector: Get all edges
+ * ✅ Fine-grained: Only re-renders when edges change
+ */
+export const useGraphEdges = () => useGraphStore((state) => state.edges);
+
+/**
+ * Selector: Get single node by ID
+ * ✅ Fine-grained: Only re-renders if specific node changes
+ * @param nodeId - The node ID to retrieve
+ */
+export const useGraphNode = (nodeId: string) =>
+  useGraphStore((state) => state.nodes[nodeId]);
+
+/**
+ * Action Hook: All graph mutations
+ * ✅ Stable references: Returns action methods without data
+ * Each action method is a stable function reference from the store
  * 
  * Usage:
- * const { upsertNode, mergeTopology } = useCdagTopologyActions();
+ * const { addNode, updateNode, addEdge } = useGraphActions();
  */
-export const useCdagTopologyActions = () => {
-  return useCdagTopologyStore((state) => state.actions);
-};
+export const useGraphActions = () => ({
+  addNode: useGraphStore.getState().addNode,
+  updateNode: useGraphStore.getState().updateNode,
+  removeNode: useGraphStore.getState().removeNode,
+  addEdge: useGraphStore.getState().addEdge,
+  updateEdge: useGraphStore.getState().updateEdge,
+  removeEdge: useGraphStore.getState().removeEdge,
+  setGraph: useGraphStore.getState().setGraph,
+  clear: useGraphStore.getState().clear,
+});
+
+/**
+ * Selector: Get complete graph state
+ * ⚠️ Use sparingly - re-renders on any change
+ * Prefer atomic selectors (useGraphNodes, useGraphEdges) instead
+ * 
+ * For safe usage with useSyncExternalStore, wrap in useMemo in consuming component
+ */
+export const useGraphState = () => ({
+  nodes: useGraphStore.getState().nodes,
+  edges: useGraphStore.getState().edges,
+  version: useGraphStore.getState().version,
+  lastSyncTimestamp: useGraphStore.getState().lastSyncTimestamp,
+});
+
