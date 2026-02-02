@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { GraphNode, GraphEdge, VisualGraph } from '@/types';
-import { Database, Plus, Trash2, Link, Sparkles, Loader2, GitMerge } from 'lucide-react';
+import { GraphNode, GraphEdge } from '@/types';
+import { Database, Plus, Trash2, Link } from 'lucide-react';
 
 interface EditorSidebarProps {
   nodes: GraphNode[];
@@ -9,10 +9,6 @@ interface EditorSidebarProps {
   onRemoveNode: (id: string) => void;
   onAddEdge: (source: string, target: string, weight: number) => void;
   onRemoveEdge: (edge: GraphEdge) => void;
-  onAiGenerate: (prompt: string) => Promise<void>;
-  onAiGeneralize: (concept: string) => Promise<void>;
-  loading: boolean;
-  generalizing: boolean;
 }
 
 export const EditorSidebar: React.FC<EditorSidebarProps> = ({ 
@@ -22,10 +18,6 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onRemoveNode,
   onAddEdge,
   onRemoveEdge,
-  onAiGenerate, 
-  onAiGeneralize,
-  loading,
-  generalizing
 }) => {
   const [addNodeLabel, setAddNodeLabel] = useState('');
   const [addNodeParents, setAddNodeParents] = useState<string[]>([]);
@@ -34,8 +26,6 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const [edgeTarget, setEdgeTarget] = useState('');
   const [edgeWeight, setEdgeWeight] = useState<string>('1.0');
   const [removeEdgeId, setRemoveEdgeId] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [genConcept, setGenConcept] = useState('');
 
   const handleAddNodeSubmit = () => {
     if (!addNodeLabel.trim()) return;
@@ -54,25 +44,27 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   };
 
   return (
-    <div className="w-80 h-full bg-white border-l border-slate-200 flex flex-col shadow-xl overflow-y-auto architect-sidebar-scroll p-6 space-y-8">
+    <div className="w-80 h-full bg-white border-r border-slate-200 flex flex-col shadow-lg overflow-y-auto p-6 space-y-8">
+      {/* Header */}
       <div>
-        <h2 className="text-xl font-black text-slate-900 tracking-tight">Graph Architect</h2>
+        <h2 className="text-lg font-black text-slate-900 tracking-tight">Graph Editor</h2>
         <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5 mt-1">
-          <Database className="w-3 h-3" /> IndexedDB Source
+          <Database className="w-3 h-3" /> Global Store
         </p>
       </div>
 
+      {/* Add Node Section */}
       <section className="space-y-3">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Plus className="w-3 h-3 text-emerald-500" /> Add Node
         </label>
         <input 
-          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" 
+          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20" 
           placeholder="Node Label" 
           value={addNodeLabel} 
           onChange={e => setAddNodeLabel(e.target.value)} 
         />
-        <label className="text-[9px] font-black text-slate-400 uppercase block mt-2">Optional Parents</label>
+        <label className="text-[9px] font-black text-slate-400 uppercase block mt-2">Optional Parent Nodes</label>
         <select 
           multiple 
           className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none h-24"
@@ -81,15 +73,21 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         >
           {nodes.map(n => <option key={n.id} value={n.id}>{n.label}</option>)}
         </select>
-        <button className="w-full py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest" onClick={handleAddNodeSubmit}>Add Node</button>
+        <button 
+          className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+          onClick={handleAddNodeSubmit}
+        >
+          Add Node
+        </button>
       </section>
 
+      {/* Remove Node Section */}
       <section className="space-y-3 pt-4 border-t border-slate-100">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Trash2 className="w-3 h-3 text-red-500" /> Remove Node
         </label>
         <select 
-          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500/20"
           value={removeNodeId}
           onChange={e => setRemoveNodeId(e.target.value)}
         >
@@ -97,7 +95,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
           {nodes.map(n => <option key={n.id} value={n.id}>{n.label}</option>)}
         </select>
         <button 
-          className="w-full py-2 border-2 border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-30" 
+          className="w-full py-2.5 border-2 border-red-200 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!removeNodeId}
           onClick={() => { onRemoveNode(removeNodeId); setRemoveNodeId(''); }}
         >
@@ -105,13 +103,14 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
       </section>
 
+      {/* Add Edge Section */}
       <section className="space-y-3 pt-4 border-t border-slate-100">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Link className="w-3 h-3 text-indigo-500" /> Add Edge
         </label>
         <div className="space-y-2">
           <select 
-            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20"
             value={edgeSource}
             onChange={e => setEdgeSource(e.target.value)}
           >
@@ -119,7 +118,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
             {nodes.map(n => <option key={n.id} value={n.id}>{n.label}</option>)}
           </select>
           <select 
-            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20"
             value={edgeTarget}
             onChange={e => setEdgeTarget(e.target.value)}
           >
@@ -129,56 +128,49 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
           <input 
             type="number" 
             step="any"
-            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+            placeholder="Weight (e.g. 1.0)"
+            className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20"
             value={edgeWeight}
             onChange={e => setEdgeWeight(e.target.value)}
           />
-          <button className="w-full py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest" onClick={handleAddEdgeSubmit}>Create Edge</button>
+          <button 
+            className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+            onClick={handleAddEdgeSubmit}
+          >
+            Create Edge
+          </button>
         </div>
       </section>
 
+      {/* Remove Edge Section */}
       <section className="space-y-3 pt-4 border-t border-slate-100">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <GitMerge className="w-3 h-3 text-violet-500" /> Neural Generalization
+          <Trash2 className="w-3 h-3 text-red-500" /> Remove Edge
         </label>
-        <input 
-          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" 
-          placeholder="Seed Concept (e.g. React)" 
-          value={genConcept} 
-          onChange={e => setGenConcept(e.target.value)} 
-        />
-        <button 
-          className="w-full py-2.5 bg-violet-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-violet-100 disabled:opacity-50" 
-          disabled={generalizing || !genConcept.trim()} 
-          onClick={() => { onAiGeneralize(genConcept); setGenConcept(''); }}
+        <select 
+          className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500/20"
+          onChange={e => {
+            const selectedEdgeId = e.target.value;
+            if (selectedEdgeId) {
+              const edge = edges.find(ed => ed.id === selectedEdgeId);
+              if (edge) {
+                onRemoveEdge(edge);
+              }
+            }
+          }}
+          value={removeEdgeId}
         >
-          {generalizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitMerge className="w-4 h-4" />}
-          {generalizing ? 'Generalizing...' : 'Expand Logic Chain'}
-        </button>
+          <option value="">Select Edge...</option>
+          {edges.map(e => {
+            const sourceLabel = nodes.find(n => n.id === e.source)?.label || e.source;
+            const targetLabel = nodes.find(n => n.id === e.target)?.label || e.target;
+            return <option key={e.id} value={e.id}>{sourceLabel} → {targetLabel}</option>;
+          })}
+        </select>
       </section>
 
-      <section className="space-y-3 pt-4 border-t border-slate-100">
-        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <Sparkles className="w-3 h-3 text-indigo-500" /> Batch AI Generation
-        </label>
-        <textarea 
-          className="w-full text-xs font-medium p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none min-h-[80px]" 
-          placeholder="Describe a process..." 
-          value={prompt} 
-          onChange={e => setPrompt(e.target.value)} 
-        />
-        <button 
-          className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-50" 
-          disabled={loading} 
-          onClick={() => { onAiGenerate(prompt); setPrompt(''); }}
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {loading ? 'Processing...' : 'Generate Graph'}
-        </button>
-      </section>
-
-      <div className="pt-8 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] text-center">
-        GraphMind v1.0
+      <div className="pt-8 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] text-center border-t border-slate-100">
+        Developer Graph v1.0
       </div>
     </div>
   );

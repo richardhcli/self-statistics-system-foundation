@@ -1,19 +1,103 @@
 # Feature: Developer Graph
 
-The Developer Graph is an architectural editor for the `cdagTopology`.
+The Developer Graph is a straightforward architectural editor for the global graph store (`cdag-topology`). It focuses on two core responsibilities:
 
-## Capabilities
-- **Manual Engineering**: Add/remove nodes and establish weighted connections (edges) via sidebars.
-- **AI Neural Architect**: Describe a hierarchy in natural language to generate a structured topology fragment via Gemini.
-- **Neural Generalization**: Seed a single concept (e.g., "TypeScript") to generate a complete 3-layer classification chain that automatically links to the "progression" root.
+1. **Display**: Render the graph using a layered DAG layout visualization
+2. **Write**: CRUD operations for nodes and edges through an intuitive sidebar editor
 
-## Generalization Engine
-The "Expand Logic Chain" tool uses the seed concept to:
-1. Extract relevant **Actions** and **Skills**.
-2. Identify the core **Characteristic** (Attribute).
-3. Generate up to 10 levels of **Abstract Hierarchy** leading to the ultimate "progression" node.
+## Core Responsibilities
 
-## Interactive Editor
-- **Property Sidebar**: Inspect and edit the ID, Label, and Weight of any selected element.
-- **Static Canvas**: Uses a strictly calculated layered layout to ensure stability during structural editing.
-- **Real-Time Sync**: Changes made in the Developer Graph are immediately reflected in the Concept Graph and Statistics dashboard.
+### Display (Read-Only)
+- Converts global store data (NodeData/EdgeData records) into visual format
+- Applies layered DAG layout algorithm for hierarchical visualization
+- Renders nodes and edges using D3.js with SVG
+- Handles user selection (click to select nodes/edges)
+
+### Write (CRUD)
+- **Create**: Add new nodes with labels and parent relationships
+- **Read**: Display selected node/edge properties in property sidebar
+- **Update**: Edit labels, weights, and metadata of selected elements
+- **Delete**: Remove nodes and edges from the topology
+
+## User Interface
+
+### Layout
+```
+┌────────────────────────────────────────────┐
+│           Developer Graph Header           │
+├──────────┬──────────────────────┬──────────┤
+│  Editor  │                      │ Property │
+│ Sidebar  │    DAG Canvas        │ Sidebar  │
+│ (CRUD)   │    (Display)         │ (Edit)   │
+│          │                      │          │
+│ - Add    │   [Nodes Visible]    │ - Show   │
+│ - Remove │    with Layout       │ - Edit   │
+│ - Update │                      │ - Close  │
+│          │                      │          │
+└──────────┴──────────────────────┴──────────┘
+```
+
+### Editor Sidebar (Left)
+- **Add Node**: Form to create new nodes with parent selection
+- **Remove Node**: Dropdown to select and remove existing nodes
+- **Add Edge**: Create connections between nodes with optional weight
+- **Remove Edge**: Dropdown to select and remove edges
+
+### DAG Canvas (Center)
+- Visual representation of graph structure
+- Nodes positioned by hierarchical layout algorithm
+- Edges shown as connections between nodes
+- Click to select nodes/edges for editing
+
+### Property Sidebar (Right)
+- Appears when a node or edge is selected
+- Display and edit properties:
+  - **Nodes**: ID, Label, Type
+  - **Edges**: Source, Target, Weight, Label
+- Close button to deselect
+
+## Data Flow
+
+### Reading (Display)
+```
+Global Store (cdag-topology)
+    ↓ useGraphNodes() / useGraphEdges()
+Atomic Selectors
+    ↓
+Convert to GraphNode[] / GraphEdge[]
+    ↓
+calculateLayout() → computes positions
+    ↓
+DAGCanvas renders
+```
+
+### Writing (CRUD)
+```
+Editor Sidebar Input
+    ↓
+handleAdd/Update/Remove handlers
+    ↓
+useGraphActions() (atomic actions)
+    ↓
+Global Store Mutation
+    ↓
+useGraphNodes/useGraphEdges recompute
+    ↓
+Auto-update Display via React
+```
+
+## Integration with Global Store
+
+All changes made in Developer Graph are **immediately written** to the global `cdag-topology` store:
+- No separate sync layer required
+- Optimistic updates (changes appear instantly)
+- Graph data persists to IndexedDB through store middleware
+- Changes visible in other features (Statistics, Journal, etc.) automatically
+
+## Technical Details
+
+- **Store Integration**: Direct mutation through `useGraphActions()` atomic actions
+- **Selection State**: Local React state (not persisted)
+- **Layout Algorithm**: Sugiyama hierarchical DAG layout via `calculateLayout()`
+- **Rendering**: D3.js with SVG elements
+- **Data Format**: Flat normalized schema (NodeData/EdgeData records)

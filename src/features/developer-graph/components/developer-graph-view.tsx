@@ -1,32 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { GraphNode, GraphEdge } from '@/types';
+import { GraphNode, GraphEdge, VisualGraph } from '@/types';
 import { 
   useGraphNodes, 
   useGraphEdges, 
   useGraphActions,
-  useGraphSync,
 } from '@/stores/cdag-topology';
+import { calculateLayout } from '../utils/layout';
 import DAGCanvas from './dag-canvas';
 import { EditorSidebar } from './editor-sidebar';
 import { PropertySidebar } from './property-sidebar';
 
-interface DeveloperGraphViewProps {
-  addTopologyNode?: (label: string, parents?: Record<string, number>) => void;
-  deleteTopologyNode?: (label: string) => void;
-}
-
 /**
- * Developer Graph View - Local-First Architecture
+ * Developer Graph View - Graph Visualization & Editor
+ * 
+ * Two Responsibilities:
+ * 1. Display: Reads from cdag-topology global store and displays using calculateLayout
+ * 2. Write: CRUD editor sidebar for adding/removing/updating nodes and edges
  * 
  * Uses atomic selectors for fine-grained reactivity:
  * - useGraphNodes() only re-renders when nodes change
  * - useGraphEdges() only re-renders when edges change
  * - useGraphActions() provides stable mutation functions
  */
-const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({ 
-  addTopologyNode, 
-  deleteTopologyNode 
-}) => {
+const DeveloperGraphView: React.FC = () => {
   const [selection, setSelection] = useState<{ type: 'node' | 'edge'; data: any } | null>(null);
 
   // Atomic selectors - fine-grained reactivity
@@ -35,16 +31,13 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
   
   // Actions - stable reference to action methods
   const { addNode, updateNode, removeNode, addEdge, removeEdge, updateEdge } = useGraphActions();
-  
-  // Sync status hook
-  const { status: syncStatus, saveGraph } = useGraphSync();
 
   // Convert Record<id, NodeData> to GraphNode[]
   const nodes: GraphNode[] = useMemo(() => {
-    return Object.values(nodeMap).map((nodeData, index) => ({
+    return Object.values(nodeMap).map((nodeData) => ({
       id: nodeData.id,
       label: nodeData.label,
-      level: 0, // Computed on-the-fly if needed for DAG layout
+      level: 0, // Computed by calculateLayout
       type: nodeData.type,
       x: 0,
       y: 0,
@@ -62,6 +55,13 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
     }));
   }, [edgeMap]);
 
+  // Prepare data for DAGCanvas with layout calculations
+  const visualGraph: VisualGraph = useMemo(() => ({
+    nodes,
+    edges,
+  }), [nodes, edges]);
+
+  // Display handlers
   const handleNodeClick = (node: GraphNode) => {
     setSelection({ type: 'node', data: node });
   };
@@ -70,6 +70,7 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
     setSelection({ type: 'edge', data: edge });
   };
 
+  // CRUD handlers
   const handleAddNode = (label: string, parentIds: string[]) => {
     const nodeId = label.toLowerCase().replace(/\s+/g, '-');
     addNode({
@@ -131,45 +132,8 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex bg-gray-900">
-      <div className="flex-1">
-        <div className="text-white p-4 flex justify-between items-center">
-          <div>
-            <h2>Developer Graph View</h2>
-            <p className="text-gray-400 text-sm mt-2">
-              Nodes: {nodes.length} | Edges: {edges.length}
-            </p>
-          </div>
-          
-          {/* Save Button */}
-          <button
-            onClick={saveGraph}
-            disabled={syncStatus === 'saving'}
-            className={`px-4 py-2 rounded font-bold text-sm transition-colors ${
-              syncStatus === 'saving'
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : syncStatus === 'success'
-                ? 'bg-green-600 text-white'
-                : syncStatus === 'error'
-                ? 'bg-red-600 text-white'
-                : syncStatus === 'offline'
-                ? 'bg-yellow-600 text-white'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {syncStatus === 'saving' ? 'Saving...' : 'Save Graph'}
-          </button>
-        </div>
-      </div>
-      
-      {selection && (
-        <PropertySidebar
-          type={selection.type}
-          data={selection.data}
-          onUpdate={selection.type === 'node' ? handleUpdateNode : handleUpdateEdge}
-        />
-      )}
-
+    <div className="w-full h-full flex bg-slate-50">
+      {/* Left Panel: Editor Sidebar */}
       <EditorSidebar
         nodes={nodes}
         edges={edges}
@@ -178,6 +142,40 @@ const DeveloperGraphView: React.FC<DeveloperGraphViewProps> = ({
         onAddEdge={handleAddEdge}
         onRemoveEdge={handleRemoveEdge}
       />
+
+      {/* Main content area: Header + Canvas */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-slate-200 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-black text-slate-900">Developer Graph</h2>
+            <p className="text-xs text-slate-500 mt-1">Nodes: {nodes.length} | Edges: {edges.length}</p>
+          </div>
+        </div>
+
+        {/* Canvas area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Canvas - takes up available space */}
+          <div className="flex-1 relative">
+            <DAGCanvas
+              data={visualGraph}
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              selectedId={selection?.data?.id}
+            />
+          </div>
+
+          {/* Right Panel: Property Sidebar (when something is selected) */}
+          {selection && (
+            <PropertySidebar
+              selection={selection}
+              onUpdateNode={handleUpdateNode}
+              onUpdateEdge={handleUpdateEdge}
+              onClose={() => setSelection(null)}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };
