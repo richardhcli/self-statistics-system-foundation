@@ -14,11 +14,26 @@ import { sendToObsidian } from '@/features/integration/api/obsidian-service';
 import { useUserIntegrations, useUserIntegrationsActions } from '@/stores/user-integrations';
 import { clearIndexedDB } from '@/testing';
 
-// Clear IndexedDB on app load (debugging hydration issues)
-// TEMPORARY: Remove this after debugging
+/**
+ * TEMPORARY: Clear IndexedDB on app load (debugging hydration issues)
+ * @deprecated Remove this after debugging is complete
+ */
 console.warn("[App] Clearing IndexedDB for debugging purposes. Remove in final app.");
 clearIndexedDB().catch(console.error);
 
+/**
+ * App Component (Root)
+ * 
+ * Application entry point that manages persistence initialization.
+ * Delegates feature composition to AppContent after initialization.
+ * 
+ * Responsibilities:
+ * - Initialize persistence layer
+ * - Display loading state during initialization
+ * - Manage top-level view state
+ * 
+ * @returns {JSX.Element} App root or loading screen
+ */
 const App: React.FC = () => {
   const { isInitialized } = usePersistence();
   const [view, setView] = useState<AppView>('journal');
@@ -40,7 +55,17 @@ const App: React.FC = () => {
 
 /**
  * App Content Component
- * Separated to avoid Rules of Hooks violations with early returns
+ * 
+ * Composition Root for feature assembly.
+ * Separates feature composition from initialization logic to avoid Rules of Hooks violations.
+ * 
+ * Feature Composition Strategy:
+ * - Debug feature receives DeveloperGraphView via graphViewSlot prop
+ * - Follows "Slot Pattern" from feature-composition.md
+ * - Maintains vertical slice architecture without circular dependencies
+ * 
+ * @param view - Current active view/route
+ * @param setView - Navigation function to switch views
  */
 const AppContent: React.FC<{ view: AppView; setView: (view: AppView) => void }> = ({ view, setView }) => {
   const integrations = useUserIntegrations();
@@ -63,8 +88,12 @@ const AppContent: React.FC<{ view: AppView; setView: (view: AppView) => void }> 
 
   /**
    * Integration event handler
-   * Triggered by journal feature after AI processing
-   * Handles webhooks and Obsidian sync
+   * 
+   * Triggered by journal feature after AI processing.
+   * Handles webhooks and Obsidian sync based on user configuration.
+   * 
+   * @param eventName - Event identifier (e.g., 'JOURNAL_AI_PROCESSED')
+   * @param payload - Event data to be sent to integrations
    */
   const handleIntegrationEvent = async (eventName: string, payload: any) => {
     const webhookConfig = integrations.config;
@@ -135,12 +164,14 @@ const AppContent: React.FC<{ view: AppView; setView: (view: AppView) => void }> 
         <JournalFeature onIntegrationEvent={handleIntegrationEvent} />
       )}
       {view === 'graph' && <GraphView />}
-      {view === 'dev-graph' && <DeveloperGraphView />}
       {view === 'statistics' && <StatisticsView />}
       {view === 'integrations' && <IntegrationView />}
       {view === 'billing' && <BillingView />}
       {view === 'settings' && <SettingsView />}
-      {view === 'debug' && <DebugView />}
+      {/* Feature Composition: DeveloperGraphView injected into DebugView's graphViewSlot */}
+      {view === 'debug' && (
+        <DebugView graphViewSlot={<DeveloperGraphView />} />
+      )}
     </MainLayout>
   );
 };
