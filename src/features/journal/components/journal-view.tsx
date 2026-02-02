@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { JournalStore } from '@/types';
+import { JournalStore, JournalViewProps } from '../types';
 import { ChevronRight, ChevronDown, Plus, Send, Loader2 } from 'lucide-react';
 import JournalEntryItem from './journal-entry-item/index';
-
-interface JournalViewProps {
-  data: JournalStore;
-  onAddManualEntry: (year: string, month: string, day: string, content: string) => void;
-  onParseEntry: (year: string, month: string, day: string, time: string) => void;
-  isProcessing: boolean;
-}
 
 const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onParseEntry, isProcessing }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});

@@ -1,9 +1,6 @@
 import React from 'react';
 import { TrendingUp, Award, Zap } from 'lucide-react';
-
-interface EntryResultsProps {
-  nodeIncreases: Record<string, number>;
-}
+import { EntryResultsProps } from '../../types';
 
 /**
  * Component: EntryResults

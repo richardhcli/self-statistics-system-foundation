@@ -1,17 +1,7 @@
 
 import React, { useState } from 'react';
 import { Type, Clock, Hourglass, Tag, Send, Sparkles, Loader2 } from 'lucide-react';
-
-interface ManualEntryFormProps {
-  onSubmit: (data: {
-    content: string;
-    time?: string;
-    duration?: string;
-    actions?: string[];
-    useAI: boolean;
-  }) => void;
-  isProcessing: boolean;
-}
+import { ManualEntryFormProps } from '../types';
 
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSubmit, isProcessing }) => {
   const [content, setContent] = useState('');

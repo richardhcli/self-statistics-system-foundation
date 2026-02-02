@@ -1,6 +1,7 @@
 import { generalizeConcept, processTextToLocalTopologySinglePrompt } from '@/lib/google-ai';
 import { transformAnalysisToTopology } from './transform-analysis-to-topology';
-import { GraphState, GeneralizationLink } from '@/types';
+import { GraphState } from '@/types';
+import { GeneralizationLink } from '@/lib/soulTopology/types';
 import { AnalyzeEntryResult } from './types';
 
 /**

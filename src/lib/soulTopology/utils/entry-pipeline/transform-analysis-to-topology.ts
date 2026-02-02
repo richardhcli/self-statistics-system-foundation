@@ -1,4 +1,5 @@
-import { GraphState, NodeData, EdgeData, TextToActionResponse, GeneralizationLink } from '@/types';
+import { GraphState, NodeData, EdgeData } from '@/types';
+import { TextToActionResponse, GeneralizationLink } from '@/lib/soulTopology/types';
 
 /**
  * transformAnalysisToTopology

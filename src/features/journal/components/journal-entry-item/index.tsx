@@ -1,15 +1,8 @@
 
 import React, { useState } from 'react';
 import { Clock, Hourglass, Zap, Sparkles, Loader2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
-import { JournalEntryData } from '../../types';
+import { JournalEntryData, JournalEntryItemProps } from '../../types';
 import { EntryResults } from './entry-results';
-
-interface JournalEntryItemProps {
-  time: string;
-  entry: JournalEntryData;
-  isProcessing: boolean;
-  onParseEntry: () => void;
-}
 
 const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProcessing, onParseEntry }) => {
   const [showResults, setShowResults] = useState(false);

@@ -22,14 +22,7 @@ import VoiceRecorder from './voice-recorder';
  * - Handles all journal-related business logic internally
  * - Provides integration points for webhooks/external systems via callbacks
  */
-
-interface JournalFeatureProps {
-  /**
-   * Optional callback for integration events (webhooks, Obsidian sync, etc.)
-   * Called after journal entries are processed with AI
-   */
-  onIntegrationEvent?: (eventName: string, payload: any) => Promise<void>;
-}
+import { JournalFeatureProps } from '../types';
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
   const journal = useJournal();

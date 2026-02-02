@@ -1,4 +1,5 @@
-import { GraphState, GeneralizationLink, TextToActionResponse } from '@/types';
+import { GraphState } from '@/types';
+import { GeneralizationLink, TextToActionResponse } from '@/lib/soulTopology/types';
 
 /**
  * EntryOrchestratorContext

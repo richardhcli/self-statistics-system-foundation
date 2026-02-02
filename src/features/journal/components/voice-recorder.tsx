@@ -1,11 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Loader2, Headphones } from 'lucide-react';
-
-interface VoiceRecorderProps {
-  onProcessed: (audioBase64: string) => void;
-  isProcessing: boolean;
-}
+import { VoiceRecorderProps } from '../types';
 
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, isProcessing }) => {
   const [isRecording, setIsRecording] = useState(false);

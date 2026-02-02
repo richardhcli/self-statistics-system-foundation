@@ -10,5 +10,6 @@ export * from '@/stores/cdag-topology/types';
 export * from '@/stores/player-statistics/types';
 export * from '@/stores/user-information/types';
 export * from '@/features/integration/types';
+export * from '@/lib/soulTopology/types';
 export type { AIConfig } from '@/stores/ai-config';
 export * from '@/stores/root';

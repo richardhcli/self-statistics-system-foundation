@@ -1,5 +1,5 @@
 import { Type } from "@google/genai";
-import { TextToActionResponse } from "@/features/journal/types";
+import { TextToActionResponse } from "@/lib/soulTopology/types";
 import { SINGLE_PROMPT_TOPOLOGY_PROMPT } from "../../config/stuffed-prompt";
 import { getAiInstance } from "../get-ai-instance";
 import { withTimeout } from "../with-timeout";
