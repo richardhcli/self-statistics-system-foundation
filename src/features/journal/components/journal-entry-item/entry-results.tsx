@@ -46,11 +46,11 @@ export const EntryResults: React.FC<EntryResultsProps> = ({ nodeIncreases }) => 
       <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
         <div className="flex items-center gap-1.5">
           <Award className="w-3 h-3 text-amber-500" />
-          <span className="text-[9px] font-bold text-slate-500 uppercase">Progression Propagated</span>
+          <span className="text-[9px] font-bold text-slate-500 uppercase">TODO</span>
         </div>
         <div className="flex items-center gap-1">
            <Zap className="w-2.5 h-2.5 text-indigo-400" />
-           <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Weighted Mean Intensity</span>
+           <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">TODO</span>
         </div>
       </div>
     </div>
