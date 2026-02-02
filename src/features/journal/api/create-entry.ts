@@ -36,7 +36,7 @@ export const useCreateJournalEntry = () => {
       const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
 
       const loadingEntry: JournalEntryData = {
-        content: 'loading',
+        content: entry,
         duration: 'loading',
         actions: ['loading'],
         metadata: {

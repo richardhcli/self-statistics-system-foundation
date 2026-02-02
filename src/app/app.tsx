@@ -16,6 +16,7 @@ import { clearIndexedDB } from '@/testing';
 
 // Clear IndexedDB on app load (debugging hydration issues)
 // TEMPORARY: Remove this after debugging
+console.warn("[App] Clearing IndexedDB for debugging purposes. Remove in final app.");
 clearIndexedDB().catch(console.error);
 
 const App: React.FC = () => {
