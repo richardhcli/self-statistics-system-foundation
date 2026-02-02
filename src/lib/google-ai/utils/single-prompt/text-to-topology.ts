@@ -83,7 +83,7 @@ export const processTextToLocalTopologySinglePrompt = async (
           }
         }
       }),
-      30000,
+      60000,
       'processTextToLocalTopologySinglePrompt'
     );
 
