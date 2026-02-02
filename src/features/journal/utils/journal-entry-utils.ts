@@ -35,25 +35,13 @@ const updateJournalHTMLLocal = (
   return newJournal;
 };
 
-/**
- * DEPRECATED: This function relied on useAppDataStore which no longer exists.
- * Use useJournalActions().upsertEntry() directly instead.
- * 
- * @deprecated Use useJournalActions().upsertEntry() from stores/journal
- */
-export const upsertJournalEntry = (
-  date: { year: string; month: string | number; day: string; time: string },
-  entryData: JournalEntryData
-): void => {
-  throw new Error(
-    'upsertJournalEntry is deprecated. Use useJournalActions().upsertEntry() from @/stores/journal instead. ' +
-    'Note: useJournalActions must be called from within a React component.'
-  );
+export const minutesToText = (minutes: number): string => {
+
+  //return text
+  if (minutes < 1) return Math.round(minutes*60) + ' seconds';
+  if (minutes >= 1 && minutes < 60) return Math.round(minutes) + ' minutes';
+
+  return (minutes / 60).toFixed(1) + ' hours';
 };
 
-/**
- * @deprecated Use useJournalActions instead
- */
-export const updateJournalHTML = () => {
-  console.warn('updateJournalHTML is deprecated. Use useJournalActions instead.');
-};
+export default updateJournalHTMLLocal;
