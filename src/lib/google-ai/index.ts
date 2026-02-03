@@ -5,6 +5,7 @@
  */
 
 export * from './utils/voice-to-text';
+export * from './utils/voice-to-text-streaming';
 export * from './utils/single-prompt/text-to-topology';
 export * from './utils/prompt-chain/text-to-topology';
 export * from './utils/prompt-chain/extract-actions';

@@ -97,12 +97,47 @@ GraphState { nodes, edges }
 
 **Use Case**: Fallback when single-prompt doesn't return a generalization chain
 
-#### `processVoiceToText(audioBlob: Blob)`
-**Speech-to-text** - Converts voice recordings to journal entry text.
+#### `processVoiceToText(audioBase64: string)`
+**Complete speech-to-text with metadata extraction** - Converts voice recordings to structured journal entry data.
 
-**Returns**: Transcribed text string
+Called after recording stops to process the complete audio file.
 
-**Use Case**: Voice journal input feature
+**Returns**: `VoiceToTextResponse`
+```typescript
+{
+  year: string;      // "2026"
+  month: string;     // "02"
+  day: string;       // "02"
+  time: string;      // "14:30"
+  content: string;   // Full transcribed journal entry text
+}
+```
+
+**Use Case**: Final processing of recorded audio into structured journal entry storage
+
+**Note**: Processes complete audio after recording ends. For real-time transcription during recording, use `processVoiceToTextStreaming()`.
+
+#### `processVoiceToTextStreaming(audioBase64: string)` (NEW)
+**Incremental speech-to-text for live display** - Transcribes partial audio chunks during recording for real-time feedback.
+
+Called every 3 seconds during recording to stream transcription as user speaks.
+
+**Returns**: `StreamingTranscriptionResponse`
+```typescript
+{
+  content: string;    // Partial transcription text from chunk
+  isFinal: boolean;   // False - intermediate transcription (always false during recording)
+}
+```
+
+**Use Case**: Live transcription display in voice recorder UI. Provides user with real-time confirmation of what was heard.
+
+**Key Differences from `processVoiceToText`**:
+- Processes **partial audio chunks** (not complete file)
+- Returns **raw transcription only** (no metadata extraction)
+- Used for **UI feedback** (not persistent storage)
+- Called **during recording** (not after)
+- No date/time extraction (inferred from current timestamp)
 
 ### Prompt Chain Utilities (Legacy)
 
@@ -167,4 +202,4 @@ expect(mockAnalysis.weightedActions).toBeDefined();
 - [ ] Caching layer for repeated entries
 - [ ] Multi-language support
 - [ ] Fine-tuned model integration
-
+- [ ] Streaming audio transcription with Web Audio API
