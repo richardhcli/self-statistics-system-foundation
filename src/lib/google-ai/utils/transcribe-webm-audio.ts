@@ -56,30 +56,44 @@ export const transcribeWebmAudio = async (audioBlob: Blob): Promise<string> => {
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Call Gemini with timeout protection
-  const response = await withTimeout(
-    ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: 'audio/webm',
-              data: audioBase64,
-            },
+  const modelsToTry = ['gemini-3-flash', 'gemini-2.5-flash'];
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
+  let lastError: unknown = null;
+
+  for (const model of modelsToTry) {
+    try {
+      response = await withTimeout(
+        ai.models.generateContent({
+          model,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'audio/webm',
+                  data: audioBase64,
+                },
+              },
+              {
+                text: 'Transcribe this audio to text. Return only the transcribed text, nothing else.',
+              },
+            ],
           },
-          {
-            text: 'Transcribe this audio to text. Return only the transcribed text, nothing else.',
+          config: {
+            temperature: 0,
           },
-        ],
-      },
-      config: {
-        temperature: 0,
-      },
-    }),
-    30000, // 30 second timeout
-    'transcribeWebmAudio'
-  );
+        }),
+        30000, // 30 second timeout
+        'transcribeWebmAudio'
+      );
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!response) {
+    throw lastError ?? new Error('Transcription failed: No available Gemini model responded.');
+  }
 
   const transcribedText = response.text || '';
   
