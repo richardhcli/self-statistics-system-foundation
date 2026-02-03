@@ -9,22 +9,21 @@ import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder';
 
 /**
- * JournalFeature - Simplified voice transcription architecture.
+ * JournalFeature - Voice recording with automatic submission.
  * 
  * Responsibilities:
- * 1. Capture user input (voice transcription + manual entry form)
+ * 1. Capture user input (voice recording with auto-submit + manual entry form)
  * 2. Process entries with AI analysis
  * 3. Display journal entries with hierarchical view
  * 
- * Voice Recording Flow (Simplified):
+ * Voice Recording Flow (Auto-Submit):
  * - User speaks → real-time transcription display
- * - Transcription passed to parent every 3 seconds
- * - User manually submits transcribed text when done
- * - No automatic processing, no date/time extraction
+ * - User stops recording → automatic AI processing (no confirmation)
+ * - Short recordings don't need manual review
  * 
  * Architecture:
  * - Uses global journal store (stores/journal) for persistent data
- * - Uses local useState for ephemeral UI state (processing flags, transcribed text)
+ * - Uses local useState for ephemeral UI state (processing flags)
  * - Handles all journal-related business logic internally
  * - Provides integration points for webhooks/external systems via callbacks
  */
@@ -34,17 +33,43 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const journalActions = useJournalActions();
   const createJournalEntry = useCreateJournalEntry();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [voiceTranscription, setVoiceTranscription] = useState('');
 
   /**
-   * Handle live voice transcription updates.
-   * Called every 3 seconds during recording with latest transcription.
-   * Stores text locally for user to review and submit manually.
+   * Handle voice recording completion with automatic submission.
+   * Called when user stops recording - immediately processes with AI.
+   * No manual confirmation required for short voice recordings.
    * 
-   * @param {string} text - Latest transcribed text from voice recorder
+   * @param {string} transcription - Complete transcribed text from voice recording
    */
-  const handleVoiceTranscription = (text: string) => {
-    setVoiceTranscription(text);
+  const handleVoiceComplete = async (transcription: string) => {
+    if (!transcription.trim()) {
+      console.log('[JournalFeature] Empty transcription, skipping submission');
+      return;
+    }
+
+    console.log('[JournalFeature] Auto-submitting voice transcription:', transcription);
+    setIsProcessing(true);
+    
+    try {
+      await createJournalEntry({
+        entry: transcription,
+        useAI: true, // Always use AI for voice entries
+      });
+
+      if (onIntegrationEvent) {
+        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+          originalText: transcription,
+          source: 'voice_auto_submit',
+        });
+      }
+      
+      console.log('[JournalFeature] Voice entry submitted successfully');
+    } catch (error) {
+      console.error('[JournalFeature] Voice submission failed:', error);
+      alert('Failed to process voice entry. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   /**
@@ -142,27 +167,9 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
       {/* Left Sidebar - Input Controls */}
       <div className="lg:col-span-1 space-y-6">
-        {/* Voice Recorder Card */}
+        {/* Voice Recorder Card - Auto-Submit on Stop */}
         <div className="sticky top-24">
-          <VoiceRecorder onTranscription={handleVoiceTranscription} />
-          
-          {/* Display transcribed text and allow submission */}
-          {voiceTranscription && (
-            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Transcribed Text:</p>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 italic">{voiceTranscription}</p>
-              <button
-                onClick={() => {
-                  handleDetailedManualEntry({ content: voiceTranscription });
-                  setVoiceTranscription('');
-                }}
-                disabled={isProcessing}
-                className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isProcessing ? 'Processing...' : 'Submit Entry'}
-              </button>
-            </div>
-          )}
+          <VoiceRecorder onComplete={handleVoiceComplete} />
         </div>
         
         {/* Manual Entry Form */}

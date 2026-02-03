@@ -182,13 +182,26 @@ export interface ManualEntryFormProps {
  */
 /**
  * Props for VoiceRecorder component using Gemini Live API.
- * Handles real-time audio recording with streaming transcription (sub-second latency).
+ * Handles real-time audio recording with streaming transcription and automatic submission.
+ *
+ * **Auto-Submission Flow:**
+ * - User starts recording
+ * - User speaks (sees real-time transcription)
+ * - User stops recording
+ * - Component automatically calls `onComplete` with full transcription
+ * - No manual confirmation required (short recordings don't need review)
  *
  * @interface VoiceRecorderProps
- * @property {Function} onTranscription - Callback fired with finalized transcription text when speech turn completes
+ * @property {Function} onComplete - Callback fired with complete transcription when recording stops (auto-submitted)
  */
 export interface VoiceRecorderProps {
-  onTranscription: (text: string) => void;
+  /**
+   * Callback fired when recording stops with complete accumulated transcription.
+   * Automatically triggered - no manual confirmation required.
+   * 
+   * @param {string} text - Complete transcribed text from entire recording session
+   */
+  onComplete: (text: string) => void;
 }
 
 /**

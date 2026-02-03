@@ -5,14 +5,14 @@ import { VoiceRecorderProps } from '../types';
 import { startLiveTranscription, LiveTranscriptionSession } from '@/lib/google-ai/utils/live-transcription';
 
 /**
- * VoiceRecorder component - Real-time audio recording with Gemini Live API transcription.
+ * VoiceRecorder component - Real-time audio recording with automatic submission.
  *
  * **Live Streaming Architecture:**
  * - Uses Gemini Live API with WebSocket for real-time transcription
  * - Audio streamed continuously via ScriptProcessorNode at 16kHz sample rate
  * - Receives interim transcriptions as user speaks (sub-second latency)
  * - Receives final transcriptions when speech turns complete (pause detected)
- * - No batching or delays - true real-time feedback
+ * - **Automatically submits accumulated transcription when recording stops**
  *
  * **State:**
  * - `isRecording`: Whether currently recording and streaming audio
@@ -25,18 +25,27 @@ import { startLiveTranscription, LiveTranscriptionSession } from '@/lib/google-a
  * - `animationFrameRef`: RequestAnimationFrame ID for visualization cleanup
  * - `analyserRef`: AnalyserNode for audio visualization (separate from Live API audio)
  * - `visualAudioContextRef`: Separate AudioContext for visualization only
+ * - `accumulatedTextRef`: Ref to store final transcription for auto-submission
+ *
+ * **Auto-Submission Flow:**
+ * 1. User starts recording (Space key or click)
+ * 2. User speaks → sees real-time transcription
+ * 3. User stops recording (Space key or click)
+ * 4. Component automatically calls `onComplete` with full transcription
+ * 5. Parent component handles AI processing and entry creation
  *
  * **Technical Details:**
  * - Live API uses 16kHz PCM audio format
  * - Visualization uses separate AudioContext to avoid conflicts
  * - Interim text accumulates continuously, resets on turn completion
- * - Final text triggers parent callback for storage/processing
+ * - Final text appended to accumulated transcription ref
+ * - No manual confirmation required - short recordings don't need review
  *
  * @component
  * @example
- * <VoiceRecorder onTranscription={(text) => handleFinalText(text)} />
+ * <VoiceRecorder onComplete={(text) => handleAutoSubmit(text)} />
  */
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [liveTranscription, setLiveTranscription] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -46,6 +55,12 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
   const animationFrameRef = useRef<number | null>(null);
   const visualAudioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  
+  /**
+   * Accumulated transcription ref for auto-submission.
+   * Updated during recording, read on stop for automatic submission.
+   */
+  const accumulatedTextRef = useRef<string>('');
 
   /**
    * Starts audio visualization for user feedback.
@@ -112,6 +127,9 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
     try {
       console.log('[VoiceRecorder] Starting Live API session...');
       
+      // Reset accumulated text for new recording
+      accumulatedTextRef.current = '';
+      
       // Start audio visualization
       await startVisualization();
       
@@ -132,10 +150,14 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
         
         onFinalTranscription: (finalText) => {
           console.log('[VoiceRecorder] Final:', finalText);
-          // Add to accumulated transcription and reset interim
-          setLiveTranscription(prev => prev + (prev ? ' ' : '') + finalText);
+          
+          // Append to accumulated transcription
+          const newTranscription = accumulatedTextRef.current + (accumulatedTextRef.current ? ' ' : '') + finalText;
+          accumulatedTextRef.current = newTranscription;
+          
+          // Update UI display
+          setLiveTranscription(newTranscription);
           setInterimText('');
-          onTranscription(finalText);
         },
         
         onError: (error) => {
@@ -157,11 +179,20 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
   };
 
   /**
-   * Stops Live API transcription session and cleans up all resources.
-   * Closes WebSocket, stops visualization, and resets state.
+   * Stops Live API transcription session and automatically submits accumulated text.
+   * Closes WebSocket, stops visualization, resets state, and triggers onComplete callback.
+   * 
+   * **Auto-Submission Logic:**
+   * - Reads accumulated text from ref (not state, to avoid stale closure)
+   * - Only submits if text is non-empty
+   * - Cleans up all resources before submission
    */
   const stopRecording = () => {
     console.log('[VoiceRecorder] Stopping recording');
+    
+    // Capture accumulated text before cleanup
+    const finalText = accumulatedTextRef.current.trim();
+    console.log('[VoiceRecorder] Final accumulated text:', finalText);
     
     // Stop Live API session
     if (sessionRef.current) {
@@ -180,8 +211,19 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
       visualAudioContextRef.current = null;
     }
     
+    // Reset UI state
     setIsRecording(false);
     setInterimText('');
+    setLiveTranscription('');
+    
+    // Auto-submit if we have transcribed text
+    if (finalText && onComplete) {
+      console.log('[VoiceRecorder] Auto-submitting transcription:', finalText);
+      onComplete(finalText);
+    } else if (!finalText) {
+      console.log('[VoiceRecorder] No text to submit, skipping auto-submission');
+    }
+    
     console.log('[VoiceRecorder] Recording stopped, cleanup complete');
   };
 
@@ -269,7 +311,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
 
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-[240px] leading-relaxed">
           {isRecording 
-            ? 'Speak naturally. Press [Space] or click to stop.' 
+            ? 'Speak naturally. Press [Space] or click to stop and submit.' 
             : 'Press [Space] or click to start recording.'}
         </p>
       </div>
