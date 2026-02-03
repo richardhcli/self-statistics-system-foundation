@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeWebmAudio } from '@/lib/google-ai';
 import { VoiceRecorderProps } from '../../types';
 import { AudioVisualization } from './audio-visualization';
 import { WebSpeechPreview } from './web-speech-preview';
@@ -186,50 +185,40 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   };
 
   /**
-   * User clicks "To Text" button - stops recording and transcribes for review.
+   * User clicks "To Text" button - stops recording and uses Web Speech preview text.
    * Unlike auto-submit, this stops recording without auto-submitting the entry.
    * 
+   * **Key Difference from Auto-Submit:**
+   * - Auto-submit uses Gemini API for official transcription
+   * - To Text uses Web Speech API preview text captured in real-time (no API call)
+   * - Faster and immediate, but may be less accurate than Gemini
+   * 
    * **Flow:**
-   * 1. Stop recording (get final audio blob)
-   * 2. Transcribe the complete audio
+   * 1. Stop recording (finalize MediaRecorder)
+   * 2. Use captured Web Speech preview text
    * 3. Call onToTextReview callback with transcription
    * 4. Parent appends transcription to manual entry form textarea
    * 5. User can edit and submit manually
    * 
-   * This flow allows user to review and edit transcription before submitting,
-   * providing more control than auto-submit.
+   * This flow allows user to quickly review and edit transcription before submitting,
+   * providing immediate feedback without waiting for Gemini API.
    */
   const handleToTextClick = async () => {
-    console.log('[VoiceRecorder] "To Text" clicked - stopping recording and transcribing for review...');
+    console.log('[VoiceRecorder] "To Text" clicked - using Web Speech preview text...');
 
-    // Stop recording and get the final audio blob
-    const audioBlob = await stopRecording();
+    // Stop recording (finalizes MediaRecorder, but we don't need the blob)
+    await stopRecording();
 
-    if (!audioBlob) {
-      setUserFeedback('⚠️ No audio recorded');
+    // Use the Web Speech API preview text that was captured in real-time
+    if (!webSpeechText || !webSpeechText.trim()) {
+      setUserFeedback('❌ No text captured from Web Speech');
+      alert('No text was captured. Please try recording again.');
       return;
     }
 
-    setUserFeedback('📄 Converting to text for review...');
-
-    try {
-      console.log('[VoiceRecorder] Starting transcription for review...');
-      const transcription = await transcribeWebmAudio(audioBlob);
-
-      if (!transcription || !transcription.trim()) {
-        setUserFeedback('❌ Transcription failed');
-        alert('Transcription failed or returned empty. Please try again.');
-        return;
-      }
-
-      console.log('[VoiceRecorder] Transcription complete for review');
-      setUserFeedback('✅ Text ready for review');
-      onToTextReview(transcription);
-    } catch (err) {
-      console.error('[VoiceRecorder] Transcription failed:', err);
-      setUserFeedback('❌ Transcription error');
-      alert(`Transcription error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
+    console.log('[VoiceRecorder] Using Web Speech preview text');
+    setUserFeedback('✅ Text ready for review');
+    onToTextReview(webSpeechText);
   };
 
   /**
