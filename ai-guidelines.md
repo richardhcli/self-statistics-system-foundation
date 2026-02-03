@@ -5,6 +5,8 @@
 **Purpose**: Concise, token-efficient reference for maintaining architectural consistency.
 
 ---
+## Style & Architecture
+This project strictly adheres to the [Bulletproof React](https://github.com/alan2207/bulletproof-react) architecture, prioritizing modularity, scalability, and clear separation of concerns.
 
 ## 1. Project Philosophy: Local-First, Sync-Behind
 
@@ -20,7 +22,12 @@ This is a **Local-First, Sync-Behind** React application (using Vite + TypeScrip
 2. **Code is the source of truth for logic**; IndexedDB stores data only.
 3. **All features are isolated** and coordinate via orchestrator hooks.
 
----
+### Coding Conventions
+- **File Naming**: Strict **kebab-case** for all files and folders (e.g., `voice-recorder.tsx`).
+- **Component Naming**: PascalCase for React components inside the file.
+- **Exports**: Use index-barrel files (`index.ts`) for clean, feature-level imports.
+- **Logic**: Prefer custom hooks and utility functions over complex component-level logic.
+- **Styles**: Utility-first CSS using Tailwind CSS for all components.
 
 ## 2. Directory Structure & Responsibilities
 
