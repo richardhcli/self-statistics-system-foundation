@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { IntegrationStore, IntegrationLog, IntegrationConfig, ObsidianConfig } from '@/features/integration/types';
-import { indexedDBStorage } from '@/lib/persist-middleware';
+import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 interface UserIntegrationsStoreState {
   // PURE DATA (Persisted to IndexedDB)

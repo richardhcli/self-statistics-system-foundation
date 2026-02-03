@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GraphState, NodeData, EdgeData } from './types';
-import { indexedDBStorage } from '@/lib/persist-middleware';
+import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 /**
  * Internal store interface - includes state and action setters
@@ -159,22 +159,25 @@ export const useGraphNode = (nodeId: string) =>
 
 /**
  * Action Hook: All graph mutations
- * ✅ Stable references: Returns action methods without data
- * Each action method is a stable function reference from the store
+ * ✅ Stable references via selector pattern (never triggers re-render)
+ * Fine-grained selector returns only the actions object, preventing unnecessary component updates.
+ * 
+ * Implementation: Returns stable action methods via Zustand selector,
+ * following the same pattern as useJournalActions.
  * 
  * Usage:
  * const { addNode, updateNode, addEdge } = useGraphActions();
  */
-export const useGraphActions = () => ({
-  addNode: useGraphStore.getState().addNode,
-  updateNode: useGraphStore.getState().updateNode,
-  removeNode: useGraphStore.getState().removeNode,
-  addEdge: useGraphStore.getState().addEdge,
-  updateEdge: useGraphStore.getState().updateEdge,
-  removeEdge: useGraphStore.getState().removeEdge,
-  setGraph: useGraphStore.getState().setGraph,
-  clear: useGraphStore.getState().clear,
-});
+export const useGraphActions = () => useGraphStore((state) => ({
+  addNode: state.addNode,
+  updateNode: state.updateNode,
+  removeNode: state.removeNode,
+  addEdge: state.addEdge,
+  updateEdge: state.updateEdge,
+  removeEdge: state.removeEdge,
+  setGraph: state.setGraph,
+  clear: state.clear,
+}));
 
 /**
  * Selector: Get complete graph state

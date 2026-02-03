@@ -4,13 +4,23 @@ import { get, set, del, clear } from 'idb-keyval';
 /**
  * IndexedDB Storage Engine for Zustand Persist Middleware
  * 
+ * ⚠️ RESTRICTED USAGE: This module should NEVER be used directly during runtime operations
+ * or imported in feature components. Its sole responsibility is to bridge Zustand in-memory
+ * state with IndexedDB as the master source of truth.
+ * 
  * Uses idb-keyval for async IndexedDB operations that don't block the UI.
  * Automatically handles serialization/deserialization of JSON.
  * 
  * Architecture: Local-First, Sync-Behind
- * - IndexedDB is the primary source of truth
- * - UI is optimistic (never waits for network)
- * - Background sync happens independently
+ * - IndexedDB is the primary source of truth during hydration and persistence
+ * - UI is optimistic (never waits for network during runtime)
+ * - Each store independently persists its data via this middleware
+ * - Background sync happens independently of persistence layer
+ * 
+ * Implementation Note:
+ * - Called automatically by Zustand when any store persists via partialize()
+ * - Should NOT be imported in components or feature logic
+ * - Should NOT be used for manual persistence (use db.ts instead)
  */
 export const indexedDBStorage = createJSONStorage(() => ({
   getItem: async (name: string) => {

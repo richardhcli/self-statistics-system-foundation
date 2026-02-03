@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { JournalStore, JournalEntryData, JournalYear } from '@/features/journal/types';
-import { indexedDBStorage } from '@/lib/persist-middleware';
+import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 interface JournalStoreState {
   // PURE DATA (Persisted to IndexedDB)

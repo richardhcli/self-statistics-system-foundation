@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { indexedDBStorage } from '@/lib/persist-middleware';
+import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 export interface AIConfig {
   model: string;

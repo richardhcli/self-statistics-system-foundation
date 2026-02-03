@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PlayerStatistics, NodeStats } from './types';
 import { updatePlayerStatsState } from './utils/exp-state-manager';
-import { indexedDBStorage } from '@/lib/persist-middleware';
+import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 interface PlayerStatisticsStoreState {
   // PURE DATA (Persisted to IndexedDB)

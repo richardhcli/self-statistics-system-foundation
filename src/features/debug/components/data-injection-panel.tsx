@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Database, Sparkles, UserCheck, Loader2, Trash2, Network, Brain } from 'lucide-react';
 import { createInjectTestDataHook, createInjectTopologyDataHook, createInjectBrainTopologyDataHook } from '../api/test-injections';
-import { deleteDatabase } from '@/lib/db';
+import { deleteDatabase } from '@/stores/root/db';
 import { deserializeRootState, INITIAL_ROOT_STATE } from '@/stores/root';
 import { WipeConfirmationModal } from './wipe-confirmation-modal';
 
