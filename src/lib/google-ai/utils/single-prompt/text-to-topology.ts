@@ -83,7 +83,7 @@ export const processTextToLocalTopologySinglePrompt = async (
           }
         }
       }),
-      60000,
+      120000, // 120 second timeout. 60 seconds was too short.... 
       'processTextToLocalTopologySinglePrompt'
     );
 
