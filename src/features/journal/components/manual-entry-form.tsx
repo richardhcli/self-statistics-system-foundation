@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Type, Hourglass, Send, Loader2 } from 'lucide-react';
 import { ManualEntryFormProps } from '../types';
 import { useCreateEntryPipeline } from '../hooks/create-entry/use-create-entry-pipeline';
@@ -61,12 +61,29 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
     }
   };
 
+  // Track last appended transcription to avoid duplicates
+  const lastAppendedRef = useRef<string | null>(null);
+
   /**
-   * Sync with parent's initialText (from voice "To Text")
+   * Append transcribed text from voice "To Text" button.
+   * 
+   * **Behavior:**
+   * - If textarea is empty, set the transcription as content
+   * - If textarea has existing text, append transcription to the end
+   * - Track last appended text to avoid re-appending duplicate text
+   * 
+   * This allows user to build up entry text from multiple recordings
+   * or combine voice transcription with manual editing.
    */
   React.useEffect(() => {
-    if (initialText) {
-      setContent(initialText);
+    if (initialText && initialText !== lastAppendedRef.current) {
+      setContent(prev => {
+        // If there's existing content, append with a space
+        // Otherwise just set the transcribed text
+        const updated = prev.trim() ? `${prev} ${initialText}` : initialText;
+        lastAppendedRef.current = initialText;
+        return updated;
+      });
     }
   }, [initialText]);
 

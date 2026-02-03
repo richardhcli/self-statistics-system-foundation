@@ -186,41 +186,33 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   };
 
   /**
-   * User clicks "To Text" button - transcribes current recording for review.
-   * Creates blob from current chunks (doesn't stop recording).
-   * NOTE: Button is ALWAYS available (not disabled) during recording for manual review.
+   * User clicks "To Text" button - stops recording and transcribes for review.
+   * Unlike auto-submit, this stops recording without auto-submitting the entry.
    * 
-   * **Critical:** Request pending data from MediaRecorder before checking chunks.
-   * MediaRecorder may not have fired ondataavailable yet, so we need to explicitly
-   * call requestData() to flush pending audio buffers into audioChunksRef.
+   * **Flow:**
+   * 1. Stop recording (get final audio blob)
+   * 2. Transcribe the complete audio
+   * 3. Call onToTextReview callback with transcription
+   * 4. Parent appends transcription to manual entry form textarea
+   * 5. User can edit and submit manually
    * 
    * This flow allows user to review and edit transcription before submitting,
    * providing more control than auto-submit.
    */
   const handleToTextClick = async () => {
-    console.log('[VoiceRecorder] "To Text" clicked - transcribing for review...');
+    console.log('[VoiceRecorder] "To Text" clicked - stopping recording and transcribing for review...');
 
-    const mediaRecorder = mediaRecorderRef.current;
-    
-    // Request pending data from MediaRecorder (flushes audio buffer to ondataavailable)
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.requestData();
-      // Small delay to ensure ondataavailable fires and populates chunks
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+    // Stop recording and get the final audio blob
+    const audioBlob = await stopRecording();
 
-    if (audioChunksRef.current.length === 0) {
-      setUserFeedback('⚠️ No audio to convert');
-      alert('No audio recorded yet. Please record some audio first.');
+    if (!audioBlob) {
+      setUserFeedback('⚠️ No audio recorded');
       return;
     }
 
     setUserFeedback('📄 Converting to text for review...');
 
     try {
-      // Create blob from current chunks
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      
       console.log('[VoiceRecorder] Starting transcription for review...');
       const transcription = await transcribeWebmAudio(audioBlob);
 
