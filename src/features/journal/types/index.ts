@@ -181,11 +181,11 @@ export interface ManualEntryFormProps {
  * @property {boolean} isProcessing - Loading state during transcription/processing
  */
 /**
- * Props for voice recorder component.
- * Handles real-time audio recording with live transcription display.
+ * Props for VoiceRecorder component using Gemini Live API.
+ * Handles real-time audio recording with streaming transcription (sub-second latency).
  *
  * @interface VoiceRecorderProps
- * @property {Function} onTranscription - Callback fired with transcribed text (called every 3 seconds during recording)
+ * @property {Function} onTranscription - Callback fired with finalized transcription text when speech turn completes
  */
 export interface VoiceRecorderProps {
   onTranscription: (text: string) => void;

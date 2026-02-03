@@ -1,0 +1,7 @@
+{
+  "name": "Live Gemini Transcriber",
+  "description": "A real-time voice transcription applet powered by Gemini 2.5 Flash Live API, featuring low-latency processing and a modular React architecture.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

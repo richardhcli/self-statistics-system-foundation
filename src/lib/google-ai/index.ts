@@ -1,10 +1,11 @@
 /**
  * Google AI Module Public API
- * Centralizes all Gemini-powered services including transcription, 
+ * Centralizes all Gemini-powered services including live transcription, 
  * action extraction, and semantic hierarchy mapping.
  */
 
-export * from './utils/transcribe-audio';
+export * from './utils/live-transcription';
+export * from './utils/audio-processor';
 export * from './utils/single-prompt/text-to-topology';
 export * from './utils/prompt-chain/text-to-topology';
 export * from './utils/prompt-chain/extract-actions';

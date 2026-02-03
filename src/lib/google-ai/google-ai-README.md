@@ -97,24 +97,69 @@ GraphState { nodes, edges }
 
 **Use Case**: Fallback when single-prompt doesn't return a generalization chain
 
-#### `transcribeAudio(audioBase64: string)`
-**Simple audio transcription** - Converts audio to raw text without any metadata extraction.
+#### `startLiveTranscription(callbacks)`
+**Real-time streaming transcription** - Connects to Gemini Live API for sub-second latency audio-to-text.
 
-Called every 3 seconds during recording to provide real-time transcription feedback.
+Uses WebSocket streaming with continuous audio upload at 16kHz PCM format. Returns both interim (live) and final (confirmed) transcriptions.
 
-**Returns**: `Promise<string>` - Raw transcribed text
+**Parameters**: `LiveTranscriptionCallbacks`
 ```typescript
-const text = await transcribeAudio(audioChunkBase64);
-console.log(text); // "I went to the gym today and worked out for an hour"
+{
+  onOpen?: () => void;                           // WebSocket connected
+  onInterimTranscription?: (text: string) => void;  // Live text as user speaks
+  onFinalTranscription?: (text: string) => void;    // Confirmed text when turn completes
+  onError?: (error: Error) => void;              // Connection/API errors
+  onClose?: () => void;                          // Session ended
+}
 ```
 
-**Use Case**: Live transcription display in voice recorder UI. Direct speech-to-text conversion.
+**Returns**: `LiveTranscriptionSession`
+```typescript
+{
+  stop: () => void;                              // Stop session, cleanup resources
+  session: Promise<LiveSession>;                 // Underlying Live API session
+}
+```
+
+**Example Usage**:
+```typescript
+const session = await startLiveTranscription({
+  onInterimTranscription: (text) => {
+    // Display live text as user speaks (sub-second latency)
+    setLiveText(prev => prev + text);
+  },
+  onFinalTranscription: (finalText) => {
+    // Speech turn completed (pause detected)
+    saveTranscription(finalText);
+  },
+  onError: (err) => console.error(err)
+});
+
+// Later, stop session
+session.stop();
+```
 
 **Key Features**:
-- Simple, single return value (raw text string)
-- No date/time extraction or metadata
-- 15-second timeout for responsiveness
-- Used for real-time user feedback during recording
+- **True real-time**: Sub-second latency, streams as user speaks
+- **Interim + Final**: Live preview text + confirmed segments
+- **WebSocket-based**: Persistent connection, continuous audio streaming
+- **16kHz PCM audio**: ScriptProcessorNode captures and converts audio
+- **Automatic pause detection**: Fires final transcription when user stops speaking
+
+**Technical Details**:
+- Model: `gemini-2.5-flash-native-audio-preview-12-2025`
+- Audio format: 16kHz PCM (Int16)
+- Buffer size: 4096 samples (~93ms per chunk)
+- Requires microphone permissions
+
+#### `createPCMBlob(audioData: Float32Array)`
+**Audio format converter** - Converts Float32 audio to PCM Blob for Live API.
+
+Scales Float32 values (-1.0 to 1.0) to Int16 range (-32768 to 32767) and encodes as base64.
+
+**Returns**: `Blob` with `mimeType: 'audio/pcm;rate=16000'`
+
+**Use Case**: Used internally by `startLiveTranscription` to format audio chunks for streaming
 
 ### Prompt Chain Utilities (Legacy)
 

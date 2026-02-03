@@ -2,98 +2,66 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square } from 'lucide-react';
 import { VoiceRecorderProps } from '../types';
-import { transcribeAudio } from '@/lib/google-ai/utils/transcribe-audio';
+import { startLiveTranscription, LiveTranscriptionSession } from '@/lib/google-ai/utils/live-transcription';
 
 /**
- * VoiceRecorder component - Real-time audio recording with live transcription.
+ * VoiceRecorder component - Real-time audio recording with Gemini Live API transcription.
  *
- * Simplified architecture:
- * - Records audio continuously
- * - Transcribes every 3 seconds during recording
- * - Displays live transcription text
- * - Passes transcribed text to parent via callback
+ * **Live Streaming Architecture:**
+ * - Uses Gemini Live API with WebSocket for real-time transcription
+ * - Audio streamed continuously via ScriptProcessorNode at 16kHz sample rate
+ * - Receives interim transcriptions as user speaks (sub-second latency)
+ * - Receives final transcriptions when speech turns complete (pause detected)
+ * - No batching or delays - true real-time feedback
  *
- * State:
- * - `isRecording`: Whether currently recording audio
+ * **State:**
+ * - `isRecording`: Whether currently recording and streaming audio
  * - `liveTranscription`: Accumulated transcription text displayed to user
- * - `isTranscribing`: Whether currently processing audio chunk for transcription
+ * - `interimText`: Current incomplete text chunk (updates as user speaks)
  *
- * Refs:
- * - `mediaRecorderRef`: MediaRecorder instance for audio capture
- * - `chunksRef`: Accumulated audio Blob chunks for transcription
- * - `transcriptionIntervalRef`: Periodic interval (every 3 seconds)
+ * **Refs:**
+ * - `sessionRef`: Live API session handle for cleanup
+ * - `canvasRef`: Canvas element for audio frequency visualization
+ * - `animationFrameRef`: RequestAnimationFrame ID for visualization cleanup
+ * - `analyserRef`: AnalyserNode for audio visualization (separate from Live API audio)
+ * - `visualAudioContextRef`: Separate AudioContext for visualization only
+ *
+ * **Technical Details:**
+ * - Live API uses 16kHz PCM audio format
+ * - Visualization uses separate AudioContext to avoid conflicts
+ * - Interim text accumulates continuously, resets on turn completion
+ * - Final text triggers parent callback for storage/processing
  *
  * @component
  * @example
- * <VoiceRecorder onTranscription={(text) => handleText(text)} />
+ * <VoiceRecorder onTranscription={(text) => handleFinalText(text)} />
  */
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [liveTranscription, setLiveTranscription] = useState('');
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [interimText, setInterimText] = useState('');
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const transcriptionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionRef = useRef<LiveTranscriptionSession | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const visualAudioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
   /**
-   * Processes accumulated audio chunks and sends for transcription.
-   * Called every 3 seconds during recording via interval.
-   *
+   * Starts audio visualization for user feedback.
+   * Uses a separate AudioContext from Live API to avoid conflicts.
+   * 
    * @async
    * @returns {Promise<void>}
    */
-  const processTranscriptionChunk = async () => {
-    if (chunksRef.current.length === 0 || isTranscribing) return;
-
-    setIsTranscribing(true);
-    try {
-      const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-      const reader = new FileReader();
-
-      reader.onloadend = async () => {
-        try {
-          const base64data = reader.result as string;
-          const audioBase64 = base64data.split(',')[1];
-
-          const transcription = await transcribeAudio(audioBase64);
-          if (transcription) {
-            setLiveTranscription(transcription);
-            onTranscription(transcription);
-          }
-        } catch (error) {
-          console.error('Transcription error:', error);
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-
-      reader.readAsDataURL(audioBlob);
-    } catch (error) {
-      console.error('Transcription chunk processing error:', error);
-      setIsTranscribing(false);
-    }
-  };
-
-  /**
-   * Starts audio recording and transcription interval.
-   * Sets up MediaRecorder, audio visualization, and 3-second transcription loop.
-   *
-   * @async
-   * @returns {Promise<void>}
-   */
-  const startRecording = async () => {
+  const startVisualization = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Set up audio visualization
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
+      // Create separate AudioContext for visualization only
+      visualAudioContextRef.current = new AudioContext();
+      analyserRef.current = visualAudioContextRef.current.createAnalyser();
+      const source = visualAudioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
       analyserRef.current.fftSize = 256;
       
@@ -126,54 +94,95 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
         animationFrameRef.current = requestAnimationFrame(draw);
       };
       draw();
-
-      // Set up audio recording
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      /**
-       * Captures audio data continuously into chunks buffer.
-       * Buffer is processed every 3 seconds for transcription.
-       */
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(track => track.stop());
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        if (audioContextRef.current) audioContextRef.current.close();
-        if (transcriptionIntervalRef.current) clearInterval(transcriptionIntervalRef.current);
-        setLiveTranscription('');
-        setIsTranscribing(false);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setLiveTranscription('');
-
-      // Start periodic transcription every 3 seconds
-      transcriptionIntervalRef.current = setInterval(processTranscriptionChunk, 3000);
+      
+      console.log('[VoiceRecorder] Visualization started');
     } catch (err) {
-      alert("Microphone access failed. Please allow access.");
+      console.error('[VoiceRecorder] Visualization failed:', err);
     }
   };
 
   /**
-   * Stops audio recording and transcription interval.
-   * Cleans up MediaRecorder and interval.
+   * Starts Live API transcription session with real-time streaming.
+   * Manages WebSocket connection, audio streaming, and transcription callbacks.
+   *
+   * @async
+   * @returns {Promise<void>}
+   */
+  const startRecording = async () => {
+    try {
+      console.log('[VoiceRecorder] Starting Live API session...');
+      
+      // Start audio visualization
+      await startVisualization();
+      
+      // Start Live API transcription session
+      const session = await startLiveTranscription({
+        onOpen: () => {
+          console.log('[VoiceRecorder] Live API connected');
+          setIsRecording(true);
+          setLiveTranscription('');
+          setInterimText('');
+        },
+        
+        onInterimTranscription: (text) => {
+          console.log('[VoiceRecorder] Interim:', text);
+          // Accumulate interim text as user speaks
+          setInterimText(prev => prev + text);
+        },
+        
+        onFinalTranscription: (finalText) => {
+          console.log('[VoiceRecorder] Final:', finalText);
+          // Add to accumulated transcription and reset interim
+          setLiveTranscription(prev => prev + (prev ? ' ' : '') + finalText);
+          setInterimText('');
+          onTranscription(finalText);
+        },
+        
+        onError: (error) => {
+          console.error('[VoiceRecorder] Error:', error);
+          alert(`Transcription error: ${error.message}`);
+        },
+        
+        onClose: () => {
+          console.log('[VoiceRecorder] Session closed');
+        }
+      });
+      
+      sessionRef.current = session;
+      console.log('[VoiceRecorder] Session started successfully');
+    } catch (err) {
+      console.error('[VoiceRecorder] Failed to start recording:', err);
+      alert('Microphone access failed or API error. Please check your settings.');
+    }
+  };
+
+  /**
+   * Stops Live API transcription session and cleans up all resources.
+   * Closes WebSocket, stops visualization, and resets state.
    */
   const stopRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    console.log('[VoiceRecorder] Stopping recording');
+    
+    // Stop Live API session
+    if (sessionRef.current) {
+      sessionRef.current.stop();
+      sessionRef.current = null;
     }
-    if (transcriptionIntervalRef.current) {
-      clearInterval(transcriptionIntervalRef.current);
+    
+    // Stop visualization
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
+    
+    if (visualAudioContextRef.current) {
+      visualAudioContextRef.current.close();
+      visualAudioContextRef.current = null;
+    }
+    
+    setIsRecording(false);
+    setInterimText('');
+    console.log('[VoiceRecorder] Recording stopped, cleanup complete');
   };
 
   // Keyboard shortcut (Space key) for start/stop
@@ -195,8 +204,14 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (transcriptionIntervalRef.current) {
-        clearInterval(transcriptionIntervalRef.current);
+      if (sessionRef.current) {
+        sessionRef.current.stop();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (visualAudioContextRef.current) {
+        visualAudioContextRef.current.close();
       }
     };
   }, []);
@@ -236,12 +251,20 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
           {isRecording ? 'Listening...' : 'Voice Recorder'}
         </h3>
         
-        {/* Live transcription text */}
-        {isRecording && liveTranscription && (
-          <p className="text-slate-700 dark:text-slate-200 text-sm max-w-[300px] leading-relaxed mb-3 italic border-l-2 border-indigo-500 pl-3">
-            {liveTranscription}
-            {isTranscribing && <span className="animate-pulse">...</span>}
-          </p>
+        {/* Live transcription display - shows both final and interim text */}
+        {isRecording && (liveTranscription || interimText) && (
+          <div className="text-slate-700 dark:text-slate-200 text-sm max-w-[300px] leading-relaxed mb-3 border-l-2 border-indigo-500 pl-3">
+            {/* Final transcription (confirmed segments) */}
+            {liveTranscription && (
+              <p className="mb-1">{liveTranscription}</p>
+            )}
+            {/* Interim transcription (currently speaking, not yet final) */}
+            {interimText && (
+              <p className="italic opacity-70">
+                {interimText}<span className="animate-pulse">...</span>
+              </p>
+            )}
+          </div>
         )}
 
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-[240px] leading-relaxed">
