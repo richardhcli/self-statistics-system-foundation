@@ -160,10 +160,17 @@ export interface EntryResultsProps {
 
 /**
  * Props for manual journal entry form component.
- * Simplified AI-only workflow with minimal inputs.
+ * Supports both manual typing and voice "To Text" integration.
+ * 
+ * **Voice Integration:**
+ * - `initialText` pre-populated from voice "To Text" button
+ * - `onTextChange` syncs textarea content with parent component
+ * - User can edit before submitting
  * 
  * @property {function} onSubmit - Callback with form data (content, duration)
  * @property {boolean} isProcessing - Loading state during submission
+ * @property {string} [initialText] - Pre-populated text from voice transcription
+ * @property {function} [onTextChange] - Callback when textarea content changes
  */
 export interface ManualEntryFormProps {
   onSubmit: (data: {
@@ -171,6 +178,8 @@ export interface ManualEntryFormProps {
     duration?: string;
   }) => void;
   isProcessing: boolean;
+  initialText?: string;
+  onTextChange?: (text: string) => void;
 }
 
 /**
@@ -181,27 +190,46 @@ export interface ManualEntryFormProps {
  * @property {boolean} isProcessing - Loading state during transcription/processing
  */
 /**
- * Props for VoiceRecorder component using Gemini Live API.
- * Handles real-time audio recording with streaming transcription and automatic submission.
+ * Props for VoiceRecorder component using batch Gemini transcription.
+ * Handles audio recording with Web Speech API preview and dual submission flows.
  *
- * **Auto-Submission Flow:**
- * - User starts recording
- * - User speaks (sees real-time transcription)
- * - User stops recording
- * - Component automatically calls `onComplete` with full transcription
- * - No manual confirmation required (short recordings don't need review)
+ * **Recording Architecture:**
+ * - MediaRecorder captures WebM audio during recording (max 60s or manual stop)
+ * - Web Speech API provides display-only real-time preview (not used for data)
+ * - Falls back to silent recording if Web Speech API unavailable
+ * - Two submission flows: auto-submit (immediate entry) or manual review (textarea)
+ *
+ * **Submission Flows:**
+ * 1. Auto-submit (Record button):
+ *    - Recording stops → Gemini batch transcription → onSubmitAuto callback
+ *    - Parent triggers useCreateJournalEntry immediately
+ *
+ * 2. Manual review ("To Text" button):
+ *    - User clicks button → Gemini batch transcription → onToTextReview callback
+ *    - Parent populates textarea for user review and editing
  *
  * @interface VoiceRecorderProps
- * @property {Function} onComplete - Callback fired with complete transcription when recording stops (auto-submitted)
+ * @property {Function} onSubmitAuto - Callback for auto-submit flow (recording stops)
+ * @property {Function} onToTextReview - Callback for manual review flow (To Text button)
  */
 export interface VoiceRecorderProps {
   /**
-   * Callback fired when recording stops with complete accumulated transcription.
-   * Automatically triggered - no manual confirmation required.
+   * Callback for auto-submit flow - called when recording stops.
+   * Receives transcribed text from Gemini batch transcription.
+   * Parent component should trigger useCreateJournalEntry with this text.
    * 
-   * @param {string} text - Complete transcribed text from entire recording session
+   * @param {string} text - Transcribed text from Gemini (official transcription)
    */
-  onComplete: (text: string) => void;
+  onSubmitAuto: (text: string) => void;
+
+  /**
+   * Callback for manual review flow - called when user clicks "To Text" button.
+   * Receives transcribed text from Gemini batch transcription.
+   * Parent component should populate textarea with this text for user review.
+   * 
+   * @param {string} text - Transcribed text from Gemini (for editing before submit)
+   */
+  onToTextReview: (text: string) => void;
 }
 
 /**

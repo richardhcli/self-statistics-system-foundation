@@ -97,70 +97,52 @@ GraphState { nodes, edges }
 
 **Use Case**: Fallback when single-prompt doesn't return a generalization chain
 
-#### `startLiveTranscription(callbacks)`
-**Real-time streaming transcription** - Connects to Gemini Live API for sub-second latency audio-to-text.
+#### `transcribeWebmAudio(audioBlob)`
+**Batch audio transcription** - Converts complete WebM audio file to text using Gemini API.
 
-Uses WebSocket streaming with continuous audio upload at 16kHz PCM format. Returns both interim (live) and final (confirmed) transcriptions.
+This is the primary transcription pathway for voice recordings:
+- Processes complete audio file after recording stops (max 60s or manual stop)
+- Returns plain text transcription (no metadata extraction)
+- Used by both auto-submit (immediate entry creation) and manual review (textarea editing) flows
 
-**Parameters**: `LiveTranscriptionCallbacks`
-```typescript
-{
-  onOpen?: () => void;                           // WebSocket connected
-  onInterimTranscription?: (text: string) => void;  // Live text as user speaks
-  onFinalTranscription?: (text: string) => void;    // Confirmed text when turn completes
-  onError?: (error: Error) => void;              // Connection/API errors
-  onClose?: () => void;                          // Session ended
-}
-```
+**Parameters**: 
+- `audioBlob: Blob` - WebM audio blob from MediaRecorder
 
-**Returns**: `LiveTranscriptionSession`
-```typescript
-{
-  stop: () => void;                              // Stop session, cleanup resources
-  session: Promise<LiveSession>;                 // Underlying Live API session
-}
-```
+**Returns**: `Promise<string>` - Plain text transcription
 
 **Example Usage**:
 ```typescript
-const session = await startLiveTranscription({
-  onInterimTranscription: (text) => {
-    // Display live text as user speaks (sub-second latency)
-    setLiveText(prev => prev + text);
-  },
-  onFinalTranscription: (finalText) => {
-    // Speech turn completed (pause detected)
-    saveTranscription(finalText);
-  },
-  onError: (err) => console.error(err)
-});
+// After recording stops
+const transcription = await transcribeWebmAudio(webmBlob);
+console.log(transcription); // "I went to the gym today..."
 
-// Later, stop session
-session.stop();
+// Auto-submit flow
+const text = await transcribeWebmAudio(audioBlob);
+createJournalEntry(text);  // Immediate AI processing
+
+// Manual review flow
+const text = await transcribeWebmAudio(audioBlob);
+setTextAreaValue(text);  // User edits before submitting
 ```
 
 **Key Features**:
-- **True real-time**: Sub-second latency, streams as user speaks
-- **Interim + Final**: Live preview text + confirmed segments
-- **WebSocket-based**: Persistent connection, continuous audio streaming
-- **16kHz PCM audio**: ScriptProcessorNode captures and converts audio
-- **Automatic pause detection**: Fires final transcription when user stops speaking
+- **Batch processing**: Entire audio file transcribed at once
+- **WebM input**: Standard MediaRecorder output format
+- **Plain text output**: No date/time extraction or metadata
+- **Dual submission flows**: Auto-submit OR manual review
+- **30s timeout**: Prevents hanging on API failures
 
 **Technical Details**:
-- Model: `gemini-2.5-flash-native-audio-preview-12-2025`
-- Audio format: 16kHz PCM (Int16)
-- Buffer size: 4096 samples (~93ms per chunk)
-- Requires microphone permissions
+- Model: `gemini-2.0-flash-exp`
+- Input format: `audio/webm` (MediaRecorder default)
+- Temperature: 0 (deterministic transcription)
+- Timeout: 30 seconds
 
-#### `createPCMBlob(audioData: Float32Array)`
-**Audio format converter** - Converts Float32 audio to PCM Blob for Live API.
-
-Scales Float32 values (-1.0 to 1.0) to Int16 range (-32768 to 32767) and encodes as base64.
-
-**Returns**: `Blob` with `mimeType: 'audio/pcm;rate=16000'`
-
-**Use Case**: Used internally by `startLiveTranscription` to format audio chunks for streaming
-
+**Architecture Integration**:
+- MediaRecorder captures WebM audio during recording
+- Web Speech API provides display-only real-time preview (not used for data)
+- Gemini transcription is the official source of truth
+- Two buttons: "Record" (auto-submit) and "To Text" (manual review)
 ### Prompt Chain Utilities (Legacy)
 
 Multi-step extraction utilities (retained for debugging/comparison):

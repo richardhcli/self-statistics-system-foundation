@@ -6,19 +6,49 @@ import { ManualEntryFormProps } from '../types';
 /**
  * ManualEntryForm Component
  * 
- * Simplified journal entry form for user-facing input.
+ * Journal entry form for manual text input.
  * AI classification is always enabled; no manual action tagging is provided.
  * 
+ * **Voice Integration:**
+ * - Can receive initial text from voice "To Text" button
+ * - User can edit transcribed text before submitting
+ * - Voice auto-submit bypasses this form entirely
+ * 
  * Fields:
- * - Content: Raw text entry
+ * - Content: Raw text entry (pre-populated if from voice "To Text")
  * - Time Taken: Optional duration override
  * 
  * @param {ManualEntryFormProps} props - Component props
- * @returns {JSX.Element} Simplified manual entry form
+ * @returns {JSX.Element} Manual entry form with voice integration
  */
-const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSubmit, isProcessing }) => {
-  const [content, setContent] = useState('');
+const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ 
+  onSubmit, 
+  isProcessing, 
+  initialText = '',
+  onTextChange 
+}) => {
+  const [content, setContent] = useState(initialText);
   const [duration, setDuration] = useState('');
+
+  /**
+   * Handles textarea content changes.
+   * Syncs with parent component for voice transcription flow.
+   */
+  const handleContentChange = (value: string) => {
+    setContent(value);
+    if (onTextChange) {
+      onTextChange(value);
+    }
+  };
+
+  /**
+   * Sync with parent's initialText (from voice "To Text")
+   */
+  React.useEffect(() => {
+    if (initialText) {
+      setContent(initialText);
+    }
+  }, [initialText]);
 
   /**
    * Handles form submission with AI classification always enabled
@@ -50,8 +80,8 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ onSubmit, isProcessin
         <div className="space-y-1">
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write your entry here..."
+            onChange={(e) => handleContentChange(e.target.value)}
+            placeholder="Write your entry here... (or use 'To Text' from voice recorder)"
             className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none min-h-[120px] transition-all"
           />
         </div>
