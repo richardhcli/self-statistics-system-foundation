@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { withTimeout } from "./with-timeout";
+import { getApiKey } from "./get-api-key";
 
 /**
  * Response from streaming transcription of partial audio chunks.
@@ -39,7 +40,11 @@ export interface StreamingTranscriptionResponse {
 export const processVoiceToTextStreaming = async (
   audioBase64: string
 ): Promise<StreamingTranscriptionResponse> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Google API key not configured. Please add API key to settings.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
 
   const response = await withTimeout(
     ai.models.generateContent({

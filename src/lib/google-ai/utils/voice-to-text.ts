@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { withTimeout } from "./with-timeout";
+import { getApiKey } from "./get-api-key";
 
 /**
  * Complete transcription response with extracted structured date/time information.
@@ -45,7 +46,11 @@ export interface VoiceToTextResponse {
  * console.log(result.year);    // "2026"
  */
 export const processVoiceToText = async (audioBase64: string): Promise<VoiceToTextResponse> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Google API key not configured. Please add API key to settings.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   const response = await withTimeout(
     ai.models.generateContent({
       model: 'gemini-3-flash-preview',
