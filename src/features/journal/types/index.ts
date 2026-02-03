@@ -197,30 +197,37 @@ export interface ManualEntryFormProps {
  * - MediaRecorder captures WebM audio during recording (max 60s or manual stop)
  * - Web Speech API provides display-only real-time preview (not used for data)
  * - Falls back to silent recording if Web Speech API unavailable
- * - Two submission flows: auto-submit (immediate entry) or manual review (textarea)
+ * - Two submission flows: auto-submit (progressive entry) or manual review (textarea)
  *
  * **Submission Flows:**
- * 1. Auto-submit (Record button):
- *    - Recording stops → Gemini batch transcription → onSubmitAuto callback
- *    - Parent triggers useCreateJournalEntry immediately
+ * 1. Auto-submit (Record button) - Progressive Entry Creation:
+ *    - Recording stops → Create dummy entry immediately
+ *    - Gemini transcription → Update entry with text
+ *    - AI analysis → Update entry with full data
+ *    - Three-stage progressive updates for better UX
  *
  * 2. Manual review ("To Text" button):
  *    - User clicks button → Gemini batch transcription → onToTextReview callback
  *    - Parent populates textarea for user review and editing
  *
  * @interface VoiceRecorderProps
- * @property {Function} onSubmitAuto - Callback for auto-submit flow (recording stops)
+ * @property {Function} onSubmitAuto - Callback for progressive auto-submit flow
  * @property {Function} onToTextReview - Callback for manual review flow (To Text button)
+ * @property {Function} onUpdateEntryWithTranscription - Callback to update entry with transcribed text
+ * @property {Object} journalActions - Journal store actions for creating dummy entries
  */
 export interface VoiceRecorderProps {
   /**
-   * Callback for auto-submit flow - called when recording stops.
-   * Receives transcribed text from Gemini batch transcription.
-   * Parent component should trigger useCreateJournalEntry with this text.
+   * Callback for progressive auto-submit flow - called when recording stops.
+   * Provides callbacks for each stage: dummy creation, transcription, AI analysis.
    * 
-   * @param {string} text - Transcribed text from Gemini (official transcription)
+   * @param {Object} callbacks - Progressive update callbacks
    */
-  onSubmitAuto: (text: string) => void;
+  onSubmitAuto: (callbacks: {
+    onDummyCreated: () => string;
+    onTranscribed: (entryId: string, text: string) => void;
+    onAnalyzed: (entryId: string) => void;
+  }) => void;
 
   /**
    * Callback for manual review flow - called when user clicks "To Text" button.
@@ -230,6 +237,22 @@ export interface VoiceRecorderProps {
    * @param {string} text - Transcribed text from Gemini (for editing before submit)
    */
   onToTextReview: (text: string) => void;
+
+  /**
+   * Callback to update dummy entry with transcribed text and trigger AI analysis.
+   * Called after Gemini transcription completes.
+   * 
+   * @param {string} entryId - Entry ID (dateKey format: year/month/day/time)
+   * @param {string} text - Transcribed text from Gemini
+   */
+  onUpdateEntryWithTranscription: (entryId: string, text: string) => void;
+
+  /**
+   * Journal store actions for creating dummy entries.
+   */
+  journalActions: {
+    upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
+  };
 }
 
 /**

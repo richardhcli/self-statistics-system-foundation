@@ -3,15 +3,22 @@ import { transcribeWebmAudio } from '@/lib/google-ai';
 import { VoiceRecorderProps } from '../types';
 
 /**
- * VoiceRecorder Component - Audio recording with dual submission flows
+ * VoiceRecorder Component - Audio recording with progressive entry creation
  *
  * **Architecture:**
  * - MediaRecorder captures WebM audio (max 60 seconds or manual stop)
  * - Web Speech API runs in parallel for display-only live preview
  * - Web Speech text is NOT stored or used; only Gemini transcription is official
- * - Two submission buttons:
- *   1. "Record" (large) - Records → Stops → Auto-submits (onSubmitAuto)
- *   2. "To Text" (small, visible during recording) - Converts current recording to text (onToTextReview)
+ * - Two submission flows:
+ *   1. "Record" (large) - Progressive entry creation (dummy → transcribed → AI analyzed)
+ *   2. "To Text" (small, visible during recording) - Converts current recording to text for review
+ *
+ * **Progressive Entry Creation (Auto-Submit Flow):**
+ * 1. User stops recording → Dummy entry created immediately (🎤 Transcribing...)
+ * 2. Gemini transcription completes → Entry content updated with text
+ * 3. AI analysis completes → Entry fully populated with actions/skills
+ * 
+ * This provides better UX - user sees immediate feedback instead of waiting.
  *
  * **State Management:**
  * - `isRecording`: Recording state
@@ -31,15 +38,23 @@ import { VoiceRecorderProps } from '../types';
  * - Web Speech API: display-only, real-time preview
  * - Gemini: batch transcription of complete WebM file
  * - Max recording: 60 seconds (auto-stops if reached)
+ * - MediaRecorder stop event properly awaited for complete audio collection
  *
  * @component
  * @example
  * <VoiceRecorder
- *   onSubmitAuto={(text) => createJournalEntry(text)}
+ *   onSubmitAuto={(callbacks) => { ... }}
  *   onToTextReview={(text) => setTextAreaValue(text)}
+ *   onUpdateEntryWithTranscription={(id, text) => { ... }}
+ *   journalActions={journalActions}
  * />
  */
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSubmitAuto, onToTextReview }) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ 
+  onSubmitAuto, 
+  onToTextReview, 
+  onUpdateEntryWithTranscription,
+  journalActions 
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [webSpeechText, setWebSpeechText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -234,23 +249,157 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSubmitAuto, onToTextRev
   };
 
   /**
-   * Stops recording and triggers auto-submission flow.
+   * Stops recording and triggers progressive auto-submission flow.
    * Called when user clicks Record button (stop) or 60s timeout reached.
+   * 
+   * **Progressive Flow:**
+   * 1. Stop MediaRecorder and wait for final data
+   * 2. Create dummy entry immediately
+   * 3. Start Gemini transcription in background
+   * 4. Update entry with transcribed text
+   * 5. Trigger AI analysis (handled by parent)
    */
   const stopRecordingAndSubmitAuto = async () => {
-    console.log('[VoiceRecorder] Stopping recording (auto-submit)...');
-    await stopRecordingInternal();
+    console.log('[VoiceRecorder] Stopping recording (auto-submit with progressive entry)...');
+    
+    // Stop MediaRecorder and wait for final data
+    const audioBlob = await stopRecordingAndCollectAudio();
+    
+    if (!audioBlob || audioBlob.size === 0) {
+      console.error('[VoiceRecorder] No audio data recorded');
+      alert('No audio recorded. Please try again.');
+      return;
+    }
 
-    // Process and submit
-    if (audioChunksRef.current.length > 0) {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      await transcribeAndSubmit(audioBlob, 'auto');
+    console.log('[VoiceRecorder] Audio collected:', audioBlob.size, 'bytes');
+
+    // Create dummy entry immediately for better UX
+    const entryId = createDummyEntry();
+    console.log('[VoiceRecorder] Dummy entry created:', entryId);
+
+    // Start transcription in background
+    transcribeAndUpdateEntry(audioBlob, entryId);
+  };
+
+  /**
+   * Stops MediaRecorder and waits for final audio data.
+   * MediaRecorder's ondataavailable is async, so we need to wait for it.
+   * 
+   * @returns {Promise<Blob | null>} Audio blob or null if no data
+   */
+  const stopRecordingAndCollectAudio = async (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const mediaRecorder = mediaRecorderRef.current;
+      
+      if (!mediaRecorder || !isRecording) {
+        resolve(null);
+        return;
+      }
+
+      // Set up one-time handler for final data
+      mediaRecorder.addEventListener('stop', () => {
+        console.log('[VoiceRecorder] MediaRecorder stopped, chunks:', audioChunksRef.current.length);
+        
+        if (audioChunksRef.current.length === 0) {
+          resolve(null);
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        resolve(audioBlob);
+      }, { once: true });
+
+      // Stop recording
+      mediaRecorder.stop();
+      
+      // Clean up other resources
+      cleanupRecordingResources();
+    });
+  };
+
+  /**
+   * Creates dummy entry immediately.
+   * Entry has empty content but is visible in UI.
+   * 
+   * @returns {string} Entry ID (dateKey format)
+   */
+  const createDummyEntry = (): string => {
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const time = `${hours}:${minutes}`;
+    
+    const entryId = `${year}/${month}/${day}/${time}`;
+    
+    const dummyEntry = {
+      content: '🎤 Transcribing...',
+      actions: {},
+      metadata: {
+        flags: { aiAnalyzed: false },
+        timePosted: now.toISOString()
+      }
+    };
+    
+    journalActions.upsertEntry(entryId, dummyEntry);
+    return entryId;
+  };
+
+  /**
+   * Transcribes audio and updates entry progressively.
+   * Runs in background while user can continue using the app.
+   * 
+   * @param audioBlob - WebM audio blob
+   * @param entryId - Entry ID to update
+   */
+  const transcribeAndUpdateEntry = async (audioBlob: Blob, entryId: string) => {
+    setIsProcessing(true);
+
+    try {
+      console.log('[VoiceRecorder] Starting Gemini transcription...');
+      const transcription = await transcribeWebmAudio(audioBlob);
+
+      if (!transcription || !transcription.trim()) {
+        console.error('[VoiceRecorder] Empty transcription returned');
+        // Update entry to show error
+        journalActions.upsertEntry(entryId, {
+          content: '❌ Transcription failed',
+          actions: {},
+          metadata: {
+            flags: { aiAnalyzed: false },
+            timePosted: new Date().toISOString()
+          }
+        });
+        alert('Transcription failed. Please try again.');
+        return;
+      }
+
+      console.log('[VoiceRecorder] Transcription complete, updating entry...');
+      
+      // Update entry with transcribed text and trigger AI analysis
+      onUpdateEntryWithTranscription(entryId, transcription);
+    } catch (err) {
+      console.error('[VoiceRecorder] Transcription error:', err);
+      // Update entry to show error
+      journalActions.upsertEntry(entryId, {
+        content: '❌ Transcription error',
+        actions: {},
+        metadata: {
+          flags: { aiAnalyzed: false },
+          timePosted: new Date().toISOString()
+        }
+      });
+      alert(`Transcription error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   /**
    * User clicks "To Text" button - transcribes current recording for review.
-   * Does NOT stop recording; user can continue recording after.
+   * Creates blob from current chunks (doesn't stop recording).
    */
   const handleToTextClick = async () => {
     console.log('[VoiceRecorder] "To Text" clicked - transcribing for review...');
@@ -263,25 +412,33 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSubmitAuto, onToTextRev
     setIsProcessing(true);
 
     try {
+      // Create blob from current chunks
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      await transcribeAndSubmit(audioBlob, 'review');
+      
+      console.log('[VoiceRecorder] Starting transcription for review...');
+      const transcription = await transcribeWebmAudio(audioBlob);
+
+      if (!transcription || !transcription.trim()) {
+        alert('Transcription failed or returned empty. Please try again.');
+        return;
+      }
+
+      console.log('[VoiceRecorder] Transcription complete for review');
+      onToTextReview(transcription);
+    } catch (err) {
+      console.error('[VoiceRecorder] Transcription failed:', err);
+      alert(`Transcription error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
   /**
-   * Internal: stops recording without submitting.
-   * Cleans up MediaRecorder, stream, visualization, and Web Speech API.
+   * Cleans up recording resources (stream, visualization, Web Speech API, timer).
+   * Does NOT stop MediaRecorder - that's handled separately to collect final data.
    */
-  const stopRecordingInternal = async () => {
+  const cleanupRecordingResources = () => {
     console.log('[VoiceRecorder] Cleaning up recording resources...');
-
-    // Stop MediaRecorder
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
 
     // Stop stream
     if (streamRef.current) {
@@ -309,45 +466,13 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSubmitAuto, onToTextRev
       timerRef.current = null;
     }
 
+    // Reset UI state
     setIsRecording(false);
     setWebSpeechText('');
     setRecordingTime(0);
+    mediaRecorderRef.current = null;
 
-    console.log('[VoiceRecorder] Recording stopped, cleanup complete');
-  };
-
-  /**
-   * Transcribes WebM blob using Gemini and calls appropriate callback.
-   * 
-   * @param audioBlob WebM audio blob
-   * @param flow 'auto' for immediate entry creation, 'review' for textarea population
-   */
-  const transcribeAndSubmit = async (audioBlob: Blob, flow: 'auto' | 'review') => {
-    setIsProcessing(true);
-
-    try {
-      console.log(`[VoiceRecorder] Starting Gemini transcription (${flow} flow)...`);
-      const transcription = await transcribeWebmAudio(audioBlob);
-
-      if (!transcription) {
-        alert('Transcription failed or returned empty. Please try again.');
-        return;
-      }
-
-      console.log(`[VoiceRecorder] Transcription complete (${flow}):`, transcription.slice(0, 100), '...');
-
-      // Trigger appropriate callback
-      if (flow === 'auto') {
-        onSubmitAuto(transcription);
-      } else if (flow === 'review') {
-        onToTextReview(transcription);
-      }
-    } catch (err) {
-      console.error(`[VoiceRecorder] Transcription failed (${flow}):`, err);
-      alert(`Transcription error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setIsProcessing(false);
-    }
+    console.log('[VoiceRecorder] Cleanup complete');
   };
 
   // Cleanup on unmount

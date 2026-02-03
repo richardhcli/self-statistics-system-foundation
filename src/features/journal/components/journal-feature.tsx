@@ -39,25 +39,71 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const [voiceTranscriptionText, setVoiceTranscriptionText] = useState('');
 
   /**
-   * Handle auto-submit from Record button (immediate entry creation).
-   * Called when user stops recording via Record button.
-   * Immediately triggers useCreateJournalEntry with AI enabled.
+   * Handle auto-submit from Record button with progressive entry creation.
    * 
-   * @param {string} transcription - Complete transcribed text from Gemini
+   * **Progressive Flow:**
+   * 1. Create dummy entry immediately (empty content)
+   * 2. Update entry with transcribed text when Gemini returns
+   * 3. Update entry with full AI analysis when processing completes
+   * 
+   * @param {Object} callbacks - Progressive update callbacks
+   * @param {Function} callbacks.onDummyCreated - Called immediately to create dummy entry
+   * @param {Function} callbacks.onTranscribed - Called with transcribed text
+   * @param {Function} callbacks.onAnalyzed - Called when AI analysis completes
    */
-  const handleVoiceAutoSubmit = async (transcription: string) => {
-    if (!transcription.trim()) {
-      console.log('[JournalFeature] Empty transcription, skipping submission');
-      return;
-    }
-
-    console.log('[JournalFeature] Auto-submitting voice transcription:', transcription);
+  const handleVoiceAutoSubmit = async (callbacks: {
+    onDummyCreated: () => string; // Returns entry ID (dateKey)
+    onTranscribed: (entryId: string, text: string) => void;
+    onAnalyzed: (entryId: string) => void;
+  }) => {
+    console.log('[JournalFeature] Progressive voice entry creation started');
     setIsProcessing(true);
     
     try {
+      // Step 1: Create dummy entry immediately
+      const entryId = callbacks.onDummyCreated();
+      console.log('[JournalFeature] Dummy entry created:', entryId);
+
+      // Voice recorder will call onTranscribed with text, then we process with AI
+    } catch (error) {
+      console.error('[JournalFeature] Progressive voice entry failed:', error);
+      alert('Failed to create voice entry. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Update dummy entry with transcribed text and trigger AI analysis.
+   * Called by voice recorder after Gemini transcription completes.
+   */
+  const updateEntryWithTranscription = async (entryId: string, transcription: string) => {
+    if (!transcription.trim()) {
+      console.log('[JournalFeature] Empty transcription, skipping AI processing');
+      return;
+    }
+
+    console.log('[JournalFeature] Updating entry with transcription:', entryId);
+    const [year, month, day, time] = entryId.split('/');
+
+    // Update entry content
+    const entryData: JournalEntryData = {
+      content: transcription,
+      actions: {},
+      metadata: {
+        flags: { aiAnalyzed: false },
+        timePosted: new Date().toISOString()
+      }
+    };
+    journalActions.upsertEntry(entryId, entryData);
+
+    // Now trigger AI analysis
+    setIsProcessing(true);
+    try {
       await createJournalEntry({
         entry: transcription,
-        useAI: true, // Always use AI for auto-submit voice entries
+        useAI: true,
+        dateInfo: { year, month, day, time },
       });
 
       if (onIntegrationEvent) {
@@ -67,10 +113,10 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
         });
       }
       
-      console.log('[JournalFeature] Voice entry submitted successfully');
+      console.log('[JournalFeature] Voice entry AI analysis complete');
     } catch (error) {
-      console.error('[JournalFeature] Voice auto-submit failed:', error);
-      alert('Failed to process voice entry. Please try again.');
+      console.error('[JournalFeature] AI analysis failed:', error);
+      alert('Transcription saved, but AI analysis failed.');
     } finally {
       setIsProcessing(false);
     }
@@ -195,6 +241,8 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
           <VoiceRecorder 
             onSubmitAuto={handleVoiceAutoSubmit}
             onToTextReview={handleVoiceToTextReview}
+            onUpdateEntryWithTranscription={updateEntryWithTranscription}
+            journalActions={journalActions}
           />
         </div>
         
