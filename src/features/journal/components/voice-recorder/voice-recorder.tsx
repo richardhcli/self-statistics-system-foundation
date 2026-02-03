@@ -190,11 +190,24 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
    * Creates blob from current chunks (doesn't stop recording).
    * NOTE: Button is ALWAYS available (not disabled) during recording for manual review.
    * 
+   * **Critical:** Request pending data from MediaRecorder before checking chunks.
+   * MediaRecorder may not have fired ondataavailable yet, so we need to explicitly
+   * call requestData() to flush pending audio buffers into audioChunksRef.
+   * 
    * This flow allows user to review and edit transcription before submitting,
    * providing more control than auto-submit.
    */
   const handleToTextClick = async () => {
     console.log('[VoiceRecorder] "To Text" clicked - transcribing for review...');
+
+    const mediaRecorder = mediaRecorderRef.current;
+    
+    // Request pending data from MediaRecorder (flushes audio buffer to ondataavailable)
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.requestData();
+      // Small delay to ensure ondataavailable fires and populates chunks
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     if (audioChunksRef.current.length === 0) {
       setUserFeedback('⚠️ No audio to convert');
