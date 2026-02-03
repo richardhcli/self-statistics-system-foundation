@@ -1,5 +1,11 @@
 # Orchestrator Pattern Documentation
 
+**Purpose**: Specification for coordinating multi-store updates  
+**Audience**: Developers implementing cross-store business logic  
+**Related**: [GLOBAL_STATE.md](./GLOBAL_STATE.md), [ai-guidelines.md](../ai-guidelines.md#6-cross-store-orchestration-the-orchestrator-hook-pattern)
+
+---
+
 ## Overview
 Orchestrators coordinate multi-store updates in a single business operation. They implement the **Cross-Store Coordination Pattern** described in the Global State Protocol.
 

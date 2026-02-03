@@ -1,12 +1,16 @@
 # Application Architecture
 
+**Purpose**: High-level overview of project structure and design philosophy  
+**Audience**: Project onboarding and architectural decisions  
+**Related**: [ai-guidelines.md](../ai-guidelines.md#2-directory-structure--responsibilities), [architecture-lib-vs-stores.md](./architecture-lib-vs-stores.md)
+
 The Journal & Graph AI application is built following the **Bulletproof React** pattern, which prioritizes modularity, scalability, and clear separation of concerns.
 
 ## Local-First Philosophy
 The application operates on a "Local-First" basis to ensure maximum privacy and zero-latency interactions.
 - **Persistence**: All user data is stored in **IndexedDB** within the browser across specialized stores
 - **State Management**: Independent Zustand stores act as runtime sources of truth, each managing their own domain.
-- **Synchronization Hub**: The `stores/root` module acts as a serialization layer, aggregating all stores into a unified object **ONLY for**: atomic local saving, full state export/import, and future remote backend synchronization. It is NEVER accessed during runtime operations.
+- **Serialization Layer**: The `stores/root` module handles state serialization **ONLY for**: full state export/import and future backend synchronization. It is NEVER accessed during runtime operations.
 
 ## Folder Structure
 

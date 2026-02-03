@@ -1,11 +1,11 @@
 # Architecture Protocol: /lib vs /stores
 
+**Purpose**: Defines strict separation between pure logic and state management  
+**Audience**: Developers implementing features or refactoring code  
+**Related**: [ai-guidelines.md](../ai-guidelines.md#5-the-engine-vs-state-split-lib-vs-stores), [architecture.md](./architecture.md)
+
 ## Overview
 This document defines the strict separation between **Pure Logic** (`/lib`) and **Global State** (`/stores`). This distinction is critical for maintaining a **Local-First** system that is testable, reference-stable, and free of circular dependencies.
-
----
-
-## 1. The /lib Directory (The "Engine")
 The `/lib` folder contains the domain's "Soul"—the pure math, algorithms, and data models.
 
 ### Core Responsibilities

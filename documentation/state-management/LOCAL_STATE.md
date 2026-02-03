@@ -1,19 +1,23 @@
+# Local State Protocol (useState & Feature Hooks)
+
+**Purpose**: Guidelines for component-level and feature-specific state  
+**Audience**: Developers building UI components and features  
+**Related**: [state-management-README.md](./state-management-README.md), [GLOBAL_STATE.md](./GLOBAL_STATE.md)
 
 ---
-
-### 3. Local State Protocol (React)
-`state-management/LOCAL_STATE.md`
-
-This file governs transient, component-level state.
-
-```markdown
-# Local State Protocol (useState & Feature Hooks)
 
 ## Usage Criteria
 Use Local State ONLY for:
 1. **UI Status**: `isOpen`, `isProcessing`, `activeTab`.
 2. **Form State**: Temporary input values before submission.
 3. **Animations**: View-specific coordinates (e.g., D3 drag state).
+
+**Do NOT use local state for:**
+- Data that needs to survive a page refresh
+- Data needed by >2 unrelated features (migrate to Zustand)
+- Business logic that affects multiple domains
+
+---
 
 ## Implementation Patterns
 
@@ -27,7 +31,6 @@ export const useGraphUI = () => {
   const handleZoom = useCallback((level) => setZoom(level), []);
   return { zoom, handleZoom };
 };
-
 ```
 
 ### 2. State Lifting
@@ -40,6 +43,8 @@ Never sync local state with global state via `useEffect`. Instead, derive local 
 
 * **Rule**: If a value can be calculated from props or a global store, use `useMemo`.
 * **Graph Utility**: All graph traversals (DFS/BFS) must be wrapped in `useMemo` in the local component layer.
+
+---
 
 ## AI Interaction Guidelines
 
