@@ -2,7 +2,7 @@
 
 ## Summary
 
-Migrated voice transcription from batch processing to Gemini Live API streaming for true real-time transcription with sub-second latency.
+Migrated voice transcription from batch processing to Gemini Live API streaming for true real-time transcription with sub-second latency. Added automatic submission when recording stops for streamlined UX.
 
 ## Breaking Changes
 
@@ -16,8 +16,9 @@ Migrated voice transcription from batch processing to Gemini Live API streaming 
 - `src/lib/google-ai/utils/audio-processor.ts` - PCM audio format conversion
 
 ### Modified Files:
-- `src/features/journal/components/voice-recorder.tsx` - Complete rewrite for Live API
-- `src/features/journal/types/index.ts` - Updated VoiceRecorderProps documentation
+- `src/features/journal/components/voice-recorder.tsx` - Complete rewrite for Live API + auto-submission
+- `src/features/journal/components/journal-feature.tsx` - Removed manual review UI, added auto-submission handler
+- `src/features/journal/types/index.ts` - Updated VoiceRecorderProps (onTranscription → onComplete)
 - `src/lib/google-ai/index.ts` - Updated exports
 - `src/lib/google-ai/google-ai-README.md` - Live API documentation
 
@@ -44,6 +45,8 @@ Migrated voice transcription from batch processing to Gemini Live API streaming 
 3. **Final transcriptions**: Automatic turn detection on pauses
 4. **Better accuracy**: Native audio model optimized for speech
 5. **Lower latency**: ~100ms vs. ~3000ms delay
+6. **Auto-submission**: Recording stops → immediate AI processing (no manual confirmation)
+7. **Streamlined workflow**: Speak → Stop → Done (2 steps instead of 3)
 
 ## Implementation Details
 
@@ -54,6 +57,18 @@ config: {
   responseModalities: [Modality.AUDIO],
   inputAudioTranscription: {},  // Enables transcription
   systemInstruction: 'Transcription assistant'
+}
+```
+
+### Auto-Submission Architecture:
+```typescript
+// Voice recorder accumulates text in ref (not state)
+accumulatedTextRef.current += finalText;
+
+// On stop, auto-submit accumulated text
+const finalText = accumulatedTextRef.current.trim();
+if (finalText && onComplete) {
+  onComplete(finalText); // Triggers AI processing immediately
 }
 ```
 
