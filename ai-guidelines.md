@@ -54,13 +54,20 @@ interface StoreState {
 }
 
 export const useXyzStore = create<StoreState>()(
-  persist((set, get) => ({
-    data: {},
-    actions: { /* functions */ }
+  persist((set, get) => {
+    // Define actions once (stable reference, never recreated)
+    const actions = {
+      addItem: (x) => set(state => ({ data: {...state.data, x} })),
+      // ... other actions
+    };
+    return {
+      data: {},
+      actions,
+    };
   }), {
     name: 'xyz-store-v1',
     storage: indexedDBStorage,
-    partialize: (state) => ({ data: state.data })  // ✅ Whitelist only
+    partialize: (state) => ({ data: state.data })  // ✅ Whitelist only - NO actions!
   })
 );
 ```
@@ -76,6 +83,16 @@ export const useXyzActions = () => useXyzStore(s => s.actions);
 ```
 
 **Rule**: Never import `useXyzStore` directly; always use public hooks.
+
+---
+
+## Infinite Loop Prevention
+
+**Key**: `useXyzActions()` returns `state.actions` (stable object created once at store init).
+
+- ✅ Selector returns **same reference** on every call → no re-renders → no loops
+- ❌ **Don't** create new objects in selectors: `() => ({ ...state.actions })` ← causes loops
+- ✅ **Do** return store object properties directly: `() => state.actions`
 
 ---
 

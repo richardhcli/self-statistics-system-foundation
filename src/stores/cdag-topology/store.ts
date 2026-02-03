@@ -121,6 +121,13 @@ export const useGraphStore = create<GraphStoreState>()(
       name: 'cdag-topology-store-v2',
       storage: indexedDBStorage,
       version: 2,
+      // ✅ CRITICAL: Only persist data, never persist actions/functions to IndexedDB
+      partialize: (state) => ({
+        nodes: state.nodes,
+        edges: state.edges,
+        version: state.version,
+        lastSyncTimestamp: state.lastSyncTimestamp,
+      }),
       // Non-destructive migration
       migrate: (state: any, version: number) => {
         if (version < 2) {
