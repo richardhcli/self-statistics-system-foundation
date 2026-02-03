@@ -1,34 +1,45 @@
 import React, { useState } from 'react';
-import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
+import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
 import { useJournalActions } from '@/stores/journal';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { useJournal } from '@/stores/journal';
 import { JournalEntryData, JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
-import VoiceRecorder from './voice-recorder';
+import VoiceRecorder from './voice-recorder/voice-recorder';
 
 /**
- * JournalFeature - Voice recording with dual submission flows.
+ * JournalFeature - Main journal container with dual submission flows.
  * 
- * Responsibilities:
- * 1. Handle voice recording with two submission modes:
- *    - Auto-submit (Record button stops): Immediate entry creation
- *    - Manual review ("To Text" button): Populate textarea for editing
- * 2. Process entries with AI analysis
- * 3. Display journal entries with hierarchical view
+ * **Architecture:**
+ * - Manages only ephemeral UI state (processing, textarea for voice "To Text" review)
+ * - VoiceRecorder uses unified pipeline internally (no parent callbacks needed)
+ * - ManualEntryForm uses unified pipeline internally (no parent callbacks needed)
+ * - Parent keeps state minimal: only voiceTranscriptionText for "To Text" flow
  * 
- * Voice Recording Architecture:
- * - MediaRecorder captures WebM audio (max 60s or manual stop)
- * - Web Speech API provides display-only real-time preview
- * - Two submission flows: immediate entry creation OR textarea review
- * - No Live API streaming (batch Gemini transcription only)
+ * **Data Flow:**
+ * 1. VoiceRecorder auto-submit: Component handles all 3 pipeline stages internally
+ * 2. VoiceRecorder "To Text": Calls onToTextReview callback, parent populates textarea
+ * 3. ManualEntryForm submit: Component handles all 3 pipeline stages internally
+ * 4. JournalView quick entry: Parent handles (optional, for inline quick add)
+ * 5. JournalView re-parse: Parent handles (optional, for re-analyzing existing entry)
  * 
- * Architecture:
- * - Uses global journal store (stores/journal) for persistent data
- * - Uses local useState for ephemeral UI state (processing, textarea)
- * - Handles all journal-related business logic internally
- * - Provides integration points for webhooks/external systems via callbacks
+ * **Global State:**
+ * - Reads journal data from global store (useJournal())
+ * - Writes entries via journalActions (upsertEntry)
+ * - Parent does NOT manage entry creation - delegated to pipeline hooks
+ * 
+ * **Integration Points:**
+ * - onIntegrationEvent callback for webhooks/Obsidian sync
+ * - Called after AI processing completes (for logging/tracking)
+ * 
+ * **Unified Progressive Pipeline:**
+ * Both manual and voice use same 3-stage pipeline internally:
+ * 1. Create dummy entry (immediate UI feedback)
+ * 2. Update with content (transcribed or typed)
+ * 3. Trigger AI analysis (background)
+ * 
+ * Hybrid strategy: Progressive internally, dummy display suppressed for manual.
  */
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
@@ -37,98 +48,19 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const createJournalEntry = useCreateJournalEntry();
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceTranscriptionText, setVoiceTranscriptionText] = useState('');
+  const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   /**
-   * Handle auto-submit from Record button with progressive entry creation.
-   * 
-   * **Progressive Flow:**
-   * 1. Create dummy entry immediately (empty content)
-   * 2. Update entry with transcribed text when Gemini returns
-   * 3. Update entry with full AI analysis when processing completes
-   * 
-   * @param {Object} callbacks - Progressive update callbacks
-   * @param {Function} callbacks.onDummyCreated - Called immediately to create dummy entry
-   * @param {Function} callbacks.onTranscribed - Called with transcribed text
-   * @param {Function} callbacks.onAnalyzed - Called when AI analysis completes
-   */
-  const handleVoiceAutoSubmit = async (callbacks: {
-    onDummyCreated: () => string; // Returns entry ID (dateKey)
-    onTranscribed: (entryId: string, text: string) => void;
-    onAnalyzed: (entryId: string) => void;
-  }) => {
-    console.log('[JournalFeature] Progressive voice entry creation started');
-    setIsProcessing(true);
-    
-    try {
-      // Step 1: Create dummy entry immediately
-      const entryId = callbacks.onDummyCreated();
-      console.log('[JournalFeature] Dummy entry created:', entryId);
-
-      // Voice recorder will call onTranscribed with text, then we process with AI
-    } catch (error) {
-      console.error('[JournalFeature] Progressive voice entry failed:', error);
-      alert('Failed to create voice entry. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  /**
-   * Update dummy entry with transcribed text and trigger AI analysis.
-   * Called by voice recorder after Gemini transcription completes.
-   */
-  const updateEntryWithTranscription = async (entryId: string, transcription: string) => {
-    if (!transcription.trim()) {
-      console.log('[JournalFeature] Empty transcription, skipping AI processing');
-      return;
-    }
-
-    console.log('[JournalFeature] Updating entry with transcription:', entryId);
-    const [year, month, day, time] = entryId.split('/');
-
-    // Update entry content
-    const entryData: JournalEntryData = {
-      content: transcription,
-      actions: {},
-      metadata: {
-        flags: { aiAnalyzed: false },
-        timePosted: new Date().toISOString()
-      }
-    };
-    journalActions.upsertEntry(entryId, entryData);
-
-    // Now trigger AI analysis
-    setIsProcessing(true);
-    try {
-      await createJournalEntry({
-        entry: transcription,
-        useAI: true,
-        dateInfo: { year, month, day, time },
-      });
-
-      if (onIntegrationEvent) {
-        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
-          originalText: transcription,
-          source: 'voice_auto_submit',
-        });
-      }
-      
-      console.log('[JournalFeature] Voice entry AI analysis complete');
-    } catch (error) {
-      console.error('[JournalFeature] AI analysis failed:', error);
-      alert('Transcription saved, but AI analysis failed.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  /**
-   * Handle manual review from "To Text" button.
-   * Called when user clicks "To Text" during recording.
+   * Handle "To Text" button from voice recorder.
    * Populates textarea with transcribed text for user review/editing.
-   * User can manually submit after reviewing and editing.
+   * User can now manually submit using ManualEntryForm.
    * 
-   * @param {string} transcription - Complete transcribed text from Gemini
+   * **Pipeline:** 
+   * No entry created yet. When user submits textarea, ManualEntryForm
+   * will use unified pipeline (Stage 1 with actual user text + Stage 3 AI).
+   * 
+   * @param transcription - Complete transcribed text from Gemini
    */
   const handleVoiceToTextReview = (transcription: string) => {
     if (!transcription.trim()) {
@@ -176,31 +108,35 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   };
 
   /**
-   * Handle detailed manual entry (from manual entry form)
-   * AI classification is always enabled for this form
+   * Handle detailed manual entry submission (from form).
+   * 
+   * **Pipeline (handled internally by ManualEntryForm):**
+   * 1. Form creates dummy entry with user's typed text + duration
+   * 2. Form triggers AI analysis immediately
+   * 3. Parent's onIntegrationEvent callback fires for tracking
+   * 
+   * Parent just needs to:
+   * - Call integration callback for logging/webhooks
+   * - Clear the textarea after submission
+   * - Set processing state (OPTIONAL - ManualEntryForm manages its own state)
    */
   const handleDetailedManualEntry = async (payload: {
     content: string;
     duration?: string;
   }) => {
-    setIsProcessing(true);
-    try {
-      await createJournalEntry({
-        entry: payload.content,
-        useAI: true,
+    console.log('[JournalFeature] Manual entry submitted via form, triggering integration callback');
+    
+    // Call integration callback for logging/webhooks
+    if (onIntegrationEvent) {
+      await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
+        originalText: payload.content,
+        source: 'manual_detailed',
         duration: payload.duration,
       });
-
-      if (onIntegrationEvent) {
-        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
-          originalText: payload.content,
-          source: 'manual_detailed',
-          duration: payload.duration,
-        });
-      }
-    } finally {
-      setIsProcessing(false);
     }
+    
+    // Clear textarea
+    setVoiceTranscriptionText('');
   };
 
   /**
@@ -239,10 +175,18 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
         {/* Voice Recorder Card - Dual submission flows */}
         <div className="sticky top-24">
           <VoiceRecorder 
-            onSubmitAuto={handleVoiceAutoSubmit}
             onToTextReview={handleVoiceToTextReview}
-            onUpdateEntryWithTranscription={updateEntryWithTranscription}
-            journalActions={journalActions}
+            onProcessingStateChange={(entryId, isProcessing) => {
+              setProcessingEntries(prev => {
+                const next = new Set(prev);
+                if (isProcessing) {
+                  next.add(entryId);
+                } else {
+                  next.delete(entryId);
+                }
+                return next;
+              });
+            }}
           />
         </div>
         
@@ -261,7 +205,8 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
           data={journal} 
           onAddManualEntry={handleManualQuickEntry}
           onParseEntry={handleParseEntry}
-          isProcessing={isProcessing}
+          processingEntries={processingEntries}
+          feedbackMessage={feedbackMessage}
         />
       </div>
     </div>

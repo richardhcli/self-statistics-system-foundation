@@ -3,120 +3,74 @@
  * Journal Feature Type Definitions
  * 
  * Defines data structures for journal entry storage, component props,
- * and performance tracking metadata following the Separated Selector Facade Pattern.
+ * and performance tracking metadata.
+ * 
+ * **STATE DISTINCTION:**
+ * - GLOBAL STATE: Persistent, persisted to IndexedDB (JournalEntryData, entry content, results)
+ * - LOCAL STATE: Transient, UI-centric (isProcessing per entry, feedbackMessage, form inputs)
+ * 
+ * Global state is read from the journal store; local state lives in React components.
  * 
  * USER-CENTRIC SCHEMA: Structures data from the user's viewing perspective,
- * not the system's generation method.
+ * not the system's generation method. 
  * 
  * @module features/journal/types
  * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns when reading from global store
- * @see {@link /documentation/state-management/LOCAL_STATE.md} for state patterns when using local component state (this file)
+ * @see {@link /documentation/state-management/LOCAL_STATE.md} for component-level state patterns
  */
+import { JournalEntryData, JournalStore } from '@/stores/journal/types';
 
 // ============================================================
-// JOURNAL DATA MODELS
+// FEATURE-LEVEL LOCAL STATE (React Component State)
 // ============================================================
 
 /**
- * Performance result data for a processed journal entry.
- * Contains calculated metrics after entry has been analyzed and integrated into the topology.
+ * Feature-level feedback message state.
+ * Displayed to user for all entry operations (transcription, AI analysis, etc).
  * 
- * @property {number} levelsGained - Number of node level-ups triggered by this entry
- * @property {number} totalExpIncrease - Total EXP awarded across all affected nodes
- * @property {Record<string, number>} nodeIncreases - Detailed breakdown: node label → EXP gained
- */
-export interface JournalEntryResult {
-  levelsGained: number;
-  totalExpIncrease: number;
-  nodeIncreases: Record<string, number>;
-}
-
-/**
- * Entry-specific metadata tracking generation method and timing.
+ * **Scope:** Feature-level useState in JournalFeature component
+ * **Lifetime:** Session-only (cleared on page refresh)
+ * **Purpose:** User feedback for async operations
  * 
- * @property {Object} flags - Boolean flags for entry characteristics
- * @property {boolean} flags.aiAnalyzed - True if entry was processed by AI semantic analysis
- * @property {string} timePosted - ISO timestamp of when entry was created
- * @property {string} [duration] - Time spent on activity (format: "30", "2h", "90 mins")
- */
-export interface JournalEntryMetadata {
-  flags: {
-    aiAnalyzed: boolean;
-  };
-  timePosted: string;
-  duration?: string;
-}
-
-/**
- * Folder-level aggregated metadata.
- * Stores cumulative EXP totals for year/month/day groupings.
- * 
- * @property {number} totalExp - Total EXP from all entries in this folder
- */
-export interface FolderMetadata {
-  totalExp: number;
-}
-
-/**
- * Individual journal entry data structure.
- * User-centric design: structured by what the user sees, not how it was generated.
- * 
- * UNIFIED ACTION WEIGHTING:
- * - AI mode: Provides semantic weights (e.g., { "Debugging": 0.7, "Code review": 0.3 })
- * - Manual mode: Defaults to equal weights (e.g., { "Coding": 1, "Exercise": 1 })
- * 
- * @property {string} content - Raw text content of the journal entry
- * @property {Record<string, number>} actions - Action name → weight mapping (sum should be ~1.0 for AI, any value for manual)
- * @property {JournalEntryResult} [result] - Performance metrics (present after processing)
- * @property {JournalEntryMetadata} metadata - Entry generation metadata and flags
+ * @property {string} message - Current feedback message (empty string = no message)
+ * @property {setFeedbackMessage} function - React setState for updating message
  * 
  * @example
- * // AI-analyzed entry
- * {
- *   content: "Spent time debugging the authentication system",
- *   actions: { "Debugging": 0.8, "System design": 0.2 },
- *   result: { levelsGained: 2, totalExpIncrease: 45.3, nodeIncreases: {...} },
- *   metadata: { flags: { aiAnalyzed: true }, timePosted: "2026-02-02T14:30:00Z", duration: "120" }
- * }
+ * const [feedbackMessage, setFeedbackMessage] = useState('');
  * 
- * @example
- * // Manual entry
- * {
- *   content: "Morning workout session",
- *   actions: { "Exercise": 1 },
- *   result: { levelsGained: 1, totalExpIncrease: 12.5, nodeIncreases: {...} },
- *   metadata: { flags: { aiAnalyzed: false }, timePosted: "2026-02-02T07:00:00Z", duration: "60" }
- * }
+ * // During transcription
+ * setFeedbackMessage('🤖 Transcribing with Gemini AI...');
+ * 
+ * // After transcription
+ * setFeedbackMessage('✅ Transcription complete');
  */
-export interface JournalEntryData {
-  content: string;
-  actions: Record<string, number>;
-  result?: JournalEntryResult;
-  metadata: JournalEntryMetadata;
+export interface FeedbackState {
+  message: string;
+  setMessage: (message: string) => void;
 }
 
 /**
- * Hierarchical journal storage structure.
- * Organized by time hierarchy: Year → Month → Day → Time Key
+ * Local processing state per entry.
+ * Tracks which entries are currently being analyzed by AI.
+ * 
+ * **Scope:** Feature-level Set or Record in JournalFeature
+ * **Lifetime:** Duration of AI analysis (seconds to minutes)
+ * **Purpose:** UI state for "Analyzing..." button on each entry
  * 
  * @example
- * {
- *   "2026": {
- *     "2": {
- *       "2": {
- *         "14:30:00.000": { content: "Finished coding session", ... },
- *         metadata: { totalExp: 150 }
- *       },
- *       metadata: { totalExp: 300 }
- *     },
- *     metadata: { totalExp: 1200 }
- *   }
- * }
+ * const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
+ * 
+ * // When AI analysis starts
+ * setProcessingEntries(prev => new Set(prev).add(entryId));
+ * 
+ * // When AI analysis completes
+ * setProcessingEntries(prev => {
+ *   const next = new Set(prev);
+ *   next.delete(entryId);
+ *   return next;
+ * });
  */
-export type JournalDay = Record<string, JournalEntryData> & { metadata?: FolderMetadata };
-export type JournalMonth = Record<string, JournalDay> & { metadata?: FolderMetadata };
-export type JournalYear = Record<string, JournalMonth> & { metadata?: FolderMetadata };
-export type JournalStore = Record<string, JournalYear>;
+export type ProcessingEntries = Set<string>;
 
 // ============================================================
 // COMPONENT PROPS INTERFACES
@@ -124,27 +78,52 @@ export type JournalStore = Record<string, JournalYear>;
 
 /**
  * Props for the main journal feature wrapper component.
- * Supports optional integration callbacks for webhooks/external systems.
+ * Manages local state for the entire journal feature (feedback messages, processing indicators).
+ * 
+ * **Local State Management:**
+ * - `feedbackMessage`: User feedback for all operations (transcription, AI analysis, etc)
+ * - `setFeedbackMessage`: React setState for updating feedback
+ * - `processingEntries`: Set of entry IDs currently being analyzed
+ * - `setProcessingEntries`: React setState for updating processing set
+ * 
+ * **Integration Callbacks:**
+ * - `onIntegrationEvent`: Optional callback for webhooks/external systems
  * 
  * @property {function} [onIntegrationEvent] - Optional callback for integration events (Obsidian, webhooks)
+ * @property {string} feedbackMessage - Current user feedback message (LOCAL STATE)
+ * @property {function} setFeedbackMessage - Update feedback message
+ * @property {ProcessingEntries} processingEntries - Set of entries being analyzed (LOCAL STATE)
+ * @property {function} setProcessingEntries - Update processing set
  */
 export interface JournalFeatureProps {
   onIntegrationEvent?: (eventName: string, payload: any) => Promise<void>;
+  feedbackMessage: string;
+  setFeedbackMessage: (message: string) => void;
+  processingEntries: ProcessingEntries;
+  setProcessingEntries: (entries: ProcessingEntries) => void;
 }
 
 /**
  * Props for individual journal entry display component.
  * Handles rendering entry content, metadata, and AI processing triggers.
  * 
- * @property {string} time - Entry timestamp (ISO format or HH:mm:ss)
- * @property {JournalEntryData} entry - Complete entry data with content and metadata
- * @property {boolean} isProcessing - Loading state for AI processing
- * @property {function} onParseEntry - Callback to trigger AI semantic analysis
+ * **Global State (from store):**
+ * - `entry`: JournalEntryData - Persistent entry content and results
+ * 
+ * **Local State (from feature component):**
+ * - `isProcessing`: Whether THIS specific entry is being analyzed
+ *   - TRUE: Show "Analyzing..." button state
+ *   - FALSE: Show "AI Analyze Entry" button normally
+ * 
+ * @property {string} time - Entry timestamp (HH:mm:ss format)
+ * @property {JournalEntryData} entry - Complete entry data from global store (GLOBAL STATE)
+ * @property {boolean} isProcessing - Processing state for THIS entry (LOCAL STATE)
+ * @property {function} onParseEntry - Callback to trigger AI analysis
  */
 export interface JournalEntryItemProps {
   time: string;
   entry: JournalEntryData;
-  isProcessing: boolean;
+  isProcessing: boolean;  // LOCAL STATE: Processing state for this specific entry
   onParseEntry: () => void;
 }
 
@@ -167,10 +146,16 @@ export interface EntryResultsProps {
  * - `onTextChange` syncs textarea content with parent component
  * - User can edit before submitting
  * 
+ * **Local State:**
+ * - `feedbackMessage`: Display feedback to user during processing
+ * - `setFeedbackMessage`: Update feedback display
+ * 
  * @property {function} onSubmit - Callback with form data (content, duration)
  * @property {boolean} isProcessing - Loading state during submission
  * @property {string} [initialText] - Pre-populated text from voice transcription
  * @property {function} [onTextChange] - Callback when textarea content changes
+ * @property {string} feedbackMessage - User feedback message (LOCAL STATE)
+ * @property {function} setFeedbackMessage - Update feedback message
  */
 export interface ManualEntryFormProps {
   onSubmit: (data: {
@@ -180,55 +165,39 @@ export interface ManualEntryFormProps {
   isProcessing: boolean;
   initialText?: string;
   onTextChange?: (text: string) => void;
+  feedbackMessage: string;
+  setFeedbackMessage: (message: string) => void;
 }
 
 /**
- * Props for voice recorder component.
- * Handles audio capture and Base64 encoding for transcription pipeline.
+ * Props for VoiceRecorder component.
  * 
- * @property {function} onProcessed - Callback with Base64-encoded audio data
- * @property {boolean} isProcessing - Loading state during transcription/processing
- */
-/**
- * Props for VoiceRecorder component using batch Gemini transcription.
- * Handles audio recording with Web Speech API preview and dual submission flows.
- *
- * **Recording Architecture:**
- * - MediaRecorder captures WebM audio during recording (max 60s or manual stop)
- * - Web Speech API provides display-only real-time preview (not used for data)
- * - Falls back to silent recording if Web Speech API unavailable
- * - Two submission flows: auto-submit (progressive entry) or manual review (textarea)
+ * **Architecture:**
+ * - Uses modular components: AudioVisualization, WebSpeechPreview
+ * - Uses modular hooks: useVoiceAutoSubmit for progressive entry creation orchestration
+ * - Entry creation is now fully encapsulated within hooks via useVoiceAutoSubmit
  *
  * **Submission Flows:**
- * 1. Auto-submit (Record button) - Progressive Entry Creation:
- *    - Recording stops → Create dummy entry immediately
- *    - Gemini transcription → Update entry with text
- *    - AI analysis → Update entry with full data
- *    - Three-stage progressive updates for better UX
+ * 1. Auto-submit (Record button stop) - Sequential Entry Creation:
+ *    - Recording stops → Hook creates dummy entry (Stage 1)
+ *    - Gemini transcription → Hook updates entry with text (Stage 2)
+ *    - AI analysis → Hook updates entry with full data (Stage 3)
+ *    - Hook calls onProcessingStateChange for parent to track AI analysis state
  *
  * 2. Manual review ("To Text" button):
  *    - User clicks button → Gemini batch transcription → onToTextReview callback
  *    - Parent populates textarea for user review and editing
  *
+ * **Processing State Tracking:**
+ * - onProcessingStateChange: Callback from hook with (entryId, isProcessing)
+ * - Parent tracks which entries are being analyzed via processingEntries Set
+ * - Enables "Analyzing..." button state for each entry
+ *
  * @interface VoiceRecorderProps
- * @property {Function} onSubmitAuto - Callback for progressive auto-submit flow
  * @property {Function} onToTextReview - Callback for manual review flow (To Text button)
- * @property {Function} onUpdateEntryWithTranscription - Callback to update entry with transcribed text
- * @property {Object} journalActions - Journal store actions for creating dummy entries
+ * @property {Function} [onProcessingStateChange] - Callback for tracking AI analysis per entry (LOCAL STATE tracking)
  */
 export interface VoiceRecorderProps {
-  /**
-   * Callback for progressive auto-submit flow - called when recording stops.
-   * Provides callbacks for each stage: dummy creation, transcription, AI analysis.
-   * 
-   * @param {Object} callbacks - Progressive update callbacks
-   */
-  onSubmitAuto: (callbacks: {
-    onDummyCreated: () => string;
-    onTranscribed: (entryId: string, text: string) => void;
-    onAnalyzed: (entryId: string) => void;
-  }) => void;
-
   /**
    * Callback for manual review flow - called when user clicks "To Text" button.
    * Receives transcribed text from Gemini batch transcription.
@@ -237,36 +206,38 @@ export interface VoiceRecorderProps {
    * @param {string} text - Transcribed text from Gemini (for editing before submit)
    */
   onToTextReview: (text: string) => void;
-
+  
   /**
-   * Callback to update dummy entry with transcribed text and trigger AI analysis.
-   * Called after Gemini transcription completes.
+   * Callback for tracking AI analysis processing state per entry.
+   * Called by useVoiceAutoSubmit hook when AI analysis starts/ends.
+   * Parent should use this to update processingEntries Set for "Analyzing..." button state.
    * 
-   * @param {string} entryId - Entry ID (dateKey format: year/month/day/time)
-   * @param {string} text - Transcribed text from Gemini
+   * **LOCAL STATE:** Transient UI state (cleared after AI analysis completes)
+   * 
+   * @param {string} entryId - Entry ID being analyzed
+   * @param {boolean} isProcessing - TRUE: analysis started, FALSE: analysis ended
    */
-  onUpdateEntryWithTranscription: (entryId: string, text: string) => void;
-
-  /**
-   * Journal store actions for creating dummy entries.
-   */
-  journalActions: {
-    upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
-  };
+  onProcessingStateChange?: (entryId: string, isProcessing: boolean) => void;
 }
 
 /**
  * Props for hierarchical journal view component.
  * Renders year/month/day tree structure with expand/collapse controls.
  * 
- * @property {JournalStore} data - Complete journal data hierarchy
+ * **Local State (from feature component):**
+ * - `processingEntries`: Set of entry IDs currently being analyzed
+ * - `feedbackMessage`: User feedback for all entry operations
+ * 
+ * @property {JournalStore} data - Complete journal data hierarchy (GLOBAL STATE)
  * @property {function} onAddManualEntry - Callback to add entry at specific date
  * @property {function} onParseEntry - Callback to trigger AI analysis for specific entry
- * @property {boolean} isProcessing - Global processing state indicator
+ * @property {ProcessingEntries} processingEntries - Local state: IDs of entries being analyzed
+ * @property {string} feedbackMessage - Local state: Current feedback message for user
  */
 export interface JournalViewProps {
   data: JournalStore;
   onAddManualEntry: (year: string, month: string, day: string, content: string) => void;
   onParseEntry: (year: string, month: string, day: string, time: string) => void;
-  isProcessing: boolean;
+  processingEntries: ProcessingEntries;  // LOCAL STATE
+  feedbackMessage: string;               // LOCAL STATE
 }

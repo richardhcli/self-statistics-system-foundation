@@ -1,4 +1,4 @@
-import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
+import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
 import { useGraphActions } from '@/stores/cdag-topology';
 import { 
   AI_TEST_ENTRIES, 

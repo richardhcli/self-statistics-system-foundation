@@ -85,15 +85,24 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
               ) : (
                 <button 
                   onClick={onParseEntry} 
-                  disabled={isProcessing} 
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white text-amber-600 rounded-xl text-[10px] font-black uppercase border border-amber-200 hover:bg-amber-50 hover:border-amber-300 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isProcessing}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all shadow-sm active:scale-95 ${
+                    isProcessing
+                      ? 'bg-amber-50 text-amber-600 border-amber-200 opacity-75 cursor-wait'
+                      : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-300 active:scale-95'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isProcessing ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Analyzing...
+                    </>
                   ) : (
-                    <Sparkles className="w-3 h-3" />
+                    <>
+                      <Sparkles className="w-3 h-3" />
+                      AI Analyze Entry
+                    </>
                   )}
-                  AI Analyze Entry
                 </button>
               )}
 

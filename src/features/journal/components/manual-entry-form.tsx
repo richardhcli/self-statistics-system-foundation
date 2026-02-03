@@ -2,12 +2,23 @@
 import React, { useState } from 'react';
 import { Type, Hourglass, Send, Loader2 } from 'lucide-react';
 import { ManualEntryFormProps } from '../types';
+import { useCreateEntryPipeline } from '../hooks/create-entry/use-create-entry-pipeline';
 
 /**
  * ManualEntryForm Component
  * 
- * Journal entry form for manual text input.
- * AI classification is always enabled; no manual action tagging is provided.
+ * Journal entry form for manual text input using unified progressive pipeline.
+ * 
+ * **Progressive Pipeline Integration:**
+ * Uses three-stage entry creation internally:
+ * 1. Creates dummy entry with user's actual text (isDummyContent=false)
+ * 2. Content already filled (Stage 2 skipped internally)
+ * 3. Triggers AI analysis immediately in background
+ * 
+ * **Hybrid Strategy:**
+ * - Dummy entry display suppressed by parent (initialText already filled)
+ * - Progressive pipeline runs internally (user sees immediate confirmation)
+ * - AI analysis completes in background (user continues using app)
  * 
  * **Voice Integration:**
  * - Can receive initial text from voice "To Text" button
@@ -18,8 +29,16 @@ import { ManualEntryFormProps } from '../types';
  * - Content: Raw text entry (pre-populated if from voice "To Text")
  * - Time Taken: Optional duration override
  * 
+ * **Flow:**
+ * 1. User types or pastes text
+ * 2. User optionally adds duration
+ * 3. User clicks "Submit Entry"
+ * 4. Pipeline Stage 1: Create dummy with user's text + duration
+ * 5. Pipeline Stage 3: Trigger AI analysis immediately
+ * 6. Parent's onSubmit callback called for integration events
+ * 
  * @param {ManualEntryFormProps} props - Component props
- * @returns {JSX.Element} Manual entry form with voice integration
+ * @returns {JSX.Element} Manual entry form with unified pipeline integration
  */
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ 
   onSubmit, 
@@ -27,6 +46,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
   initialText = '',
   onTextChange 
 }) => {
+  const { createDummyEntry, updateWithAIAnalysis } = useCreateEntryPipeline();
   const [content, setContent] = useState(initialText);
   const [duration, setDuration] = useState('');
 
@@ -51,20 +71,49 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
   }, [initialText]);
 
   /**
-   * Handles form submission with AI classification always enabled
+   * Handles form submission using unified progressive pipeline.
+   * 
+   * **Stage 1:** Create dummy entry with user's text + duration
+   * - Content already filled (no placeholder display)
+   * - Duration stored in metadata for AI processing
+   * 
+   * **Stage 2:** Skipped internally (content already finalized)
+   * 
+   * **Stage 3:** Trigger AI analysis immediately
+   * - AI processes entry in background
+   * - User can continue interacting with app
+   * - Results update in real-time when AI completes
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
-    onSubmit({
-      content,
-      duration: duration || undefined,
-    });
+    try {
+      // Stage 1: Create dummy entry with actual user text + duration
+      // Note: isDummyContent=false by convention (actual text, not placeholder)
+      const entryId = createDummyEntry(
+        content,           // User's actual text (not placeholder)
+        duration || undefined,
+        undefined           // Let pipeline auto-generate date
+      );
 
-    // Reset form
-    setContent('');
-    setDuration('');
+      // Stage 3: Trigger AI analysis immediately
+      // Note: Stage 2 skipped (content already finalized)
+      await updateWithAIAnalysis(entryId, content);
+
+      // Call parent's onSubmit callback for integration events
+      onSubmit({
+        content,
+        duration: duration || undefined,
+      });
+
+      // Reset form
+      setContent('');
+      setDuration('');
+    } catch (error) {
+      console.error('[ManualEntryForm] Pipeline submission failed:', error);
+      alert('Failed to submit entry. Please try again.');
+    }
   };
 
   return (

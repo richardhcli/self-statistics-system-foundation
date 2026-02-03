@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGraphNodes } from '@/stores/cdag-topology';
 import { usePlayerStatistics, usePlayerStatisticsActions } from '@/stores/player-statistics';
-import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
+import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
 import DebugHeader from './debug-header';
 import SystemLog from './system-log';
 import DirectInput from './direct-input';

@@ -5,7 +5,7 @@ import JournalEntryItem from './journal-entry-item/index';
 import TextOnlyManualEntryForm from './textonly-manual-entry-form';
 
 
-const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onParseEntry, isProcessing }) => {
+const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onParseEntry, processingEntries, feedbackMessage }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
   const [manualText, setManualText] = useState('');
@@ -100,7 +100,7 @@ const JournalView: React.FC<JournalViewProps> = ({ data, onAddManualEntry, onPar
                                     key={time}
                                     time={time}
                                     entry={entry}
-                                    isProcessing={isProcessing}
+                                    isProcessing={processingEntries.has(`${year}/${month}/${day}/${time}`)}
                                     onParseEntry={() => onParseEntry(year, month, day, time)}
                                   />
                                 );
