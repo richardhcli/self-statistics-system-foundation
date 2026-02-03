@@ -4,22 +4,20 @@ import { GraphState, NodeData, EdgeData } from './types';
 import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 /**
- * Internal store interface - includes state and action setters
+ * Internal store interface - includes state and stable actions object
  */
 interface GraphStoreState extends GraphState {
-  // CRUD: Nodes
-  addNode: (node: NodeData) => void;
-  updateNode: (nodeId: string, updates: Partial<NodeData>) => void;
-  removeNode: (nodeId: string) => void;
-  
-  // CRUD: Edges
-  addEdge: (edge: EdgeData) => void;
-  updateEdge: (edgeId: string, updates: Partial<EdgeData>) => void;
-  removeEdge: (edgeId: string) => void;
-  
-  // Batch operations
-  setGraph: (graphState: GraphState) => void;
-  clear: () => void;
+  // Stable actions object (single reference, never recreated)
+  actions: {
+    addNode: (node: NodeData) => void;
+    updateNode: (nodeId: string, updates: Partial<NodeData>) => void;
+    removeNode: (nodeId: string) => void;
+    addEdge: (edge: EdgeData) => void;
+    updateEdge: (edgeId: string, updates: Partial<EdgeData>) => void;
+    removeEdge: (edgeId: string) => void;
+    setGraph: (graphState: GraphState) => void;
+    clear: () => void;
+  };
 }
 
 /**
@@ -39,83 +37,86 @@ interface GraphStoreState extends GraphState {
  */
 export const useGraphStore = create<GraphStoreState>()(
   persist(
-    (set, get) => ({
-      // Initial state
-      nodes: {
-        progression: {
-          id: 'progression',
-          label: 'progression',
-          type: 'characteristic',
+    (set, get) => {
+      // Define actions once (stable reference)
+      const actions = {
+        addNode: (node: NodeData) =>
+          set((state) => ({
+            nodes: { ...state.nodes, [node.id]: node },
+          })),
+
+        updateNode: (nodeId: string, updates: Partial<NodeData>) =>
+          set((state) => ({
+            nodes: {
+              ...state.nodes,
+              [nodeId]: state.nodes[nodeId]
+                ? { ...state.nodes[nodeId], ...updates, updatedAt: new Date().toISOString() }
+                : state.nodes[nodeId],
+            },
+          })),
+
+        removeNode: (nodeId: string) =>
+          set((state) => {
+            const { [nodeId]: _, ...remainingNodes } = state.nodes;
+            const remainingEdges = Object.fromEntries(
+              Object.entries(state.edges).filter(
+                ([_, edge]) => edge.source !== nodeId && edge.target !== nodeId
+              )
+            );
+            return { nodes: remainingNodes, edges: remainingEdges };
+          }),
+
+        addEdge: (edge: EdgeData) =>
+          set((state) => ({
+            edges: { ...state.edges, [edge.id]: edge },
+          })),
+
+        updateEdge: (edgeId: string, updates: Partial<EdgeData>) =>
+          set((state) => ({
+            edges: {
+              ...state.edges,
+              [edgeId]: state.edges[edgeId]
+                ? { ...state.edges[edgeId], ...updates, updatedAt: new Date().toISOString() }
+                : state.edges[edgeId],
+            },
+          })),
+
+        removeEdge: (edgeId: string) =>
+          set((state) => {
+            const { [edgeId]: _, ...remainingEdges } = state.edges;
+            return { edges: remainingEdges };
+          }),
+
+        setGraph: (graphState: GraphState) =>
+          set({
+            nodes: graphState.nodes,
+            edges: graphState.edges,
+            version: graphState.version,
+            lastSyncTimestamp: graphState.lastSyncTimestamp,
+          }),
+
+        clear: () =>
+          set({
+            nodes: {},
+            edges: {},
+            version: 2,
+          }),
+      };
+
+      return {
+        // Initial state
+        nodes: {
+          progression: {
+            id: 'progression',
+            label: 'progression',
+            type: 'characteristic',
+          },
         },
-      },
-      edges: {},
-      version: 2,
-
-      // CRUD: Nodes
-      addNode: (node: NodeData) =>
-        set((state) => ({
-          nodes: { ...state.nodes, [node.id]: node },
-        })),
-
-      updateNode: (nodeId: string, updates: Partial<NodeData>) =>
-        set((state) => ({
-          nodes: {
-            ...state.nodes,
-            [nodeId]: state.nodes[nodeId]
-              ? { ...state.nodes[nodeId], ...updates, updatedAt: new Date().toISOString() }
-              : state.nodes[nodeId],
-          },
-        })),
-
-      removeNode: (nodeId: string) =>
-        set((state) => {
-          const { [nodeId]: _, ...remainingNodes } = state.nodes;
-          const remainingEdges = Object.fromEntries(
-            Object.entries(state.edges).filter(
-              ([_, edge]) => edge.source !== nodeId && edge.target !== nodeId
-            )
-          );
-          return { nodes: remainingNodes, edges: remainingEdges };
-        }),
-
-      // CRUD: Edges
-      addEdge: (edge: EdgeData) =>
-        set((state) => ({
-          edges: { ...state.edges, [edge.id]: edge },
-        })),
-
-      updateEdge: (edgeId: string, updates: Partial<EdgeData>) =>
-        set((state) => ({
-          edges: {
-            ...state.edges,
-            [edgeId]: state.edges[edgeId]
-              ? { ...state.edges[edgeId], ...updates, updatedAt: new Date().toISOString() }
-              : state.edges[edgeId],
-          },
-        })),
-
-      removeEdge: (edgeId: string) =>
-        set((state) => {
-          const { [edgeId]: _, ...remainingEdges } = state.edges;
-          return { edges: remainingEdges };
-        }),
-
-      // Batch operations
-      setGraph: (graphState: GraphState) =>
-        set({
-          nodes: graphState.nodes,
-          edges: graphState.edges,
-          version: graphState.version,
-          lastSyncTimestamp: graphState.lastSyncTimestamp,
-        }),
-
-      clear: () =>
-        set({
-          nodes: {},
-          edges: {},
-          version: 2,
-        }),
-    }),
+        edges: {},
+        version: 2,
+        actions,
+      };
+    },
     {
       name: 'cdag-topology-store-v2',
       storage: indexedDBStorage,
@@ -158,26 +159,17 @@ export const useGraphNode = (nodeId: string) =>
   useGraphStore((state) => state.nodes[nodeId]);
 
 /**
- * Action Hook: All graph mutations
- * ✅ Stable references via selector pattern (never triggers re-render)
- * Fine-grained selector returns only the actions object, preventing unnecessary component updates.
+ * Action Hook: All graph mutations with stable reference
+ * ✅ Single stable object reference (never triggers re-render or infinite loops)
+ * The actions object is created once at store initialization and never recreated.
  * 
- * Implementation: Returns stable action methods via Zustand selector,
- * following the same pattern as useJournalActions.
+ * Implementation: Returns the stable state.actions object via Zustand selector,
+ * consistent with useJournalActions pattern.
  * 
  * Usage:
  * const { addNode, updateNode, addEdge } = useGraphActions();
  */
-export const useGraphActions = () => useGraphStore((state) => ({
-  addNode: state.addNode,
-  updateNode: state.updateNode,
-  removeNode: state.removeNode,
-  addEdge: state.addEdge,
-  updateEdge: state.updateEdge,
-  removeEdge: state.removeEdge,
-  setGraph: state.setGraph,
-  clear: state.clear,
-}));
+export const useGraphActions = () => useGraphStore((state) => state.actions);
 
 /**
  * Selector: Get complete graph state
