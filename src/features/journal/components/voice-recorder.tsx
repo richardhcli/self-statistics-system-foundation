@@ -16,8 +16,8 @@ import { startLiveTranscription, LiveTranscriptionSession } from '@/lib/google-a
  *
  * **State:**
  * - `isRecording`: Whether currently recording and streaming audio
- * - `liveTranscription`: Accumulated transcription text displayed to user
- * - `interimText`: Current incomplete text chunk (updates as user speaks)
+ * - `liveTranscription`: Accumulated final transcription text displayed to user
+ * - `interimText`: Current incomplete text chunk (tracked internally, not displayed)
  *
  * **Refs:**
  * - `sessionRef`: Live API session handle for cleanup
@@ -37,8 +37,9 @@ import { startLiveTranscription, LiveTranscriptionSession } from '@/lib/google-a
  * **Technical Details:**
  * - Live API uses 16kHz PCM audio format
  * - Visualization uses separate AudioContext to avoid conflicts
- * - Interim text accumulates continuously, resets on turn completion
+ * - Interim text tracked internally but not displayed (users see final text only)
  * - Final text appended to accumulated transcription ref
+ * - Pending interim text included when recording stops
  * - No manual confirmation required - short recordings don't need review
  *
  * @component
@@ -143,8 +144,8 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onComplete }) => {
         },
         
         onInterimTranscription: (text) => {
-          console.log('[VoiceRecorder] Interim:', text);
-          // Accumulate interim text as user speaks
+          // console.log('[VoiceRecorder] Interim:', text);
+          // Accumulate interim text as user speaks (not displayed in UI)
           setInterimText(prev => prev + text);
         },
         
@@ -190,8 +191,10 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onComplete }) => {
   const stopRecording = () => {
     console.log('[VoiceRecorder] Stopping recording');
     
-    // Capture accumulated text before cleanup
-    const finalText = accumulatedTextRef.current.trim();
+    // Capture accumulated text + any pending interim text before cleanup
+    const pendingInterim = interimText.trim();
+    const accumulated = accumulatedTextRef.current.trim();
+    const finalText = accumulated + (accumulated && pendingInterim ? ' ' : '') + pendingInterim;
     console.log('[VoiceRecorder] Final accumulated text:', finalText);
     
     // Stop Live API session
@@ -293,19 +296,10 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onComplete }) => {
           {isRecording ? 'Listening...' : 'Voice Recorder'}
         </h3>
         
-        {/* Live transcription display - shows both final and interim text */}
-        {isRecording && (liveTranscription || interimText) && (
+        {/* Live transcription display - shows only final confirmed transcription */}
+        {isRecording && liveTranscription && (
           <div className="text-slate-700 dark:text-slate-200 text-sm max-w-[300px] leading-relaxed mb-3 border-l-2 border-indigo-500 pl-3">
-            {/* Final transcription (confirmed segments) */}
-            {liveTranscription && (
-              <p className="mb-1">{liveTranscription}</p>
-            )}
-            {/* Interim transcription (currently speaking, not yet final) */}
-            {interimText && (
-              <p className="italic opacity-70">
-                {interimText}<span className="animate-pulse">...</span>
-              </p>
-            )}
+            <p>{liveTranscription}</p>
           </div>
         )}
 
