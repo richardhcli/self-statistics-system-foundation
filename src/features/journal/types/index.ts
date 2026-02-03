@@ -185,14 +185,10 @@ export interface ManualEntryFormProps {
  * Handles real-time audio recording with live transcription display.
  *
  * @interface VoiceRecorderProps
- * @property {Function} onProcessed - Callback fired when recording stops with complete audio base64
- * @property {Function} onLiveTranscription - Callback fired with incremental transcription text during recording
- * @property {boolean} isProcessing - Global processing state (true while AI structures complete audio)
+ * @property {Function} onTranscription - Callback fired with transcribed text (called every 3 seconds during recording)
  */
 export interface VoiceRecorderProps {
-  onProcessed: (audioBase64: string) => void;
-  onLiveTranscription?: (text: string) => void;
-  isProcessing: boolean;
+  onTranscription: (text: string) => void;
 }
 
 /**

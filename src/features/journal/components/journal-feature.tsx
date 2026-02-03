@@ -3,23 +3,28 @@ import { useCreateJournalEntry } from '@/features/journal/api/create-entry';
 import { useJournalActions } from '@/stores/journal';
 import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { useJournal } from '@/stores/journal';
-import { processVoiceToText } from '@/lib/google-ai';
 import { JournalEntryData, JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder';
 
 /**
- * JournalFeature
+ * JournalFeature - Simplified voice transcription architecture.
  * 
- * Self-contained journal feature module responsible for:
- * 1. Getting user input (voice recorder + manual entry form)
- * 2. Updating global journal store immediately before processing
- * 3. Displaying journal entries with Pattern C hooks
+ * Responsibilities:
+ * 1. Capture user input (voice transcription + manual entry form)
+ * 2. Process entries with AI analysis
+ * 3. Display journal entries with hierarchical view
+ * 
+ * Voice Recording Flow (Simplified):
+ * - User speaks → real-time transcription display
+ * - Transcription passed to parent every 3 seconds
+ * - User manually submits transcribed text when done
+ * - No automatic processing, no date/time extraction
  * 
  * Architecture:
- * - Uses global journal store (stores/journal) for persistent journal data
- * - Uses local useState for ephemeral UI state (processing flags)
+ * - Uses global journal store (stores/journal) for persistent data
+ * - Uses local useState for ephemeral UI state (processing flags, transcribed text)
  * - Handles all journal-related business logic internally
  * - Provides integration points for webhooks/external systems via callbacks
  */
@@ -29,32 +34,17 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const journalActions = useJournalActions();
   const createJournalEntry = useCreateJournalEntry();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceTranscription, setVoiceTranscription] = useState('');
 
   /**
-   * Handle voice input
-   * 1. Process voice to text via Google AI
-   * 2. Create journal entry with AI analysis
-   * 3. Trigger integration events
+   * Handle live voice transcription updates.
+   * Called every 3 seconds during recording with latest transcription.
+   * Stores text locally for user to review and submit manually.
+   * 
+   * @param {string} text - Latest transcribed text from voice recorder
    */
-  const handleVoice = async (audioBase64: string) => {
-    setIsProcessing(true);
-    try {
-      const journalInfo = await processVoiceToText(audioBase64);
-      await createJournalEntry({ 
-        entry: journalInfo.content, 
-        useAI: true, 
-        dateInfo: journalInfo 
-      });
-
-      if (onIntegrationEvent) {
-        await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
-          originalText: journalInfo.content,
-          timestamp: journalInfo.time
-        });
-      }
-    } finally { 
-      setIsProcessing(false); 
-    }
+  const handleVoiceTranscription = (text: string) => {
+    setVoiceTranscription(text);
   };
 
   /**
@@ -154,7 +144,25 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
       <div className="lg:col-span-1 space-y-6">
         {/* Voice Recorder Card */}
         <div className="sticky top-24">
-          <VoiceRecorder onProcessed={handleVoice} isProcessing={isProcessing} />
+          <VoiceRecorder onTranscription={handleVoiceTranscription} />
+          
+          {/* Display transcribed text and allow submission */}
+          {voiceTranscription && (
+            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Transcribed Text:</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 italic">{voiceTranscription}</p>
+              <button
+                onClick={() => {
+                  handleDetailedManualEntry({ content: voiceTranscription });
+                  setVoiceTranscription('');
+                }}
+                disabled={isProcessing}
+                className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isProcessing ? 'Processing...' : 'Submit Entry'}
+              </button>
+            </div>
+          )}
         </div>
         
         {/* Manual Entry Form */}

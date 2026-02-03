@@ -1,63 +1,58 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Loader2, Headphones } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 import { VoiceRecorderProps } from '../types';
-import { processVoiceToTextStreaming } from '@/lib/google-ai/utils/voice-to-text-streaming';
+import { transcribeAudio } from '@/lib/google-ai/utils/transcribe-audio';
 
 /**
- * VoiceRecorder component provides real-time audio recording with live transcription.
+ * VoiceRecorder component - Real-time audio recording with live transcription.
  *
- * Features:
- * - Frequency visualization canvas during recording
- * - Space bar keyboard shortcut for start/stop
- * - Incremental transcription display every 3 seconds
- * - Callback on recording completion with full base64 audio
+ * Simplified architecture:
+ * - Records audio continuously
+ * - Transcribes every 3 seconds during recording
+ * - Displays live transcription text
+ * - Passes transcribed text to parent via callback
  *
  * State:
- * - `isRecording`: Whether user is currently recording
- * - `liveTranscription`: Accumulated transcription text during recording
+ * - `isRecording`: Whether currently recording audio
+ * - `liveTranscription`: Accumulated transcription text displayed to user
  * - `isTranscribing`: Whether currently processing audio chunk for transcription
  *
  * Refs:
  * - `mediaRecorderRef`: MediaRecorder instance for audio capture
- * - `chunksRef`: Accumulated audio Blob chunks during recording
- * - `transcriptionTimeoutRef`: Periodic interval for streaming transcription
+ * - `chunksRef`: Accumulated audio Blob chunks for transcription
+ * - `transcriptionIntervalRef`: Periodic interval (every 3 seconds)
  *
  * @component
  * @example
- * <VoiceRecorder
- *   onProcessed={(audioBase64) => handleAudioProcessed(audioBase64)}
- *   onLiveTranscription={(text) => console.log(text)}
- *   isProcessing={isProcessing}
- * />
+ * <VoiceRecorder onTranscription={(text) => handleText(text)} />
  */
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTranscription, isProcessing }) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscription }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [liveTranscription, setLiveTranscription] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const transcriptionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const transcriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const transcriptionChunksRef = useRef<Blob[]>([]);
 
   /**
-   * Processes accumulated audio chunks and sends for live transcription.
+   * Processes accumulated audio chunks and sends for transcription.
    * Called every 3 seconds during recording via interval.
    *
    * @async
    * @returns {Promise<void>}
    */
   const processTranscriptionChunk = async () => {
-    if (transcriptionChunksRef.current.length === 0 || isTranscribing) return;
+    if (chunksRef.current.length === 0 || isTranscribing) return;
 
     setIsTranscribing(true);
     try {
-      const audioBlob = new Blob(transcriptionChunksRef.current, { type: 'audio/webm' });
+      const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
       const reader = new FileReader();
 
       reader.onloadend = async () => {
@@ -65,10 +60,10 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
           const base64data = reader.result as string;
           const audioBase64 = base64data.split(',')[1];
 
-          const response = await processVoiceToTextStreaming(audioBase64);
-          if (response.content) {
-            setLiveTranscription(response.content);
-            onLiveTranscription?.(response.content);
+          const transcription = await transcribeAudio(audioBase64);
+          if (transcription) {
+            setLiveTranscription(transcription);
+            onTranscription(transcription);
           }
         } catch (error) {
           console.error('Transcription error:', error);
@@ -84,9 +79,18 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
     }
   };
 
+  /**
+   * Starts audio recording and transcription interval.
+   * Sets up MediaRecorder, audio visualization, and 3-second transcription loop.
+   *
+   * @async
+   * @returns {Promise<void>}
+   */
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Set up audio visualization
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
       const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -97,8 +101,8 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
       const dataArray = new Uint8Array(bufferLength);
       
       /**
-       * Animates frequency visualization on canvas during recording.
-       * Draws bars based on frequency data from audio analyser.
+       * Animates frequency visualization canvas.
+       * Draws vertical bars based on audio frequency data.
        */
       const draw = () => {
         if (!analyserRef.current || !canvasRef.current) return;
@@ -123,35 +127,26 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
       };
       draw();
 
+      // Set up audio recording
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
-      transcriptionChunksRef.current = [];
 
       /**
-       * Captures audio data and maintains separate buffers for:
-       * 1. Final complete audio (chunksRef) - sent on recording stop
-       * 2. Incremental chunks (transcriptionChunksRef) - sent every 3s for live transcription
+       * Captures audio data continuously into chunks buffer.
+       * Buffer is processed every 3 seconds for transcription.
        */
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-          transcriptionChunksRef.current.push(e.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          onProcessed(base64data.split(',')[1]);
-        };
         stream.getTracks().forEach(track => track.stop());
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         if (audioContextRef.current) audioContextRef.current.close();
-        if (transcriptionTimeoutRef.current) clearInterval(transcriptionTimeoutRef.current);
+        if (transcriptionIntervalRef.current) clearInterval(transcriptionIntervalRef.current);
         setLiveTranscription('');
         setIsTranscribing(false);
       };
@@ -161,28 +156,32 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
       setLiveTranscription('');
 
       // Start periodic transcription every 3 seconds
-      transcriptionTimeoutRef.current = setInterval(processTranscriptionChunk, 3000);
+      transcriptionIntervalRef.current = setInterval(processTranscriptionChunk, 3000);
     } catch (err) {
       alert("Microphone access failed. Please allow access.");
     }
   };
 
+  /**
+   * Stops audio recording and transcription interval.
+   * Cleans up MediaRecorder and interval.
+   */
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
-    if (transcriptionTimeoutRef.current) {
-      clearInterval(transcriptionTimeoutRef.current);
+    if (transcriptionIntervalRef.current) {
+      clearInterval(transcriptionIntervalRef.current);
     }
   };
 
-  // Keyboard shortcut for recording (Space key)
+  // Keyboard shortcut (Space key) for start/stop
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isProcessing) {
-        // Prevent scroll for non-input elements
-        if (document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
+      // Only trigger if not in input/textarea
+      if (document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
+        if (e.code === 'Space') {
           e.preventDefault();
           if (isRecording) stopRecording();
           else startRecording();
@@ -191,19 +190,20 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isRecording, isProcessing]);
+  }, [isRecording]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (transcriptionTimeoutRef.current) {
-        clearInterval(transcriptionTimeoutRef.current);
+      if (transcriptionIntervalRef.current) {
+        clearInterval(transcriptionIntervalRef.current);
       }
     };
   }, []);
 
   return (
     <div className="flex flex-col items-center p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 transition-all relative overflow-hidden">
+      {/* Audio visualization canvas */}
       <canvas 
         ref={canvasRef} 
         width={300} 
@@ -211,23 +211,32 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
         className={`absolute bottom-0 left-0 w-full opacity-20 pointer-events-none transition-opacity duration-500 ${isRecording ? 'opacity-30' : 'opacity-0'}`}
       />
 
+      {/* Record button */}
       <div className="relative mb-6">
         {isRecording && <div className="absolute inset-[-10px] rounded-full border-4 border-red-400 opacity-20 animate-ping" />}
         <button 
-          onClick={isRecording ? stopRecording : startRecording} 
-          disabled={isProcessing} 
-          className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl z-10 relative ${isRecording ? 'bg-red-500 hover:bg-red-600 scale-105' : 'bg-indigo-600 hover:bg-indigo-700'} ${isProcessing ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+          onClick={isRecording ? stopRecording : startRecording}
+          className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl z-10 relative ${
+            isRecording 
+              ? 'bg-red-500 hover:bg-red-600 scale-105' 
+              : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
         >
-          {isProcessing ? <Loader2 className="w-12 h-12 text-white animate-spin" /> : isRecording ? <Square className="w-10 h-10 text-white fill-white rounded-sm" /> : <Mic className="w-12 h-12 text-white" />}
+          {isRecording ? (
+            <Square className="w-10 h-10 text-white fill-white rounded-sm" />
+          ) : (
+            <Mic className="w-12 h-12 text-white" />
+          )}
         </button>
       </div>
 
+      {/* Title and transcription display */}
       <div className="text-center z-10">
         <h3 className="font-bold text-slate-800 dark:text-white text-xl mb-1">
-          {isProcessing ? 'AI Structuring...' : isRecording ? 'Listening...' : 'Capture a Moment'}
+          {isRecording ? 'Listening...' : 'Voice Recorder'}
         </h3>
         
-        {/* Live transcription display during recording */}
+        {/* Live transcription text */}
         {isRecording && liveTranscription && (
           <p className="text-slate-700 dark:text-slate-200 text-sm max-w-[300px] leading-relaxed mb-3 italic border-l-2 border-indigo-500 pl-3">
             {liveTranscription}
@@ -236,11 +245,11 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onProcessed, onLiveTransc
         )}
 
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-[240px] leading-relaxed">
-          {isRecording ? 'Journaling live. Describe your day.' : 'Speak naturally. [Space] to start/stop.'}
+          {isRecording 
+            ? 'Speak naturally. Press [Space] or click to stop.' 
+            : 'Press [Space] or click to start recording.'}
         </p>
       </div>
-
-      {isProcessing && <div className="mt-4 flex items-center gap-2 text-indigo-500 font-semibold text-xs uppercase tracking-widest"><Headphones className="w-4 h-4 animate-bounce" />Processing Audio</div>}
     </div>
   );
 };
