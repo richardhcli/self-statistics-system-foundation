@@ -23,7 +23,7 @@ export const getApiKey = (): string | null => {
   }
 
   try {
-    apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+    apiKey = import.meta.env.VITE_GOOGLE_API_KEY; //#!!!
   } catch (e) {
     console.warn('Failed to read API key from environment variables:', e);
   }
