@@ -8,7 +8,6 @@ import React from "react";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/providers";
 import { ErrorBoundary } from "react-error-boundary";
-import { AppRoutes } from "./routes";
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -37,27 +36,15 @@ const ErrorFallback = () => (
  * - BrowserRouter for URL-based routing
  * - AuthProvider for authentication state
  * - ErrorBoundary for error handling
- * - Suspense fallback for lazy-loaded components
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
-    <React.Suspense
-      fallback={
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p>Loading application...</p>
-          </div>
-        </div>
-      }
-    >
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </React.Suspense>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <BrowserRouter>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };

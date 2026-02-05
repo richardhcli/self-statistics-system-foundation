@@ -1,19 +1,20 @@
 /**
  * App Component (Root)
  * 
- * Application entry point that initializes persistence layer.
- * Routing and feature composition is now handled by URL-based routes in AppRoutes.
+ * Application entry point that initializes persistence and renders routing.
+ * Handles loading state during IndexedDB initialization.
  * 
  * Responsibilities:
- * - Initialize IndexedDB persistence layer
- * - Display loading state during initialization
- * - Render routing structure via AppProvider
+ * - Wait for IndexedDB persistence initialization
+ * - Render URL-based routing structure
+ * - Show loading screen during initialization
  * 
- * @returns JSX.Element App root or loading screen
+ * @returns JSX.Element App content or loading screen
  */
 
 import React from "react";
 import { usePersistence } from "@/hooks/use-persistence";
+import { AppRoutes } from "./routes";
 import { clearIndexedDB } from "@/testing";
 
 /**
@@ -38,8 +39,8 @@ const App: React.FC = () => {
     );
   }
 
-  // Routing is now handled by AppProvider/AppRoutes (URL-based)
-  return <></>;
+  // Render app routing
+  return <AppRoutes />;
 };
 
 export default App;
