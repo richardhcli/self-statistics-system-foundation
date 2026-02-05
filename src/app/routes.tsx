@@ -1,36 +1,61 @@
-import type { ReactNode } from 'react';
-import { Navigate, useRoutes } from 'react-router-dom';
+import { Navigate, useRoutes } from "react-router-dom";
+import { AuthView } from "@/features/auth";
 import { ProtectedRoute } from "@/routes";
+import { MainLayout } from "@/components/layout/main-layout";
 
-// Feature Imports (Bulletproof style)
-import { AuthView } from '@/features/auth';
+// Feature routes
+import { SettingsRoutes } from "@/features/settings/routes";
+import { DebugRoutes } from "@/features/debug/routes";
 
-interface AppRoutesProps {
-  children: ReactNode;
-}
+// Feature components
+import JournalFeature from "@/features/journal/components/journal-feature";
+import { GraphView } from "@/features/visual-graph";
+import { StatisticsView } from "@/features/statistics";
+import { IntegrationView } from "@/features/integration";
+import { BillingView } from "@/features/billing";
 
 /**
  * Application routing configuration.
- * Defines public routes (login) and protected routes (dashboard).
+ * 
+ * URL-based routing with nested routes:
+ * - Public routes: /auth/login
+ * - Protected routes: /app/* (require authentication)
+ * 
+ * Feature routing structure:
+ * - Main features: journal, graph, statistics, integrations, billing
+ * - Settings with sub-routes: /app/settings/:tab
+ * - Debug with sub-routes: /app/debug/:tab
  */
-export const AppRoutes = ({ children }: AppRoutesProps) => {
-  const commonRoutes = [
-    { path: '/auth/login', element: <AuthView /> },
-    { path: '/', element: <Navigate to="/dashboard" replace /> }
-  ];
+export const AppRoutes = () => {
+  const routes = useRoutes([
+    // Public routes
+    { path: "/auth/login", element: <AuthView /> },
+    { path: "/", element: <Navigate to="/app" replace /> },
 
-  const protectedRoutes = [
+    // Protected routes under /app
     {
-      element: <ProtectedRoute />, // The Gatekeeper wraps all these
+      path: "/app",
+      element: <ProtectedRoute />,
       children: [
-        { path: '/dashboard/*', element: <>{children}</> },
-        { path: '/profile', element: <div>Your Profile</div> },
+        // Default redirect
+        { index: true, element: <Navigate to="journal" replace /> },
+
+        // Main feature routes (simple - no sub-tabs)
+        { path: "journal", element: <JournalFeature /> },
+        { path: "graph", element: <GraphView /> },
+        { path: "statistics", element: <StatisticsView /> },
+        { path: "integrations", element: <IntegrationView /> },
+        { path: "billing", element: <BillingView /> },
+
+        // Feature routes with sub-routes
+        { path: "settings/*", element: <SettingsRoutes /> },
+        { path: "debug/*", element: <DebugRoutes /> },
       ],
     },
-  ];
 
-  // useRoutes is a cleaner way to define routes in JS object format
-  const element = useRoutes([...commonRoutes, ...protectedRoutes]);
+    // Catch-all - redirect to home
+    { path: "*", element: <Navigate to="/app" replace /> },
+  ]);
 
-  return <>{element}</>;
+  return <>{routes}</>;
 };

@@ -1,24 +1,26 @@
+/**
+ * Main application layout wrapper.
+ * Provides the header and main content area for the application.
+ * Replaces previous combined app.tsx + provider pattern.
+ */
 
-import React from 'react';
-import Header, { AppView } from './header';
+import { Outlet } from "react-router-dom";
+import Header from "./header";
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-  view: AppView;
-  setView: (view: AppView) => void;
-}
-
-const MainLayout: React.FC<MainLayoutProps> = ({ children, view, setView }) => {
+/**
+ * Main layout component.
+ * Wraps all protected routes with header and content area.
+ * Renders nested routes via Outlet.
+ *
+ * @returns JSX.Element
+ */
+export const MainLayout = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col font-sans text-slate-900 dark:text-white transition-colors">
-      <Header view={view} setView={setView} />
-      <main className="flex-1 w-full px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          {children}
-        </div>
+    <div className="flex flex-col h-screen">
+      <Header />
+      <main className="flex-1 overflow-auto">
+        <Outlet />
       </main>
     </div>
   );
 };
-
-export default MainLayout;

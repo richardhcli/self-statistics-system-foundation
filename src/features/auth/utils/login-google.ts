@@ -1,33 +1,27 @@
 /**
  * Utility function to handle Google Sign-In using Firebase Authentication.
- * Also ensures a Firestore user profile document exists.
+ * Synchronizes user profile with Firestore on successful authentication.
  */
 
 import { signInWithPopup } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "@/lib/firebase";
+import { auth, googleProvider } from "@/lib/firebase";
+import { syncUserProfile } from "@/lib/firebase/user-profile";
 
 /**
- * Signs the user in with Google and initializes their Firestore profile
- * if it does not already exist.
+ * Signs the user in with Google and syncs their profile with Firestore.
+ * On first login: creates user document and default account-config.
+ * On subsequent logins: updates only changed profile fields (smart sync).
+ *
+ * @returns Firebase User object
+ * @throws Error if authentication fails
  */
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
 
-    const userRef = doc(db, "users", user.uid);
-    const existing = await getDoc(userRef);
-
-    if (!existing.exists()) {
-      await setDoc(userRef, {
-        uid: user.uid,
-        displayName: user.displayName ?? "",
-        email: user.email ?? "",
-        photoURL: user.photoURL ?? "",
-        createdAt: serverTimestamp(),
-      });
-    }
+    // Sync user profile with Firestore (handles both first-time and returning users)
+    await syncUserProfile(user);
 
     return user;
   } catch (error) {

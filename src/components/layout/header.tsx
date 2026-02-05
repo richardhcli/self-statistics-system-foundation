@@ -1,112 +1,94 @@
-import React, { useRef, useState } from 'react';
-import { BookMarked, History, Network, CreditCard, BarChart3, Terminal, Settings, Edit3, Share2 } from 'lucide-react';
+/**
+ * Main application header with global navigation.
+ * Displays app branding, feature tabs, and user profile.
+ */
+
+import { useLocation, useNavigate } from "react-router-dom";
+import { BookMarked, History, Network, CreditCard, BarChart3, Terminal, Settings, Share2 } from "lucide-react";
+import { HorizontalTabNav, useTabNavigation } from "@/components/tabs";
+import { ProfileButton } from "./profile-button";
+import type { TabConfig } from "@/components/tabs";
 
 /**
- * Available application views/routes
- * dev-graph has been moved to debug feature as a subtab
+ * Global application tab type
  */
-export type AppView = 'journal' | 'graph' | 'statistics' | 'billing' | 'settings' | 'debug' | 'integrations';
-
-/**
- * Props for Header component
- * @property {AppView} view - Currently active view/route
- * @property {(view: AppView) => void} setView - Navigation function to switch between views
- */
-interface HeaderProps {
-  view: AppView;
-  setView: (view: AppView) => void;
-}
+type GlobalTab = "journal" | "graph" | "statistics" | "integrations" | "billing" | "settings" | "debug";
 
 /**
  * Header Component
  * 
- * Main navigation header with horizontal scrollable tabs.
- * Provides primary navigation between application features.
+ * Main navigation header with:
+ * - Application branding on left
+ * - Horizontal scrollable tabs in center
+ * - User profile picture on right
  * 
- * Features:
- * - Drag-to-scroll navigation for mobile/tablet support
- * - Active tab highlighting
- * - Responsive icon + label display
- * - Glass morphism design
+ * Navigation is URL-based using the useTabNavigation hook.
+ * Clicking profile picture navigates to /app/settings/profile
  * 
- * @param {HeaderProps} props - Component props
- * @returns {JSX.Element} Application header with navigation
+ * @returns JSX.Element Application header
  */
-const Header: React.FC<HeaderProps> = ({ view, setView }) => {
-  const navRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
+const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!navRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - navRef.current.offsetLeft);
-    setScrollLeft(navRef.current.scrollLeft);
+  // Tab configuration for global navigation
+  const tabs: TabConfig<GlobalTab>[] = [
+    { id: "journal", icon: History, label: "Journal", path: "/app/journal" },
+    { id: "graph", icon: Network, label: "Concept Graph", path: "/app/graph" },
+    { id: "statistics", icon: BarChart3, label: "Statistics", path: "/app/statistics" },
+    { id: "integrations", icon: Share2, label: "Integrations", path: "/app/integrations" },
+    { id: "billing", icon: CreditCard, label: "Billing", path: "/app/billing" },
+    { id: "settings", icon: Settings, label: "Settings", path: "/app/settings" },
+    { id: "debug", icon: Terminal, label: "Debug", path: "/app/debug" },
+  ];
+
+  // Determine active tab from current URL pathname
+  const getActiveTab = (): GlobalTab => {
+    const pathname = location.pathname;
+    
+    // Extract first feature segment after /app/ (e.g., "/app/settings/profile" → "settings")
+    const match = pathname.match(/^\/app\/([^/]+)/);
+    if (!match) return "journal";
+    
+    const segment = match[1] as GlobalTab;
+    return tabs.some(t => t.id === segment) ? segment : "journal";
   };
 
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
+  const activeTab = getActiveTab();
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !navRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - navRef.current.offsetLeft;
-    const walk = (x - startX) * 2;
-    navRef.current.scrollLeft = scrollLeft - walk;
+  const handleTabChange = (tabId: GlobalTab) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab?.path) navigate(tab.path);
   };
 
   return (
-    <header className="header-glass border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 select-none transition-colors relative">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-8 flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none">
-              <BookMarked className="w-5 h-5 text-white" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">Journaling <span className="text-indigo-600">AI</span></h1>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Growth Records</p>
-            </div>
+    <header className="header-glass border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 select-none transition-colors">
+      <div className="max-w-full mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        {/* Logo / Branding */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none">
+            <BookMarked className="w-5 h-5 text-white" />
           </div>
-
-          <nav 
-            ref={navRef}
-            onMouseDown={handleMouseDown}
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
-            className={`flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 overflow-x-auto no-scrollbar flex-1 min-w-0 transition-all cursor-grab header-nav-container ${isDragging ? 'cursor-grabbing' : ''}`}
-          >
-            {[
-              { id: 'journal', icon: History, label: 'Journal' },
-              { id: 'graph', icon: Network, label: 'Concept Graph' },
-              { id: 'statistics', icon: BarChart3, label: 'Statistics' },
-              { id: 'integrations', icon: Share2, label: 'Integrations' },
-              { id: 'billing', icon: CreditCard, label: 'Billing' },
-              { id: 'settings', icon: Settings, label: 'Settings' },
-              { id: 'debug', icon: Terminal, label: 'Debug' },
-            ].map((item) => (
-              <button 
-                key={item.id}
-                onClick={() => !isDragging && setView(item.id as AppView)}
-                className={`header-nav-item flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase transition-all whitespace-nowrap ${
-                  view === item.id 
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <item.icon className="w-3.5 h-3.5" />
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <div className="hidden sm:block">
+            <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+              Journaling <span className="text-indigo-600">AI</span>
+            </h1>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+              Growth Records
+            </p>
+          </div>
         </div>
+
+        {/* Horizontal Tab Navigation - Centered */}
+        <HorizontalTabNav
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          isDraggable={true}
+        />
+
+        {/* Profile Picture - Right */}
+        <ProfileButton />
       </div>
       <div className="header-progress-bar"></div>
     </header>
