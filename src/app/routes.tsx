@@ -1,22 +1,25 @@
+import type { ReactNode } from 'react';
+import { Navigate, useRoutes } from 'react-router-dom';
 import { ProtectedRoute } from "@/routes";
-
-import { useRoutes } from 'react-router-dom';
 
 // Feature Imports (Bulletproof style)
 import { LoginForm } from '@/features/auth';
-// import { Dashboard } from '@/features/statistics';
 
-export const Router = () => {
+interface RouterProps {
+  children: ReactNode;
+}
+
+export const Router = ({ children }: RouterProps) => {
   const commonRoutes = [
     { path: '/auth/login', element: <LoginForm /> },
-    { path: '/', element: <Navigate to="/dashboard" /> }
+    { path: '/', element: <Navigate to="/dashboard" replace /> }
   ];
 
   const protectedRoutes = [
     {
       element: <ProtectedRoute />, // The Gatekeeper wraps all these
       children: [
-        { path: '/dashboard', element: <Dashboard /> },
+        { path: '/dashboard/*', element: <>{children}</> },
         { path: '/profile', element: <div>Your Profile</div> },
       ],
     },

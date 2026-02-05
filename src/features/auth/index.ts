@@ -1,6 +1,5 @@
 /**
- * AuthProvider component to manage user authentication view
+ * Auth feature public exports.
  */
 
-export {AuthProvider} from './components/auth-view';
-export {LoginForm} from './components/log-in-form';
+export { LoginForm } from './components/log-in-form';

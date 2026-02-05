@@ -2,24 +2,35 @@
  * LoginForm component for user authentication via Google Sign-In.
  */
 
+import { useState } from "react";
 import { loginWithGoogle } from "../utils/login-google";
 
+/**
+ * Renders a simple Google sign-in button with inline error feedback.
+ */
 export const LoginForm = () => {
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleLogin = async () => {
     try {
-      const user = await loginWithGoogle();
-      // On success, your AuthProvider (onAuthStateChanged) will 
-      // automatically detect the user and redirect them.
-
-      
+      setError(null);
+      setIsSubmitting(true);
+      await loginWithGoogle();
     } catch (err) {
-      // Handle login error
+      console.error("Google login failed", err);
+      setError("Google sign-in failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <button onClick={handleLogin} className="google-btn">
-      Sign in with Google
-    </button>
+    <div className="flex flex-col gap-3">
+      <button onClick={handleLogin} className="google-btn" disabled={isSubmitting}>
+        {isSubmitting ? "Signing in..." : "Sign in with Google"}
+      </button>
+      {error && <p className="text-sm text-red-500">{error}</p>}
+    </div>
   );
 };
