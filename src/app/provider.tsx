@@ -1,8 +1,9 @@
 
 import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '@/providers';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Router } from './routes';
+import { AppRoutes } from './routes';
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -21,19 +22,18 @@ const ErrorFallback = () => (
 
 /**
  * Global provider to wrap the application.
- * In a full production app, this would include ErrorBoundaries,
- * QueryClientProviders, ThemeProviders, etc.
+ * Provides routing context, authentication state, and error boundaries.
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
     <React.Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-      {/* <QueryClientProvider client={queryClient}> */}
+      <BrowserRouter>
         <AuthProvider>
-          <Router>
+          <AppRoutes>
             {children}
-          </Router>
+          </AppRoutes>
         </AuthProvider>
-      {/* </QueryClientProvider> */}
+      </BrowserRouter>
     </React.Suspense>
   );
 };

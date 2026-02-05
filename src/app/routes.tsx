@@ -5,11 +5,15 @@ import { ProtectedRoute } from "@/routes";
 // Feature Imports (Bulletproof style)
 import { LoginForm } from '@/features/auth';
 
-interface RouterProps {
+interface AppRoutesProps {
   children: ReactNode;
 }
 
-export const Router = ({ children }: RouterProps) => {
+/**
+ * Application routing configuration.
+ * Defines public routes (login) and protected routes (dashboard).
+ */
+export const AppRoutes = ({ children }: AppRoutesProps) => {
   const commonRoutes = [
     { path: '/auth/login', element: <LoginForm /> },
     { path: '/', element: <Navigate to="/dashboard" replace /> }
