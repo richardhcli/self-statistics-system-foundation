@@ -3,7 +3,7 @@ import { Navigate, useRoutes } from 'react-router-dom';
 import { ProtectedRoute } from "@/routes";
 
 // Feature Imports (Bulletproof style)
-import { LoginForm } from '@/features/auth';
+import { AuthView } from '@/features/auth';
 
 interface AppRoutesProps {
   children: ReactNode;
@@ -15,7 +15,7 @@ interface AppRoutesProps {
  */
 export const AppRoutes = ({ children }: AppRoutesProps) => {
   const commonRoutes = [
-    { path: '/auth/login', element: <LoginForm /> },
+    { path: '/auth/login', element: <AuthView /> },
     { path: '/', element: <Navigate to="/dashboard" replace /> }
   ];
 

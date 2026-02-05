@@ -23,6 +23,7 @@ const ErrorFallback = () => (
 /**
  * Global provider to wrap the application.
  * Provides routing context, authentication state, and error boundaries.
+ * TODO: QueryClient Provider for React Query can be added here in the future.
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
