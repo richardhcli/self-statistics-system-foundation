@@ -1,10 +1,12 @@
 
 import React, { useState } from 'react';
-import { UserCircle, Mail, MapPin, Save } from 'lucide-react';
+import { UserCircle, Mail, MapPin, Save, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const ProfileSettings: React.FC = () => {
   const [bio, setBio] = useState("Exploring the boundaries of local-first AI and journaling.");
   const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate();
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +69,22 @@ const ProfileSettings: React.FC = () => {
       
       <div className="p-8 bg-slate-50 rounded-3xl border border-slate-200 border-dashed text-center">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Advanced system resets available in Debug Console</p>
+      </div>
+
+      <div className="p-8 bg-white rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex items-center gap-2 text-slate-700">
+            <LogOut className="w-4 h-4" />
+            <p className="text-xs font-black uppercase tracking-widest">Session</p>
+          </div>
+          <p className="text-sm text-slate-500">Log out of this device. You can sign back in anytime.</p>
+          <button
+            onClick={() => navigate('/auth/logout')}
+            className="px-6 py-2 rounded-2xl bg-red-600 text-white text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </div>
   );

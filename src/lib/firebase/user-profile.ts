@@ -85,7 +85,7 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
     provider: "gemini",
     model: {
       voiceTranscriptionModel: "gemini-2-flash",
-      abstractionModel: "gemini-2-flash",
+      abstractionModel: "gemini-3-flash",
     },
     temperature: 0,
     maxTokens: 2048,

@@ -60,3 +60,17 @@ export interface GraphState {
   lastSyncTimestamp?: string;
 }
 
+/**
+ * Legacy alias for compatibility with older APIs.
+ * Supports both normalized GraphState and legacy parent-mapped topology.
+ */
+export type CdagTopology =
+  | GraphState
+  | Record<
+      string,
+      {
+        parents: Record<string, number>;
+        type?: NodeType;
+      }
+    >;
+

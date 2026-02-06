@@ -3,7 +3,7 @@
  * These types mirror the Firestore schema structure.
  */
 
-import type { Timestamp } from "firebase/firestore";
+import type { FieldValue, Timestamp } from "firebase/firestore";
 
 /**
  * User profile document stored in users/{uid}
@@ -13,8 +13,8 @@ export interface UserProfile {
   displayName: string;
   email: string;
   photoURL: string;
-  createdAt: Timestamp;
-  lastUpdated: Timestamp;
+  createdAt: Timestamp | FieldValue;
+  lastUpdated: Timestamp | FieldValue;
 }
 
 /**
@@ -54,7 +54,7 @@ export interface IntegrationSettings {
 export interface BillingSettings {
   plan: "free" | "pro" | "enterprise";
   status: "active" | "paused" | "cancelled";
-  nextBillingDate?: Timestamp;
+  nextBillingDate?: Timestamp | FieldValue;
 }
 
 /**

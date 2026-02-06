@@ -24,10 +24,12 @@ export const usePersistence = () => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    console.log("[Persistence] Initialization started");
     // Zustand persist middleware hydrates asynchronously on store creation.
     // We wait one tick to ensure all stores have had time to hydrate.
     // This is a safe, low-overhead way to detect initialization completion.
     const timer = setTimeout(() => {
+      console.log("[Persistence] Initialization complete");
       setIsInitialized(true);
     }, 0);
 

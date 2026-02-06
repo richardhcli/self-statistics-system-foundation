@@ -41,6 +41,6 @@ export const getGraphData = (): GraphState => {
  * Replaces entire graph with provided state.
  */
 export const setGraphData = (data: GraphState): void => {
-  useGraphStore.getState().setGraph(data);
+  useGraphStore.getState().actions.setGraph(data);
 };
 

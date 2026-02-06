@@ -1,4 +1,4 @@
-import { TextToActionResponse } from "@/features/journal/types";
+import type { WeightedAction } from "@/features/journal/types";
 import { extractActions } from "./extract-actions";
 import { estimateTimeAndProportions } from "./estimate-time-and-proportions";
 import { mapActionsToSkills } from "./action-to-skills";
@@ -19,9 +19,18 @@ import { getAiInstance } from "../get-ai-instance";
  * returns all derived information up to the failure point.
  * 
  * @param text - User's journal entry text
- * @returns TextToActionResponse containing actions, skills, characteristics, and duration
+ * @returns PromptChainAnalysis containing actions, skills, characteristics, and duration
  */
-export const processTextToLocalTopology = async (text: string): Promise<TextToActionResponse> => {
+export interface PromptChainAnalysis {
+  weightedActions: WeightedAction[];
+  duration: string;
+  skills: string[];
+  characteristics: string[];
+}
+
+export const processTextToLocalTopology = async (
+  text: string
+): Promise<PromptChainAnalysis> => {
   const ai = await getAiInstance();
 
   // Step 1: Extract Actions + Estimate Proportions

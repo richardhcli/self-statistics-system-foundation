@@ -18,7 +18,8 @@
  * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns when reading from global store
  * @see {@link /documentation/state-management/LOCAL_STATE.md} for component-level state patterns
  */
-import { JournalEntryData, JournalStore } from '@/stores/journal/types';
+import { JournalEntryData, JournalStore, JournalYear } from '@/stores/journal/types';
+import type { TextToActionResponse, WeightedAction } from '@/lib/soulTopology/types';
 
 // ============================================================
 // FEATURE-LEVEL LOCAL STATE (React Component State)
@@ -78,29 +79,19 @@ export type ProcessingEntries = Set<string>;
 
 /**
  * Props for the main journal feature wrapper component.
- * Manages local state for the entire journal feature (feedback messages, processing indicators).
+ * Manages local state internally (feedback messages, processing indicators).
  * 
  * **Local State Management:**
- * - `feedbackMessage`: User feedback for all operations (transcription, AI analysis, etc)
- * - `setFeedbackMessage`: React setState for updating feedback
- * - `processingEntries`: Set of entry IDs currently being analyzed
- * - `setProcessingEntries`: React setState for updating processing set
+ * - Feedback and processing state are internal to the feature component
+ * - External consumers only provide optional integration callbacks
  * 
  * **Integration Callbacks:**
  * - `onIntegrationEvent`: Optional callback for webhooks/external systems
  * 
  * @property {function} [onIntegrationEvent] - Optional callback for integration events (Obsidian, webhooks)
- * @property {string} feedbackMessage - Current user feedback message (LOCAL STATE)
- * @property {function} setFeedbackMessage - Update feedback message
- * @property {ProcessingEntries} processingEntries - Set of entries being analyzed (LOCAL STATE)
- * @property {function} setProcessingEntries - Update processing set
  */
 export interface JournalFeatureProps {
   onIntegrationEvent?: (eventName: string, payload: any) => Promise<void>;
-  feedbackMessage: string;
-  setFeedbackMessage: (message: string) => void;
-  processingEntries: ProcessingEntries;
-  setProcessingEntries: (entries: ProcessingEntries) => void;
 }
 
 /**
@@ -165,9 +156,14 @@ export interface ManualEntryFormProps {
   isProcessing: boolean;
   initialText?: string;
   onTextChange?: (text: string) => void;
-  feedbackMessage: string;
-  setFeedbackMessage: (message: string) => void;
 }
+
+// ============================================================
+// RE-EXPORTS (FEATURE TYPE GATEWAY)
+// ============================================================
+
+export type { JournalEntryData, JournalStore, JournalYear };
+export type { TextToActionResponse, WeightedAction };
 
 /**
  * Props for VoiceRecorder component.

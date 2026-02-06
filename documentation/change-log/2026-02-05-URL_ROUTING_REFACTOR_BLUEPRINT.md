@@ -205,8 +205,9 @@ setView('settings'); // Changes local state
 /app/settings/privacy       → Settings > Privacy & Security
 /app/settings/notifications → Settings > Notifications
 /app/debug                  → Debug (state tab default)
-/app/debug/state            → Debug > State
+/app/debug/console          → Debug > Console Tools
 /app/debug/graph            → Debug > Developer Graph
+/app/debug/manual-journal-entry → Debug > Manual Journal Entry
 ```
 
 ### Implementation Strategy
@@ -647,8 +648,9 @@ export const updateAccountConfig = async <T>(
 ### Step 3: Routing Structure (Day 2)
 1. Update `src/app/routes.tsx` with nested routes
 2. Create `MainLayout` component (previously: DashboardLayout)
-3. Update `AppProvider` to remove Router wrapper duplication
-4. Test basic routing (journal, graph, statistics)
+3. Update `AppProvider` to act as a pure provider wrapper (Router/Auth/ErrorBoundary only)
+4. Render `AppRoutes` inside `src/app/app.tsx` after persistence initializes
+5. Test basic routing (journal, graph, statistics)
 
 ### Step 4: Header Refactor (Day 2)
 1. Update Header to use `HorizontalTabNav`
@@ -663,8 +665,9 @@ export const updateAccountConfig = async <T>(
 4. Test settings navigation and data persistence
 
 ### Step 6: Debug Integration (Day 3)
-1. Update `DebugView` to use `HorizontalTabNav` + `Outlet`
-2. Test debug sub-routes
+1. Update `DebugView` to use URL-based tabs + `Outlet`
+2. Add debug sub-routes: `console`, `graph`, `manual-journal-entry`
+3. Test debug sub-routes
 
 ### Step 7: Cleanup & Documentation (Day 3)
 1. Delete unused files

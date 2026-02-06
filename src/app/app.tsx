@@ -25,7 +25,13 @@ console.warn("[App] Clearing IndexedDB for debugging purposes. Remove in final a
 clearIndexedDB().catch(console.error);
 
 const App: React.FC = () => {
+  console.log("[App] Starting");
+
   const { isInitialized } = usePersistence();
+
+  React.useEffect(() => {
+    console.log("[App] Persistence initialized:", isInitialized);
+  }, [isInitialized]);
 
   // Show loading state until persistence is initialized
   if (!isInitialized) {

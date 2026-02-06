@@ -25,10 +25,10 @@ Authentication is handled via Firebase Authentication with Google as the identit
 3. Firebase authentication popup appears
 4. On success, Firestore user profile is created (if new user)
 5. `AuthProvider` updates global auth state
-6. User is automatically redirected to `/dashboard`
+6. User is automatically redirected to `/app`
 
 ### Route Protection
-- **Protected routes**: All `/dashboard/*` paths
+- **Protected routes**: All `/app/*` paths
 - **Gatekeeper**: [ProtectedRoute](../../src/routes/protected-route.tsx) component
 - **Redirect**: Unauthenticated users sent to `/auth/login`
 
@@ -43,7 +43,7 @@ Full-screen login interface with:
 - Application title and description
 - Embedded login form
 - Automatic redirect on successful authentication
-- Loading feedback during redirect
+- Loading feedback during redirect and auth initialization
 
 ### LoginForm
 **Location**: [src/features/auth/components/log-in-form.tsx](../../src/features/auth/components/log-in-form.tsx)
@@ -82,9 +82,16 @@ Google sign-in button with:
 ### Firebase Console
 1. Enable **Google** provider in Authentication tab
 2. Add authorized domains:
-   - `localhost`
-   - `*.web.app`
-   - Production domain
+  - `localhost`
+  - `*.web.app`
+  - Production domain
+
+### Logout
+**Route**: `/auth/logout`
+
+**Location**: [src/features/auth/components/logout-view.tsx](../../src/features/auth/components/logout-view.tsx)
+
+Provides a dedicated sign-out screen with confirmation.
 
 ### Firebase Config
 **Location**: [src/lib/firebase/services.ts](../../src/lib/firebase/services.ts)

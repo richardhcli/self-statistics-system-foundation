@@ -20,6 +20,12 @@ self.addEventListener('fetch', (event) => {
   // This allows Vite to serve hot-updated files
   const url = new URL(event.request.url);
   
+  // EXCLUDE Firebase Auth and reserved paths from Service Worker interception
+  if (url.pathname.startsWith('/__/auth') || url.pathname.includes('identitytoolkit')) {
+    return;
+  }
+
+
   // For API calls and important requests, try network first
   if (url.pathname.includes('/api/') || url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
     event.respondWith(

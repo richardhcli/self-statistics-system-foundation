@@ -90,6 +90,24 @@ GraphState { nodes, edges }
 
 **Use Case**: Primary entry processing path for AI-enabled journal entries
 
+#### `processTextToLocalTopology(text: string)`
+**Prompt-chain orchestrator** - Multi-step extraction pipeline (actions → weights → skills → characteristics).
+
+**Returns**: `PromptChainAnalysis`
+```typescript
+{
+  duration: string;          // "30 mins", "2 hours"
+  weightedActions: Array<{   // Relative effort distribution
+    label: string;
+    weight: number;
+  }>;
+  skills: string[];          // Derived skills (legacy array form)
+  characteristics: string[]; // Derived characteristics (legacy array form)
+}
+```
+
+**Use Case**: Debugging and fallback pipeline (legacy array-based mappings)
+
 #### `generalizeConcept(actions, skills, characteristics)`
 **Concept generalization** - Builds vertical abstraction hierarchy from concrete to abstract.
 

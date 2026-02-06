@@ -1,5 +1,7 @@
 import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
 import { useGraphActions } from '@/stores/cdag-topology';
+import type { CdagTopology } from '@/stores/cdag-topology/types';
+import type { EdgeData, GraphState, NodeData } from '@/stores/cdag-topology/types';
 import { 
   AI_TEST_ENTRIES, 
   MANUAL_TEST_ENTRIES, 
@@ -48,8 +50,8 @@ export const createInjectTestDataHook = () => {
 export const createInjectTopologyDataHook = () => {
   return () => {
     const { setGraph } = useGraphActions();
-    const { nodes, edges } = COMPLEX_TOPOLOGY_DATA;
-    setGraph({ nodes, edges, version: 2 });
+    const graphState = normalizeTopology(COMPLEX_TOPOLOGY_DATA);
+    setGraph(graphState);
   };
 };
 
@@ -61,7 +63,45 @@ export const createInjectTopologyDataHook = () => {
 export const createInjectBrainTopologyDataHook = () => {
   return () => {
     const { setGraph } = useGraphActions();
-    const { nodes, edges } = BRAIN_TOPOLOGY_DATA;
-    setGraph({ nodes, edges, version: 2 });
+    const graphState = normalizeTopology(BRAIN_TOPOLOGY_DATA);
+    setGraph(graphState);
+  };
+};
+
+/**
+ * Normalize legacy topology into GraphState.
+ * Supports both GraphState and legacy parent-mapped datasets.
+ */
+const normalizeTopology = (topology: CdagTopology): GraphState => {
+  if ((topology as GraphState).nodes && (topology as GraphState).edges) {
+    return topology as GraphState;
+  }
+
+  const legacy = topology as Record<string, { parents: Record<string, number>; type?: NodeData["type"] }>;
+  const nodes: Record<string, NodeData> = {};
+  const edges: Record<string, EdgeData> = {};
+
+  Object.entries(legacy).forEach(([nodeId, nodeData]) => {
+    nodes[nodeId] = {
+      id: nodeId,
+      label: nodeId,
+      type: nodeData.type ?? "none",
+    };
+
+    Object.entries(nodeData.parents || {}).forEach(([parentId, weight]) => {
+      const edgeId = `${parentId}__${nodeId}`;
+      edges[edgeId] = {
+        id: edgeId,
+        source: parentId,
+        target: nodeId,
+        weight,
+      };
+    });
+  });
+
+  return {
+    nodes,
+    edges,
+    version: 2,
   };
 };
