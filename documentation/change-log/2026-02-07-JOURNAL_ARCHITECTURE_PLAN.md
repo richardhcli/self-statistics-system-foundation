@@ -3,7 +3,7 @@
 **Date**: February 7, 2026
 **Merged from**: `journal-blueprint.md`
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Phase 1 Complete
+**Status**: Phase 2 Complete
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
@@ -67,7 +67,7 @@ This document outlines the specifics for refactoring the **Journal** feature to 
 
 ---
 
-## Phase 2: Firebase Service (The "Read Side")
+## Phase 2: Firebase Service (The "Read Side") (Complete)
 
 ### 2.1. Schema Design
 *   **Entries Collection** (`users/{uid}/journal_entries/{entryId}`):
@@ -98,12 +98,14 @@ This document outlines the specifics for refactoring the **Journal** feature to 
     }
     ```
 
-### 2.2. Journal Service
+### 2.2. Journal Service (Complete)
 *   **File**: `src/lib/firebase/journal.ts`
 *   **Methods**:
-    - `subscribeToTree()`: Real-time listener for the nav structure.
-    - `fetchMonthEntries(year, month)`: One-time fetch.
-    - **Note**: Use Batch writes to update Entry + Tree simultaneously.
+  - `subscribeToTree(uid, onUpdate)`: Real-time listener for the nav structure.
+  - `fetchMonthEntries(uid, year, month)`: Uses document ID range for month fetches.
+  - `createEntryBatch(uid, entry, treeUpdate)`: Batch write entry + tree update.
+  - `updateJournalTree(uid, treeUpdate)`: Merge tree updates.
+  - **Note**: Month fetches rely on the sortable ID prefix `YYYYMMDD-HHmmss-`.
 
 ---
 
