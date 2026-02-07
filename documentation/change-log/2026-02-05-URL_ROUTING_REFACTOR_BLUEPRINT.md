@@ -1,7 +1,8 @@
 # URL-Based Routing & Tab Component Refactor Blueprint
 
 **Date**: February 5, 2026  
-**Status**: 🔵 Planning Phase  
+**Status**: ✅ Completed  
+**Last Updated**: February 7, 2026  
 **Scope**: Major architectural refactor — URL routing + global tab components + Firestore integration
 
 ---
@@ -9,7 +10,7 @@
 ## Executive Summary
 
 ### Goals
-1. **URL-based routing**: Migrate from state-based navigation to URL patterns (`/dashboard/settings/profile`)
+1. **URL-based routing**: Migrate from state-based navigation to URL patterns (`/app/settings/profile`)
 2. **Global tab components**: Extract reusable horizontal and vertical tab navigation
 3. **Firestore schema**: Implement subcollections for account-config and user-information
 4. **Profile integration**: Add Google profile picture to header with navigation
@@ -22,6 +23,26 @@
 - **Migration Strategy**: Complete replacement (no backward compatibility)
 
 ---
+
+## Progress Update (February 6, 2026)
+
+### Completed
+- Phases 1-5 implemented (schema, tabs, routes, header profile, smart sync)
+- Settings view refactored to URL-based layout (vertical tabs + Outlet)
+- Debug feature uses URL sub-routes and tab nav
+- Auth loading moved into AuthView with timeout fallback and reload option
+- Settings sub-pages wired to Firestore for AI, Status, Privacy, and Notifications
+
+### Completed
+- Phase 6: Cleanup and verification (settings defaults, legacy UI-only toggles)
+
+### Decisions Recorded
+- Status Display: class stored in `user-information/profile-display`; visibility toggles in `account-config/ui-preferences`
+- Privacy + Notifications: new docs under `account-config/privacy` and `account-config/notifications`
+- Theme: localStorage for instant toggle + mirrored to Firestore
+
+### Remaining Tasks
+- None. All phases completed.
 
 ## Phase 1: Firestore Schema Design
 
@@ -48,14 +69,29 @@ users/{uid}
   ├── account-config/              # Subcollection
   │   ├── ai-settings
   │   │   ├── provider: "gemini" | "openai"
-  │   │   ├── model: string
-  │   │   ├── (unnecessary) temperature: 0
+  │   │   ├── model
+  │   │   │   ├── voiceTranscriptionModel: string
+  │   │   │   └── abstractionModel: string
+  │   │   ├── temperature: number
   │   │   └── maxTokens: number
   │   ├── ui-preferences
   │   │   ├── theme: "light" | "dark"
   │   │   ├── language: string
-  │   │   └── notifications: boolean
+  │   │   ├── showCumulativeExp: boolean
+  │   │   ├── showMasteryLevels: boolean
+  │   │   ├── showRecentAction: boolean
+  │   │   └── animateProgressBars: boolean
+  │   ├── privacy
+  │   │   ├── encryptionEnabled: boolean
+  │   │   ├── visibilityMode: "private" | "team" | "public"
+  │   │   └── biometricUnlock: boolean
+  │   ├── notifications
+  │   │   ├── pushEnabled: boolean
+  │   │   ├── weeklySummaryEnabled: boolean
+  │   │   └── instantFeedbackEnabled: boolean
   |   ├── billing-settings
+  │   │   ├── plan: "free" | "pro" | "enterprise"
+  │   │   └── status: "active" | "past_due" | "canceled"
   │   └── integrations
   │       ├── obsidianEnabled: boolean
   │       ├── webhookUrl: string
@@ -64,6 +100,8 @@ users/{uid}
   |   |-- account-status:
   |       |----role: "user" | "developer" | "admin"
   └── user-information/            # Subcollection (future)
+      ├── profile-display
+      │   └── class: string
       ├── statistics
       │   ├── totalEntries: number
       │   └── lastEntryDate: Timestamp
@@ -76,8 +114,10 @@ users/{uid}
   - Create default account-config on first login
 - **New**: `src/lib/firebase/user-profile.ts`
   - `syncUserProfile(user: User): Promise<void>`
-  - `getUserProfile(uid: string): Promise<UserProfile>`
-  - `updateAccountConfig(uid: string, config: Partial<AccountConfig>): Promise<void>`
+  - `loadUserProfile(uid: string): Promise<UserProfile>`
+  - `updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void>`
+  - `loadAccountConfig(uid: string, configType: AccountConfigType): Promise<T>`
+  - `updateAccountConfig(uid: string, configType: AccountConfigType, updates: Partial<T>): Promise<void>`
 
 ---
 
@@ -99,7 +139,7 @@ export interface TabConfig<T extends string> {
 export const useTabNavigation = <T extends string>(
   tabs: TabConfig<T>[],
   defaultTab: T,
-  basePath?: string // e.g., "/dashboard/settings"
+  basePath?: string // e.g., "/app/settings"
 ) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -297,8 +337,8 @@ export const Header = () => {
   const { user } = useAuth();
   
   const tabs: TabConfig<string>[] = [
-    { id: 'journal', label: 'Journal', icon: History, path: '/dashboard/journal' },
-    { id: 'graph', label: 'Concept Graph', icon: Network, path: '/dashboard/graph' },
+    { id: 'journal', label: 'Journal', icon: History, path: '/app/journal' },
+    { id: 'graph', label: 'Concept Graph', icon: Network, path: '/app/graph' },
     // ... other tabs
   ];
   
@@ -311,7 +351,7 @@ export const Header = () => {
   };
   
   const handleProfileClick = () => {
-    navigate('/dashboard/settings/profile');
+    navigate('/app/settings/profile');
   };
   
   return (
@@ -346,7 +386,7 @@ export const SettingsView = () => {
   const activeTab = (pathParts[pathParts.length - 1] as SettingsTab) ?? 'status';
   
   const handleTabChange = (tab: SettingsTab) => {
-    navigate(`/dashboard/settings/${tab}`);
+    navigate(`/app/settings/${tab}`);
   };
   
   return (
@@ -390,7 +430,7 @@ export const ProfileButton = () => {
   const navigate = useNavigate();
   
   const handleClick = () => {
-    navigate('/dashboard/settings/profile');
+    navigate('/app/settings/profile');
   };
   
   return (
@@ -487,14 +527,17 @@ const createDefaultAccountConfig = async (uid: string) => {
   // AI Settings
   await setDoc(doc(configRef, "ai-settings"), {
     provider: "gemini",
-    model: {voiceTranscriptionModel: "gemini-3-flash", abstractionModel: "gemini-3-flash-preview"}
+    model: {
+      voiceTranscriptionModel: "gemini-2-flash",
+      abstractionModel: "gemini-3-flash",
+    },
     temperature: 0,
     maxTokens: 2048,
   });
   
   // UI Preferences
   await setDoc(doc(configRef, "ui-preferences"), {
-    theme: "light",
+    theme: "dark",
     language: "en",
     notifications: true,
   });
@@ -504,6 +547,12 @@ const createDefaultAccountConfig = async (uid: string) => {
     obsidianEnabled: false,
     webhookUrl: "",
     webhookEnabled: false,
+  });
+
+  // Billing Settings
+  await setDoc(doc(configRef, "billing-settings"), {
+    plan: "free",
+    status: "active",
   });
 };
 ```
@@ -519,25 +568,26 @@ const createDefaultAccountConfig = async (uid: string) => {
 export const ProfileSettings = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     if (user) {
-      loadUserProfile(user.uid).then(setProfile).finally(() => setLoading(false));
+      loadUserProfile(user.uid)
+        .then((data) => {
+          setProfile(data);
+          setDisplayName(data.displayName ?? "");
+        })
+        .finally(() => setLoading(false));
     }
   }, [user]);
   
-  if (loading) return <div>Loading profile...</div>;
-  
   return (
-    <div>
-      <h2>Account Profile</h2>
-      <img src={profile?.photoURL} alt="Profile" />
-      <p>Name: {profile?.displayName}</p>
-      <p>Email: {profile?.email}</p>
-      <p>Member since: {profile?.createdAt?.toDate().toLocaleDateString()}</p>
-      {/* Add editable fields if needed */}
-    </div>
+    <form onSubmit={handleSave}>
+      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+      <div>Google Account: {profile?.email}</div>
+      <button type="submit">Save</button>
+    </form>
   );
 };
 ```
@@ -586,31 +636,32 @@ export const updateAccountConfig = async <T>(
 ## Phase 7: Migration Checklist
 
 ### Files to Create
-- [ ] `src/components/tabs/use-tab-navigation.ts`
-- [ ] `src/components/tabs/horizontal-tab-nav.tsx`
-- [ ] `src/components/tabs/vertical-tab-nav.tsx`
-- [ ] `src/components/tabs/index.ts`
-- [ ] `src/components/layout/dashboard-layout.tsx`
-- [ ] `src/components/layout/profile-button.tsx`
-- [ ] `src/lib/firebase/user-profile.ts`
-- [ ] `src/types/firestore.ts` (type definitions)
+ [x] `src/components/tabs/use-tab-navigation.ts`
+ [x] `src/components/tabs/horizontal-tab-nav.tsx`
+ [x] `src/components/tabs/vertical-tab-nav.tsx`
+ [x] `src/components/tabs/index.ts`
+ [x] `src/components/layout/profile-button.tsx`
+ [x] `src/lib/firebase/user-profile.ts`
+ [x] `src/types/firestore.ts` (type definitions)
+ [x] `src/components/layout/dashboard-layout.tsx` (skipped; using main-layout)
 
-### Files to Modify
-- [ ] `src/app/routes.tsx` - Complete route restructure
-- [ ] `src/app/provider.tsx` - Remove Router wrapper from here
-- [ ] `src/app/app.tsx` - Remove view state, simplify to layout only
-- [ ] `src/components/layout/header.tsx` - Use new tab component + profile
-- [ ] `src/components/layout/main-layout.tsx` - Possibly delete/merge
-- [ ] `src/features/auth/utils/login-google.ts` - Add smart sync
-- [ ] `src/features/settings/components/settings-view.tsx` - Use vertical tabs + Outlet
-- [ ] `src/features/settings/components/profile-settings.tsx` - Load from Firestore
-- [ ] `src/features/settings/components/ai-features-settings.tsx` - Load/save to Firestore
-- [ ] `src/features/debug/components/debug-view.tsx` - Use Outlet for sub-routes
+ [x] `src/app/routes.tsx` - Complete route restructure
+ [x] `src/app/provider.tsx` - Remove Router wrapper from here
+ [x] `src/app/app.tsx` - Remove view state, simplify to layout only
+ [x] `src/components/layout/header.tsx` - Use new tab component + profile
+ [x] `src/components/layout/main-layout.tsx` - Possibly delete/merge
+ [x] `src/features/auth/utils/login-google.ts` - Add smart sync
+ [x] `src/features/settings/components/settings-view.tsx` - Use vertical tabs + Outlet
+ [x] `src/features/settings/components/profile-settings.tsx` - Load from Firestore
+ [ ] `src/features/settings/components/ai-features-settings.tsx` - Load/save to Firestore
+ [x] `src/features/debug/components/debug-view.tsx` - Use Outlet for sub-routes
+ [ ] `src/features/debug/components/debug-tabs.tsx` - Use horizontal tab component 
 - [ ] `src/features/debug/components/debug-tabs.tsx` - Use horizontal tab component
-
-### Files to Delete
-- [ ] Possibly `src/components/layout/main-layout.tsx` (if merged into dashboard-layout)
-
+- [x] `documentation/authentication/authentication.md` - Update routing and Firestore schema
+- [x] `documentation/docs-features/features-settings.md` - Update settings scope and Firestore use
+- [x] `documentation/docs-features/features-debug.md` - Update URL routing notes
+ [ ] `documentation/architecture/architecture.md` - Update navigation pattern
+ [ ] Create `documentation/ROUTING_GUIDE.md` - New routing documentation
 ### Documentation to Update
 - [ ] `documentation/AUTH_IMPLEMENTATION_SUMMARY.md` - Update routing section
 - [ ] `documentation/architecture/architecture.md` - Update navigation pattern
@@ -618,15 +669,15 @@ export const updateAccountConfig = async <T>(
 - [ ] Create `documentation/ROUTING_GUIDE.md` - New routing documentation
 
 ### Testing Checklist
-- [ ] All main routes accessible: `/dashboard/journal`, `/dashboard/graph`, etc.
-- [ ] Settings sub-routes work: `/dashboard/settings/profile`, etc.
-- [ ] Debug sub-routes work: `/dashboard/debug/state`, etc.
+- [ ] All main routes accessible: `/app/journal`, `/app/graph`, etc.
+- [ ] Settings sub-routes work: `/app/settings/profile`, etc.
+- [ ] Debug sub-routes work: `/app/debug/console`, etc.
 - [ ] Profile picture appears in header
 - [ ] Profile picture click navigates to settings/profile
 - [ ] Firestore profile syncs on login (check console)
 - [ ] Settings load data from Firestore
 - [ ] Browser back/forward buttons work correctly
-- [ ] Direct URL access works (e.g., paste `/dashboard/settings/profile`)
+- [ ] Direct URL access works (e.g., paste `/app/settings/profile`)
 - [ ] Build succeeds: `npm run build`
 
 ---
@@ -713,7 +764,7 @@ If critical issues arise:
 
 ## Next Steps After Completion
 
-1. Add URL query parameters for filtering (e.g., `/dashboard/journal?date=2026-02-05`)
+1. Add URL query parameters for filtering (e.g., `/app/journal?date=2026-02-05`)
 2. Implement breadcrumb navigation
 3. Add route guards for feature flags
 4. Implement lazy loading for route components

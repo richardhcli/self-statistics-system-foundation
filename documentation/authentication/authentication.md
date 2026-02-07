@@ -2,7 +2,7 @@
 
 **Stack**: Firebase Authentication + Firestore  
 **Provider**: Google Sign-In  
-**Updated**: February 5, 2026
+**Updated**: February 6, 2026
 
 ---
 
@@ -16,14 +16,14 @@ Authentication is handled via Firebase Authentication with Google as the identit
 
 ### Auth State Management
 - **Provider**: [src/providers/auth-provider.tsx](../../src/providers/auth-provider.tsx)
-- **Access Hook**: `useAuth()` returns `{ user, loading }`
+- **Access Hook**: `useAuth()` returns `{ user, loading, hasTimedOut }`
 - **Observer**: `onAuthStateChanged(auth, ...)` tracks authentication state
 
 ### User Flow
 1. User visits `/auth/login` and sees [AuthView](../../src/features/auth/components/auth-view.tsx)
 2. User clicks "Sign in with Google" button
 3. Firebase authentication popup appears
-4. On success, Firestore user profile is created (if new user)
+4. On success, Firestore user profile is created (if new user) and account-config defaults are seeded
 5. `AuthProvider` updates global auth state
 6. User is automatically redirected to `/app`
 
@@ -44,6 +44,7 @@ Full-screen login interface with:
 - Embedded login form
 - Automatic redirect on successful authentication
 - Loading feedback during redirect and auth initialization
+- Timeout fallback (shows troubleshooting tips and reload button)
 
 ### LoginForm
 **Location**: [src/features/auth/components/log-in-form.tsx](../../src/features/auth/components/log-in-form.tsx)
@@ -67,13 +68,26 @@ Google sign-in button with:
   email: string;
   photoURL: string;
   createdAt: Timestamp; // Server timestamp
+  lastUpdated: Timestamp; // Server timestamp
 }
 ```
 
 **Notes**:
 - Created automatically on first login
-- Existing documents are never overwritten
+- Existing documents are never overwritten; only changed fields are updated
 - Implementation: [src/features/auth/utils/login-google.ts](../../src/features/auth/utils/login-google.ts)
+
+### Subcollection: `users/{uid}/account-config`
+```
+ai-settings
+ui-preferences
+integrations
+billing-settings
+```
+
+**Notes**:
+- Seeded automatically on first login
+- Implementation: [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts)
 
 ---
 
@@ -106,7 +120,7 @@ Exports:
 
 ## Developer Notes
 
-- **No manual logout UI**: Implement sign-out in settings or header when needed
+- **Logout UI**: Settings includes a logout button linking to `/auth/logout`
 - **Session persistence**: Firebase SDK handles token refresh automatically
 - **Error handling**: Authentication errors display inline on login form
-- **Local-first**: Auth state persists across page refreshes via Firebase SDK 
+- **Local-first**: Auth state persists across page refreshes via Firebase SDK

@@ -36,7 +36,28 @@ export interface AISettings {
 export interface UIPreferences {
   theme: "light" | "dark";
   language: string;
-  notifications: boolean;
+  showCumulativeExp: boolean;
+  showMasteryLevels: boolean;
+  showRecentAction: boolean;
+  animateProgressBars: boolean;
+}
+
+/**
+ * Privacy settings stored in users/{uid}/account-config/privacy
+ */
+export interface PrivacySettings {
+  encryptionEnabled: boolean;
+  visibilityMode: "private" | "team" | "public";
+  biometricUnlock: boolean;
+}
+
+/**
+ * Notification settings stored in users/{uid}/account-config/notifications
+ */
+export interface NotificationSettings {
+  pushEnabled: boolean;
+  weeklySummaryEnabled: boolean;
+  instantFeedbackEnabled: boolean;
 }
 
 /**
@@ -53,14 +74,27 @@ export interface IntegrationSettings {
  */
 export interface BillingSettings {
   plan: "free" | "pro" | "enterprise";
-  status: "active" | "paused" | "cancelled";
+  status: "active" | "paused" | "past_due" | "canceled" | "cancelled";
   nextBillingDate?: Timestamp | FieldValue;
 }
 
 /**
  * Union type for all account config types
  */
-export type AccountConfigType = "ai-settings" | "ui-preferences" | "integrations" | "billing-settings";
+export type AccountConfigType =
+  | "ai-settings"
+  | "ui-preferences"
+  | "privacy"
+  | "notifications"
+  | "integrations"
+  | "billing-settings";
+
+/**
+ * Profile display settings stored in users/{uid}/user-information/profile-display
+ */
+export interface ProfileDisplaySettings {
+  class: string;
+}
 
 /**
  * User statistics stored in users/{uid}/user-information/statistics

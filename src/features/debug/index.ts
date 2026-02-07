@@ -11,6 +11,4 @@
  */
 
 export { default as DebugView } from './components/debug-view';
-export { default as DebugTabs } from './components/debug-tabs';
-export type { DebugTab } from './components/debug-tabs';
 export * from './api/test-injections';

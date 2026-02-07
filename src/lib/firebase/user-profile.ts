@@ -17,9 +17,12 @@ import type {
   UserProfile,
   AISettings,
   UIPreferences,
+  PrivacySettings,
+  NotificationSettings,
   IntegrationSettings,
   BillingSettings,
   AccountConfigType,
+  ProfileDisplaySettings,
 } from "@/types/firestore";
 
 /**
@@ -47,6 +50,7 @@ export const syncUserProfile = async (user: User): Promise<void> => {
 
     // Create default account-config subcollection
     await createDefaultAccountConfig(user.uid);
+    await createDefaultUserInformation(user.uid);
   } else {
     // Check for changes and update only modified fields
     const existingData = existing.data() as Partial<UserProfile>;
@@ -95,8 +99,25 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
   await setDoc(doc(configRef, "ui-preferences"), {
     theme: "dark",
     language: "en",
-    notifications: true,
+    showCumulativeExp: true,
+    showMasteryLevels: true,
+    showRecentAction: true,
+    animateProgressBars: true,
   } as UIPreferences);
+
+  // Privacy Settings
+  await setDoc(doc(configRef, "privacy"), {
+    encryptionEnabled: true,
+    visibilityMode: "private",
+    biometricUnlock: false,
+  } as PrivacySettings);
+
+  // Notification Settings
+  await setDoc(doc(configRef, "notifications"), {
+    pushEnabled: true,
+    weeklySummaryEnabled: true,
+    instantFeedbackEnabled: true,
+  } as NotificationSettings);
 
   // Integrations
   await setDoc(doc(configRef, "integrations"), {
@@ -110,6 +131,13 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
     plan: "free",
     status: "active",
   } as BillingSettings);
+};
+
+const createDefaultUserInformation = async (uid: string): Promise<void> => {
+  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  await setDoc(profileDisplayRef, {
+    class: "",
+  } as ProfileDisplaySettings);
 };
 
 /**
@@ -128,6 +156,23 @@ export const loadUserProfile = async (uid: string): Promise<UserProfile> => {
   }
 
   return snapshot.data() as UserProfile;
+};
+
+/**
+ * Updates user profile fields.
+ *
+ * @param uid - User ID
+ * @param updates - Partial profile updates
+ */
+export const updateUserProfile = async (
+  uid: string,
+  updates: Partial<UserProfile>
+): Promise<void> => {
+  const userRef = doc(db, "users", uid);
+  await updateDoc(userRef, {
+    ...updates,
+    lastUpdated: serverTimestamp(),
+  } as Record<string, any>);
 };
 
 /**
@@ -168,7 +213,7 @@ export const updateAccountConfig = async <T>(
   updates: Partial<T>
 ): Promise<void> => {
   const configRef = doc(db, "users", uid, "account-config", configType);
-  await updateDoc(configRef, updates as Record<string, any>);
+  await setDoc(configRef, updates as Record<string, any>, { merge: true });
 };
 
 /**
@@ -217,4 +262,87 @@ export const updateUIPreferences = async (
   updates: Partial<UIPreferences>
 ): Promise<void> => {
   return updateAccountConfig(uid, "ui-preferences", updates);
+};
+
+/**
+ * Loads privacy settings for a user.
+ *
+ * @param uid - User ID
+ * @returns Privacy settings configuration
+ */
+export const loadPrivacySettings = async (
+  uid: string
+): Promise<PrivacySettings> => {
+  return loadAccountConfig<PrivacySettings>(uid, "privacy");
+};
+
+/**
+ * Updates privacy settings for a user.
+ *
+ * @param uid - User ID
+ * @param updates - Partial privacy settings to update
+ */
+export const updatePrivacySettings = async (
+  uid: string,
+  updates: Partial<PrivacySettings>
+): Promise<void> => {
+  return updateAccountConfig(uid, "privacy", updates);
+};
+
+/**
+ * Loads notification settings for a user.
+ *
+ * @param uid - User ID
+ * @returns Notification settings configuration
+ */
+export const loadNotificationSettings = async (
+  uid: string
+): Promise<NotificationSettings> => {
+  return loadAccountConfig<NotificationSettings>(uid, "notifications");
+};
+
+/**
+ * Updates notification settings for a user.
+ *
+ * @param uid - User ID
+ * @param updates - Partial notification settings to update
+ */
+export const updateNotificationSettings = async (
+  uid: string,
+  updates: Partial<NotificationSettings>
+): Promise<void> => {
+  return updateAccountConfig(uid, "notifications", updates);
+};
+
+/**
+ * Loads profile display settings for a user.
+ *
+ * @param uid - User ID
+ * @returns Profile display settings
+ */
+export const loadProfileDisplay = async (
+  uid: string
+): Promise<ProfileDisplaySettings> => {
+  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  const snapshot = await getDoc(profileDisplayRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("Profile display not found");
+  }
+
+  return snapshot.data() as ProfileDisplaySettings;
+};
+
+/**
+ * Updates profile display settings for a user.
+ *
+ * @param uid - User ID
+ * @param updates - Partial profile display settings
+ */
+export const updateProfileDisplay = async (
+  uid: string,
+  updates: Partial<ProfileDisplaySettings>
+): Promise<void> => {
+  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  await setDoc(profileDisplayRef, updates as Record<string, any>, { merge: true });
 };

@@ -2,6 +2,11 @@
 
 The Debug Console provides low-level access to the application's engine and persistence layer. **All debug utilities strictly adhere to the Separated Selector Facade Pattern** defined in [GLOBAL_STATE.MD](../state-management/GLOBAL_STATE.MD).
 
+## Routing
+- Base route: `/app/debug`
+- Sub-routes: `/app/debug/console`, `/app/debug/graph`, `/app/debug/manual-journal-entry`
+- Layout: [src/features/debug/components/debug-view.tsx](../../src/features/debug/components/debug-view.tsx) renders the tab bar and an `Outlet` for nested panels.
+
 ## Architecture Compliance
 
 ### State Access Pattern
