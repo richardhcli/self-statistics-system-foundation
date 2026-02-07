@@ -1,9 +1,9 @@
 # Plan of Action: Journal Refactor using Global Storage Blueprint
 
 **Date**: February 7, 2026
-**Based on**: `journal-blueprint.md`
+**Merged from**: `journal-blueprint.md`
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Pending Execution
+**Status**: Phase 1 Complete
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
@@ -26,10 +26,10 @@ This document outlines the specifics for refactoring the **Journal** feature to 
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: Foundation (Complete)
 
-### 1.1. ID Generator
-*   **File**: `src/features/journal/utils/id-generator.ts` (Done: Nanoid installed).
+### 1.1. ID Generator (Complete)
+*   **File**: `src/features/journal/utils/id-generator.ts` (Implemented).
 *   **Implementation**:
     ```typescript
     import { nanoid } from 'nanoid';
@@ -45,11 +45,25 @@ This document outlines the specifics for refactoring the **Journal** feature to 
       const suffix = nanoid(4); 
       return `${timestamp}-${suffix}`;
     };
+
+    export const getDateFromId = (id: string): Date => {
+      const year = parseInt(id.substring(0, 4), 10);
+      const month = parseInt(id.substring(4, 6), 10) - 1;
+      const day = parseInt(id.substring(6, 8), 10);
+      const hour = parseInt(id.substring(9, 11), 10);
+      const minute = parseInt(id.substring(11, 13), 10);
+      const second = parseInt(id.substring(13, 15), 10);
+
+      return new Date(year, month, day, hour, minute, second);
+    };
     ```
 
-### 1.2. Strict Type Definitions
+### 1.2. Strict Type Definitions (Complete)
 *   **File**: `src/stores/journal/types.ts`
-*   **Requirements**: define `JournalEntryStatus`, `JournalEntryData`, `JournalTreeStructure`.
+*   **Scope**:
+  - `JournalEntryStatus`, `JournalEntryData`, `JournalEntryResult`, `JournalEntryMetadata`
+  - `JournalTreeStructure` with Year/Month/Day summaries
+  - `JournalCacheInfo` for cache TTL tracking
 
 ---
 

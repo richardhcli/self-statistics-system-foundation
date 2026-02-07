@@ -1,7 +1,7 @@
 # AI Guidelines — Self-Statistics System
 
 **Updated**: February 3, 2026 | **Stack**: Vite + React + TypeScript + Zustand + IndexedDB  
-**Architecture**: [Bulletproof React](https://github.com/alan2207/bulletproof-react) | **Philosophy**: Local-First, Optimistic UI
+**Architecture**: [Bulletproof React](https://github.com/alan2207/bulletproof-react) | **Philosophy**: Hybrid Read-Aside, Optimistic UI
 
 ---
 
@@ -18,7 +18,7 @@
 
 | Principle | Implementation |
 |-----------|-----------------|
-| **Local-First** | IndexedDB as primary truth; Zustand stores hydrate on boot |
+| **Hybrid Read-Aside** | Firebase as source of truth; Zustand + IndexedDB as cache (rehydrate on boot) |
 | **Optimistic UI** | Never wait for network; write → store → IDB (immediate) → server (async) |
 | **File Naming** | Strict kebab-case (`voice-recorder.tsx`, `use-entry-orchestrator.ts`) |
 | **Type Safety** | `GraphState` type for all topology ops; strict TypeScript mode |

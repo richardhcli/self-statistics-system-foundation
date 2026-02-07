@@ -6,7 +6,7 @@
  * and performance tracking metadata.
  * 
  * **STATE DISTINCTION:**
- * - GLOBAL STATE: Persistent, persisted to IndexedDB (JournalEntryData, entry content, results)
+ * - GLOBAL CACHE: Firebase source of truth, Zustand + IndexedDB cache (JournalEntryData, tree summaries)
  * - LOCAL STATE: Transient, UI-centric (isProcessing per entry, feedbackMessage, form inputs)
  * 
  * Global state is read from the journal store; local state lives in React components.
@@ -18,7 +18,13 @@
  * @see {@link /documentation/state-management/GLOBAL_STATE.md} for state patterns when reading from global store
  * @see {@link /documentation/state-management/LOCAL_STATE.md} for component-level state patterns
  */
-import { JournalEntryData, JournalStore, JournalYear } from '@/stores/journal/types';
+import {
+  JournalEntryData,
+  JournalEntryMetadata,
+  JournalEntryResult,
+  JournalEntryStatus,
+  JournalTreeStructure,
+} from '@/stores/journal/types';
 import type { TextToActionResponse, WeightedAction } from '@/lib/soulTopology/types';
 
 // ============================================================
@@ -162,7 +168,13 @@ export interface ManualEntryFormProps {
 // RE-EXPORTS (FEATURE TYPE GATEWAY)
 // ============================================================
 
-export type { JournalEntryData, JournalStore, JournalYear };
+export type {
+  JournalEntryData,
+  JournalEntryMetadata,
+  JournalEntryResult,
+  JournalEntryStatus,
+  JournalTreeStructure,
+};
 export type { TextToActionResponse, WeightedAction };
 
 /**
