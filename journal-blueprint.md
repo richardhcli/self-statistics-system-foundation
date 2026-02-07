@@ -379,3 +379,361 @@ This table defines how the UI responds to the `status` field managed by the Orch
 * **TextOnlyForm:** Call `processQuickLog` on submit.
 * **VoiceRecorder:** Call `processVoiceEntry` on Stop.
 * **EntryCard:** Add the "Retry/Analyze" button logic based on the status flags.
+
+---
+
+# Full refactor to Read Aside firebase architecture:
+
+To minimize Firebase costs (specifically **Firestore Document Reads**) while keeping Firebase as the "Source of Truth" and Zustand as the "Global State," you must implement a **"Cache-First, Lazy-Load" Architecture**.
+
+In this model, Zustand acts as a client-side cache. You never fetch data that is already in Zustand unless you know it is stale.
+
+Here is the blueprint to achieve this efficiency.
+
+### 1. The Core Strategy: "Read Summaries, Load Details on Demand"
+
+Firestore charges you 1 Read for every document retrieved.
+
+* **The Expensive Way:** `collection('journal').get()` -> Downloads 1,000 entries -> **1,000 Reads**.
+* **The Cheap Way:**
+1. Read a single "Tree Structure" document (Year/Month map) -> **1 Read**.
+2. User expands "February" -> Check Zustand.
+3. If missing, fetch *only* February's entries -> **28 Reads**.
+4. Save to Zustand.
+5. User goes back to "Home" then returns to "February" -> Read from Zustand -> **0 Reads**.
+
+
+
+---
+
+### 2. Architecture Diagram
+
+1. **Firebase:** Holds the "Master" data.
+2. **Sync Manager (Hook):** The gatekeeper. Decides *if* we need to spend money on a fetch.
+3. **Zustand:** The cache. Holds `data` + `lastFetched` timestamps.
+4. **IndexedDB (Persistence):** Saves Zustand to disk so the cache survives page reloads.
+
+---
+
+### 3. Implementation: The "Smart Fetch" Hook
+
+Do not put `useEffect(() => fetch(), [])` inside your components. That triggers a fetch on every mount/remount.
+
+Instead, create a generic hook `useCachedFetch` that checks the *age* of your local data before asking Firebase.
+
+**`src/hooks/use-cached-fetch.ts`**
+
+```typescript
+import { useJournalStore } from '@/stores/journal-store';
+
+export const useJournalEntries = (year: string, month: string) => {
+  const entries = useJournalStore(state => state.entries);
+  const metadata = useJournalStore(state => state.metadata);
+  const fetchEntries = useJournalStore(state => state.actions.fetchMonthEntries);
+  
+  const cacheKey = `${year}-${month}`;
+  const lastFetched = metadata[cacheKey]?.lastFetched || 0;
+  const now = Date.now();
+  const CACHE_DURATION = 1000 * 60 * 5; // 5 Minutes (Adjust as needed)
+
+  useEffect(() => {
+    const isStale = (now - lastFetched) > CACHE_DURATION;
+    const isEmpty = !metadata[cacheKey];
+
+    // ONLY fetch if data is missing OR stale
+    if (isEmpty || isStale) {
+      console.log(`[Cache Miss] Fetching ${cacheKey} from Firebase...`);
+      fetchEntries(year, month);
+    } else {
+      console.log(`[Cache Hit] Serving ${cacheKey} from Zustand.`);
+    }
+  }, [year, month, lastFetched]);
+
+  // Return the data slice immediately (from cache)
+  return getEntriesForMonth(entries, year, month);
+};
+
+```
+
+---
+
+### 4. Optimization Techniques
+
+#### A. Use Persistent Storage (`persist` Middleware)
+
+If the user refreshes the page, Zustand resets to empty, forcing a re-fetch of everything. To prevent this, use the `persist` middleware to save Zustand to **IndexedDB**.
+
+* **Cost Savings:** Huge. A user visiting 5 times a day only fetches once.
+
+**`src/stores/journal-store.ts`**
+
+```typescript
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { idbStorage } from '@/lib/storage'; // Wrapper for idb-keyval
+
+export const useJournalStore = create(
+  persist(
+    (set, get) => ({
+      entries: {},
+      metadata: {}, // Stores { "2026-02": { lastFetched: 123456789 } }
+      actions: {
+        fetchMonthEntries: async (year, month) => {
+           // 1. Fetch from Firebase
+           const snapshot = await db.collection(...).get();
+           
+           // 2. Update Store
+           set(state => ({
+             entries: { ...state.entries, ...snapshot.docs },
+             metadata: { 
+               ...state.metadata, 
+               [`${year}-${month}`]: { lastFetched: Date.now() } 
+             }
+           }));
+        }
+      }
+    }),
+    {
+      name: 'journal-storage',
+      storage: createJSONStorage(() => idbStorage), // Use IndexedDB, NOT localStorage
+      partialize: (state) => ({ entries: state.entries, metadata: state.metadata }), // Don't persist actions
+    }
+  )
+);
+
+```
+
+#### B. The "Metadata Watcher" Pattern
+
+Instead of listening to the huge `entries` collection, listen to a single lightweight document: `journal_meta/last_updated`.
+
+1. **Component Mounts:** Subscribe to `doc('users/{uid}/journal_meta/stats')`.
+2. **Check:** Compare `remote.lastUpdated` vs `local.lastUpdated`.
+3. **Action:** If they match, **do nothing**. Your complex data is up to date. If they differ, *then* trigger the expensive fetch.
+
+#### C. Write Optimistically, Sync Quietly
+
+When a user adds an entry:
+
+1. **Zustand:** Add it immediately.
+2. **Firebase:** Write it to the backend.
+3. **Cache:** Update the `lastFetched` timestamp locally so you don't accidentally re-fetch your own data thinking it's new.
+
+---
+
+### 5. Summary of Costs
+
+| Action | Standard Approach | "Smart Cache" Approach |
+| --- | --- | --- |
+| **App Load** | Read all entries (1000 reads) | Read 1 "Tree" doc (1 read) + Load from IndexedDB (0 reads) |
+| **Navigate to Month** | Read month entries (30 reads) | Read from Zustand (0 reads) |
+| **Refresh Page** | Read all entries (1000 reads) | Read 1 "Tree" doc (1 read) + Load from IndexedDB (0 reads) |
+| **Add Entry** | Write 1 doc (1 write) | Write 1 doc (1 write) |
+
+
+
+# Storage Architecture: Causal Pipeline
+
+**Context**: Hybrid Local-First (Zustand) + Cloud Source (Firebase).
+**Principle**: "Draft-First" persistence. Optimistic local updates precede confirmed cloud writes.
+
+## 1. Data Schemas
+
+### **Entry (Heavy)**
+
+* **Path**: `users/{uid}/journal_entries/{entryId}`
+* **Purpose**: Content, transcription, AI analysis results.
+* **Mutability**: High frequency during pipeline, static after completion.
+
+### **Tree (Light)**
+
+* **Path**: `users/{uid}/journal_meta/tree_structure`
+* **Purpose**: Read-optimized index for rendering Year/Month/Day views.
+* **Content**: Nested map `Year -> Month -> Day -> { entries: ID[], totalExp: number }`.
+
+---
+
+## 2. Causal Pipeline Stages
+
+### **Stage 0: Initialization (Input Trigger)**
+
+* **Source**: Voice Recording (Blob) OR Manual Input (String).
+* **Action**: `generateEntryId(timestamp)` -> `20260207-1715-uuid`.
+* **State**: `status: DRAFT`.
+
+### **Stage 1: Persistence (Atomic Write)**
+
+* **Local (Zustand)**: `optimisticAdd(entry)`.
+* *Effect*: UI renders skeleton/draft immediately.
+
+
+* **Cloud (Firebase)**: `batch.set()`.
+* `entries/{id}`: Create document with content/blob ref.
+* `journal_meta/tree`: Array union `entries` with new ID.
+* *Effect*: Data safety secured against browser crash/network loss.
+
+
+
+### **Stage 2: Transformation (Voice Only)**
+
+* **Condition**: Input is `AudioBlob`.
+* **Action**: `transcribeAudio(blob)`.
+* *Primary*: Gemini API.
+* *Fallback*: WebSpeech API payload.
+
+
+* **Update**: Patch `entries/{id}` with `content: string`.
+* **State Transition**: `DRAFT` -> `PENDING_ANALYSIS`.
+
+### **Stage 3: Enrichment (AI Analysis)**
+
+* **Condition**: `content` is valid string AND `status != COMPLETED`.
+* **Action**: `analyzeEntry(content)`.
+* *Output*: `actions` (map), `result` (EXP/Levels), `tags`.
+
+
+* **Update**: Patch `entries/{id}` with analysis results.
+* **State Transition**: `PENDING_ANALYSIS` -> `COMPLETED`.
+
+### **Stage 4: Indexing (Aggregation)**
+
+* **Trigger**: Stage 3 Completion.
+* **Action**: Firebase `FieldValue.increment()`.
+* **Target**: `journal_meta/tree/{year}/{month}/{day}/totalExp`.
+* *Effect*: Updates "Total EXP" badges in navigation UI without reading individual entries.
+
+
+
+---
+
+## 3. Sync & Hydration Strategy
+
+### **Read Path (Lazy Load)**
+
+1. **Mount**: Fetch `journal_meta/tree` (Single Doc Read).
+2. **Render**: Build Navigation Tree + Daily Summaries.
+3. **Expand Day**: Check `Zustand.entries[id]`.
+* *Hit*: Render from Memory (0 Reads).
+* *Miss*: Fetch `journal_entries` where `id` in `[day_ids]` (Batch Read).
+
+
+
+### **Cache Invalidation**
+
+* **Trigger**: `journal_meta` `lastUpdated` timestamp > Local `lastUpdated`.
+* **Action**: Re-fetch `journal_meta`. Purge stale `entries` if strict consistency required.
+
+
+# Data Pipeline Architecture: React + Firebase + IndexedDB + Zustand
+**Goal:** Explicit causal chain from Input to Access.
+
+
+### 1. Write Pipeline (Origin -> Remote)
+
+*Causal flow for introducing new data or mutations.*
+
+1. **UI Event**: User triggers action (e.g., `onSubmit`).
+2. **Service Layer (`/api`)**: Invokes domain-specific service function (e.g., `createItem()`).
+3. **Optimistic Update (Optional)**:
+* **Zustand**: Immediate `set()` to temporary state for UI responsiveness.
+* **Status**: Marked `pending`.
+
+
+4. **Firebase SDK**: Executes generic `addDoc` / `setDoc` / `updateDoc`.
+5. **Network**: Payload transmission to Firestore/RTDB.
+6. **Confirmation**: Promise resolution confirms durability at Source of Truth (SoT).
+
+### 2. Synchronization Pipeline (Remote -> Local Storage)
+
+*Causal flow for maintaining consistency between SoT, Global State, and Local Cache.*
+
+1. **Subscription (`/subscribers`)**: App mount initializes Firebase `onSnapshot` listeners.
+2. **Ingestion**: Listener receives `DocumentSnapshot` / `QuerySnapshot`.
+3. **Normalization (`/utils`)**: Raw data transformed to domain entities (stripping metadata, formatting Dates).
+4. **State Mutation (`/stores`)**:
+* **Zustand Action**: `useStore.getState().syncItems(data)` is called.
+* **Immutability**: State updated via shallow merge.
+
+
+5. **Persistence Side-Effect (`/storage`)**:
+* **Trigger**: Zustand middleware (e.g., `persist`) or explicit subscription logic detects state change.
+* **Write**: Async write to **IndexedDB** (using `idb-keyval` or similar).
+* **Outcome**: Local cache mirrors latest remote state.
+
+
+
+### 3. Hydration Pipeline (Cold Start -> Interactive)
+
+*Causal flow for app initialization.*
+
+1. **Boot**: App logic mounts.
+2. **IDB Read**: Query IndexedDB for persisted `root` state.
+3. **Zustand Hydration**:
+* **Action**: `set({ ...persistedState, isHydrated: true })`.
+* **UI State**: Renders content immediately (Stale-While-Revalidate pattern).
+
+
+4. **Network Reconnect**: Firebase listeners attach (see *Synchronization Pipeline*) to fetch deltas.
+
+### 4. Read/Getter Pipeline (Storage -> Component)
+
+*Causal flow for consumption.*
+
+1. **Selector Definition**: Atomic selectors defined outside components (e.g., `selectActiveItems`).
+* *Logic*: `(state) => state.items.filter(i => i.isActive)`
+
+
+2. **Component Subscription**: `const data = useStore(selector)`.
+* **Efficiency**: Component re-renders **only** if selector return value changes (strict equality/shallow compare).
+
+
+3. **Render**: Data is passed to view layer.
+
+---
+
+### Architecture Entity Map
+
+| Entity | Role | Location | Dependency |
+| --- | --- | --- | --- |
+| **Firebase** | **Source of Truth** | Cloud | None (Master) |
+| **IndexedDB** | **Offline Cache** | Browser | Mirrors Firebase (via Zustand) |
+| **Zustand** | **Runtime State** | Memory | Hydrates from IDB; Syncs from Firebase |
+| **React UI** | **View / Trigger** | DOM | Consumes Zustand Selectors |
+
+### Minimal Code-Pattern Reference
+
+```typescript
+// store/useInventory.ts
+// 1. Store Definition with IDB middleware linkage
+export const useInventory = create<InventoryState>()(
+  persist(
+    (set, get) => ({
+      items: {},
+      // Getter implicit via selector, Setter explicit
+      addItem: async (item) => {
+        // Optimistic
+        set((s) => ({ items: { ...s.items, [item.id]: item } }));
+        // Remote SoT
+        await firebaseApi.add(item); 
+      },
+      syncRemote: (remoteItems) => {
+        set({ items: remoteItems }); // Triggers IDB persist
+      }
+    }),
+    {
+      name: 'inventory-storage', // Key in IndexedDB
+      storage: createJSONStorage(() => idbStorage), // Custom IDB adapter
+    }
+  )
+);
+
+// 2. Listener (in layout/provider)
+useEffect(() => {
+  const unsub = onSnapshot(collectionRef, (snap) => {
+    const data = normalize(snap);
+    useInventory.getState().syncRemote(data);
+  });
+  return () => unsub();
+}, []);
+
+```

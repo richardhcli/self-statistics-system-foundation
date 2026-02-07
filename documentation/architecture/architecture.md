@@ -6,11 +6,12 @@
 
 The Journal & Graph AI application is built following the **Bulletproof React** pattern, which prioritizes modularity, scalability, and clear separation of concerns.
 
-## Local-First Philosophy
-The application operates on a "Local-First" basis to ensure maximum privacy and zero-latency interactions.
-- **Persistence**: All user data is stored in **IndexedDB** within the browser across specialized stores
-- **State Management**: Independent Zustand stores act as runtime sources of truth, each managing their own domain.
-- **Serialization Layer**: The `stores/root` module handles state serialization **ONLY for**: full state export/import and future backend synchronization. It is NEVER accessed during runtime operations.
+## Hybrid Read-Aside Philosophy
+The application operates on a **Hybrid Read-Aside** basis, using Firebase as the Source of Truth and Zustand as a Smart Cache.
+- **Source of Truth**: Firebase Firestore (Cloud).
+- **Caching**: Independent Zustand stores act as the runtime cache, validated against cloud metadata.
+- **Persistence**: `indexedDB` persists the cache for offline support and fast boot times.
+- **Blueprint**: See [2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md](../change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md) for the implementation details.
 
 ## Folder Structure
 
