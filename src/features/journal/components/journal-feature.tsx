@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { useAnalyzeEntryWithAI } from '@/features/journal/hooks/create-entry/use-analyze-entry-with-ai';
-import { generateEntryId } from '@/features/journal/utils/id-generator';
-import { useJournalActions, useJournalEntries, useJournalTree } from '@/stores/journal';
-import { JournalEntryData, JournalFeatureProps } from '../types';
+import { useJournalEntryPipeline } from '@/features/journal/hooks/use-journal-entry-pipeline';
+import { useJournalEntries, useJournalTree } from '@/stores/journal';
+import { JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder/voice-recorder';
@@ -44,8 +43,7 @@ import VoiceRecorder from './voice-recorder/voice-recorder';
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
   const entries = useJournalEntries();
   const tree = useJournalTree();
-  const journalActions = useJournalActions();
-  const analyzeEntryWithAI = useAnalyzeEntryWithAI();
+  const { processQuickLog, retryAnalysis } = useJournalEntryPipeline();
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceTranscriptionText, setVoiceTranscriptionText] = useState('');
   const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
@@ -85,18 +83,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
 
     setIsProcessing(true);
     try { 
-      const entryId = generateEntryId(date);
-      const placeholderEntry: JournalEntryData = {
-        id: entryId,
-        content,
-        status: 'DRAFT',
-        actions: {},
-        metadata: {
-          flags: { aiAnalyzed: false },
-          timePosted: new Date().toISOString(),
-        },
-      };
-      journalActions.optimisticAdd(placeholderEntry);
+      await processQuickLog(content);
     } finally { 
       setIsProcessing(false); 
     }
@@ -144,7 +131,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
 
     setIsProcessing(true);
     try {
-      await analyzeEntryWithAI(entryId, entry.content);
+      await retryAnalysis(entryId);
 
       if (onIntegrationEvent) {
         await onIntegrationEvent('JOURNAL_AI_PROCESSED', {

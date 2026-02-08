@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Type, Hourglass, Send, Loader2 } from 'lucide-react';
 import { ManualEntryFormProps } from '../types';
-import { useCreateEntryPipeline } from '../hooks/create-entry/use-create-entry-pipeline';
+import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
 
 /**
  * ManualEntryForm Component
@@ -46,7 +46,7 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
   initialText = '',
   onTextChange 
 }) => {
-  const { createDummyEntry, updateWithAIAnalysis } = useCreateEntryPipeline();
+  const { processManualEntry } = useJournalEntryPipeline();
   const [content, setContent] = useState(initialText);
   const [duration, setDuration] = useState('');
 
@@ -90,33 +90,16 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
   /**
    * Handles form submission using unified progressive pipeline.
    * 
-   * **Stage 1:** Create dummy entry with user's text + duration
-   * - Content already filled (no placeholder display)
-   * - Duration stored in metadata for AI processing
-   * 
-   * **Stage 2:** Skipped internally (content already finalized)
-   * 
-   * **Stage 3:** Trigger AI analysis immediately
-   * - AI processes entry in background
-   * - User can continue interacting with app
-   * - Results update in real-time when AI completes
+  * **Stage 1:** Create draft entry with user's text + duration
+  * **Stage 2:** Skipped internally (content already finalized)
+  * **Stage 3:** Trigger AI analysis immediately
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     try {
-      // Stage 1: Create dummy entry with actual user text + duration
-      // Note: isDummyContent=false by convention (actual text, not placeholder)
-      const entryId = createDummyEntry(
-        content,           // User's actual text (not placeholder)
-        duration || undefined,
-        undefined           // Let pipeline auto-generate date
-      );
-
-      // Stage 3: Trigger AI analysis immediately
-      // Note: Stage 2 skipped (content already finalized)
-      await updateWithAIAnalysis(entryId, content);
+      await processManualEntry(content, { duration: duration || undefined, useAI: true });
 
       // Call parent's onSubmit callback for integration events
       onSubmit({

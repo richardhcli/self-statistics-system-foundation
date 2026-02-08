@@ -2,19 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { VoiceRecorderProps } from '../../types';
 import { AudioVisualization } from './audio-visualization';
 import { WebSpeechPreview } from './web-speech-preview';
-import { useVoiceAutoSubmit } from '../../hooks/voice/use-voice-auto-submit';
+import { useJournalEntryPipeline } from '../../hooks/use-journal-entry-pipeline';
 
 /**
  * VoiceRecorder Component - UI for audio recording with modular sub-components
  *
  * **Architecture:**
  * - Uses modular components: AudioVisualization, WebSpeechPreview
- * - Uses modular hooks: useVoiceAutoSubmit for progressive entry creation orchestration
+ * - Uses unified hook: useJournalEntryPipeline for progressive entry orchestration
  * - MediaRecorder captures WebM audio (max 60 seconds or manual stop)
  * - Web Speech API runs in parallel for display-only live preview
  * - Web Speech text is NOT stored or used; only Gemini transcription is official
  * 
- * **Sequential Entry Creation (Auto-Submit Flow via useVoiceAutoSubmit):**
+ * **Sequential Entry Creation (Auto-Submit Flow via useJournalEntryPipeline):**
  * 1. User stops recording → Dummy entry created immediately (🎤 Transcribing...)
  * 2. Stage 2: Gemini transcription completes → Entry content updated with text
  * 3. Stage 3: AI analysis runs on transcribed text → Entry fully populated with actions/skills
@@ -31,9 +31,9 @@ import { useVoiceAutoSubmit } from '../../hooks/voice/use-voice-auto-submit';
  * - Pass audio blob to hook for complete orchestration
  * 
  * **Orchestration Moved to Hook:**
- * - useVoiceAutoSubmit handles all 3 stages sequentially
- * - useVoiceAutoSubmit manages transcription logic (Gemini + fallback)
- * - useVoiceAutoSubmit manages AI analysis with processing state callbacks
+ * - useJournalEntryPipeline handles all 3 stages sequentially
+ * - useJournalEntryPipeline manages transcription logic (Gemini + fallback)
+ * - useJournalEntryPipeline manages AI analysis with processing state callbacks
  * - Component no longer contains Stage 2/3 logic
  * 
  * **Control Flow:**
@@ -66,12 +66,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get voice auto-submit orchestrator hook (after state is defined)
-  const submitVoiceRecording = useVoiceAutoSubmit(
-    webSpeechText, // webSpeechFallback (current Web Speech preview text)
-    setUserFeedback, // setFeedback
-    onProcessingStateChange || (() => {}) // onProcessingStateChange passed from parent
-  );
+  const { processVoiceEntry } = useJournalEntryPipeline();
 
   /**
    * Starts recording audio and initializes Web Speech API preview component.
@@ -160,7 +155,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
    * Stops recording and processes audio via useVoiceAutoSubmit orchestrator hook.
    * 
    * **Hook Responsibilities (Sequential):**
-   * 1. Create dummy entry with placeholder
+   * 1. Create draft entry with placeholder
    * 2. Transcribe audio (Gemini → Web Speech fallback)
    * 3. Analyze with AI (if transcription succeeded)
    * 4. Call onProcessingStateChange for parent state tracking
@@ -181,7 +176,16 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
     // Call hook orchestrator - handles all 3 stages sequentially
     // Hook will call onProcessingStateChange for AI analysis state tracking
-    await submitVoiceRecording(audioBlob);
+    try {
+      const entryId = await processVoiceEntry(audioBlob, webSpeechText, onProcessingStateChange);
+      if (onProcessingStateChange) {
+        onProcessingStateChange(entryId, false);
+      }
+      setUserFeedback('✅ Entry created and analyzed');
+    } catch (error) {
+      console.error('[VoiceRecorder] Voice pipeline failed:', error);
+      setUserFeedback('⚠️ Entry created, but AI analysis failed');
+    }
   };
 
   /**

@@ -3,7 +3,7 @@
 **Date**: February 7, 2026
 **Merged from**: `journal-blueprint.md`
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Phase 3 Complete
+**Status**: Phase 4 Complete
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
@@ -141,14 +141,15 @@ This document outlines the specifics for refactoring the **Journal** feature to 
 
 ---
 
-## Phase 4: The Orchestrator (The "Write Side")
+## Phase 4: The Orchestrator (The "Write Side") (Complete)
 
-### 4.1. Orchestrator Hook (`useJournalEntryPipeline`)
+### 4.1. Orchestrator Hook (`useJournalEntryPipeline`) (Complete)
+*   **File**: `src/features/journal/hooks/use-journal-entry-pipeline.ts`
 *   **Logic**: "Traffic Controller" for Voice, Manual, and Text inputs.
 *   **Flow Stages**:
-    1.  **Draft & Persist**: Generates ID, updates Store Optimistically, writes "Draft" to Firebase.
-    2.  **Transcribe** (Voice only): Updates Draft text.
-    3.  **Analyze**: Calls AI, updates Entry with stats, updates Tree totals.
+  1.  **Draft & Persist**: Generates ID, optimistic add to store, batch write to Firebase + tree append.
+  2.  **Transcribe** (Voice only): Updates draft content + status in store + Firebase.
+  3.  **Analyze**: Uses `useEntryOrchestrator` to compute results, updates entry + tree totals in Firebase.
 
 ### 4.2. Implementation Blueprint
 ```typescript
@@ -166,7 +167,11 @@ const processVoiceEntry = async (audioBlob: Blob) => {
 };
 ```
 
-### 4.3. Visual State Mapping
+### 4.3. Firebase Write Helpers (Complete)
+*   **File**: `src/lib/firebase/journal.ts`
+*   **Adds**: `updateJournalEntry`, `appendEntryToTree`, `incrementTreeTotals` for atomic updates.
+
+### 4.4. Visual State Mapping
 | Status | Visual Indicator | User Action |
 | :--- | :--- | :--- |
 | `DRAFT` | Normal text, gray badge | **Analyze** button valid |

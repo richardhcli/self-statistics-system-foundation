@@ -1,4 +1,4 @@
-import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
+import { useJournalEntryPipeline } from '@/features/journal/hooks/use-journal-entry-pipeline';
 import { useGraphActions } from '@/stores/cdag-topology';
 import type { CdagTopology } from '@/stores/cdag-topology/types';
 import type { EdgeData, GraphState, NodeData } from '@/stores/cdag-topology/types';
@@ -22,15 +22,15 @@ import {
  */
 export const createInjectTestDataHook = () => {
   return async (isAI: boolean) => {
-    const createEntry = useCreateJournalEntry();
+    const { processManualEntry } = useJournalEntryPipeline();
     const entries = isAI ? AI_TEST_ENTRIES : MANUAL_TEST_ENTRIES;
 
     for (const e of entries) {
-      const ctx = typeof e === 'string' 
-        ? { entry: e, useAI: true } 
-        : { entry: e.c, actions: e.a, useAI: false };
-      
-      await createEntry(ctx);
+      if (typeof e === 'string') {
+        await processManualEntry(e, { useAI: true });
+      } else {
+        await processManualEntry(e.c, { useAI: false, actions: e.a });
+      }
       
       // Staggered delay ensures that generated timestamps are unique 
       // at the millisecond level for IndexedDB key safety.

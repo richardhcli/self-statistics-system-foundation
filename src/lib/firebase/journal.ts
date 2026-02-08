@@ -4,10 +4,12 @@
  */
 
 import {
+  arrayUnion,
   collection,
   doc,
   FieldPath,
   getDocs,
+  increment,
   onSnapshot,
   query,
   setDoc,
@@ -166,7 +168,7 @@ export const fetchMonthEntries = async (
 export const createEntryBatch = async (
   uid: string,
   entry: JournalEntryData,
-  treeUpdate: Partial<JournalTreeStructure>
+  treeUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const entryRef = doc(db, "users", uid, "journal_entries", entry.id);
@@ -179,6 +181,22 @@ export const createEntryBatch = async (
 };
 
 /**
+ * Merge updates into a single journal entry document.
+ *
+ * @param uid User ID
+ * @param entryId Journal entry ID
+ * @param updates Partial entry data to merge
+ */
+export const updateJournalEntry = async (
+  uid: string,
+  entryId: string,
+  updates: Partial<JournalEntryData>
+): Promise<void> => {
+  const entryRef = doc(db, "users", uid, "journal_entries", entryId);
+  await setDoc(entryRef, updates, { merge: true });
+};
+
+/**
  * Merge updates into the tree structure document.
  *
  * @param uid User ID
@@ -186,8 +204,85 @@ export const createEntryBatch = async (
  */
 export const updateJournalTree = async (
   uid: string,
-  treeUpdate: Partial<JournalTreeStructure>
+  treeUpdate: Record<string, unknown>
 ): Promise<void> => {
   const treeRef = doc(db, "users", uid, "journal_meta", "tree_structure");
   await setDoc(treeRef, treeUpdate, { merge: true });
+};
+
+/**
+ * Append an entry ID to the tree structure and ensure the path exists.
+ *
+ * @param uid User ID
+ * @param year Four-digit year (YYYY)
+ * @param month Two-digit month (01-12)
+ * @param day Two-digit day (01-31)
+ * @param entryId Journal entry ID
+ */
+export const appendEntryToTree = async (
+  uid: string,
+  year: string,
+  month: string,
+  day: string,
+  entryId: string
+): Promise<void> => {
+  const treeRef = doc(db, "users", uid, "journal_meta", "tree_structure");
+  await setDoc(
+    treeRef,
+    {
+      [year]: {
+        totalExp: increment(0),
+        months: {
+          [month]: {
+            totalExp: increment(0),
+            days: {
+              [day]: {
+                totalExp: increment(0),
+                entries: arrayUnion(entryId),
+              },
+            },
+          },
+        },
+      },
+    },
+    { merge: true }
+  );
+};
+
+/**
+ * Increment total EXP aggregates on the tree structure.
+ *
+ * @param uid User ID
+ * @param year Four-digit year (YYYY)
+ * @param month Two-digit month (01-12)
+ * @param day Two-digit day (01-31)
+ * @param expIncrease EXP delta to add
+ */
+export const incrementTreeTotals = async (
+  uid: string,
+  year: string,
+  month: string,
+  day: string,
+  expIncrease: number
+): Promise<void> => {
+  const treeRef = doc(db, "users", uid, "journal_meta", "tree_structure");
+  await setDoc(
+    treeRef,
+    {
+      [year]: {
+        totalExp: increment(expIncrease),
+        months: {
+          [month]: {
+            totalExp: increment(expIncrease),
+            days: {
+              [day]: {
+                totalExp: increment(expIncrease),
+              },
+            },
+          },
+        },
+      },
+    },
+    { merge: true }
+  );
 };

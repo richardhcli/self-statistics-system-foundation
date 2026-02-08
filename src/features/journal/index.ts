@@ -9,8 +9,7 @@ export { default as ManualEntryForm } from './components/manual-entry-form';
 
 // Utils and API
 export * from './utils/journal-entry-utils';
-export * from './utils/time-utils';
-export * from './hooks/create-entry';
+export * from './hooks/use-journal-entry-pipeline';
 export * from './api/get-journal';
 export * from './api/update-journal';
 

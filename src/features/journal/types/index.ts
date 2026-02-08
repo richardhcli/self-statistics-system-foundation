@@ -182,8 +182,8 @@ export type { TextToActionResponse, WeightedAction };
  * 
  * **Architecture:**
  * - Uses modular components: AudioVisualization, WebSpeechPreview
- * - Uses modular hooks: useVoiceAutoSubmit for progressive entry creation orchestration
- * - Entry creation is now fully encapsulated within hooks via useVoiceAutoSubmit
+ * - Uses unified hook: useJournalEntryPipeline for progressive entry orchestration
+ * - Entry creation is encapsulated within the journal entry pipeline
  *
  * **Submission Flows:**
  * 1. Auto-submit (Record button stop) - Sequential Entry Creation:
@@ -217,7 +217,7 @@ export interface VoiceRecorderProps {
   
   /**
    * Callback for tracking AI analysis processing state per entry.
-   * Called by useVoiceAutoSubmit hook when AI analysis starts/ends.
+  * Called by useJournalEntryPipeline when AI analysis starts/ends.
    * Parent should use this to update processingEntries Set for "Analyzing..." button state.
    * 
    * **LOCAL STATE:** Transient UI state (cleared after AI analysis completes)
