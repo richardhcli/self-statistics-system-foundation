@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useJournalActions, useJournal } from '@/stores/journal';
+import { useJournalActions, useJournalEntries } from '@/stores/journal';
 
 /**
  * Hook for adding transcribed text to an existing journal entry.
@@ -15,30 +15,27 @@ import { useJournalActions, useJournal } from '@/stores/journal';
  * 
  * @example
  * const addTranscriptionToEntry = useAddTranscriptionToEntry();
- * addTranscriptionToEntry("2026/February/03/14:30:45.123", "I went to the gym today");
+ * addTranscriptionToEntry("20260207-143000-xyz", "I went to the gym today");
  */
 export const useAddTranscriptionToEntry = () => {
   const journalActions = useJournalActions();
-  const journal = useJournal();
+  const entries = useJournalEntries();
 
   const addTranscriptionToEntry = useCallback(
     (entryId: string, transcription: string): void => {
-      // Get existing entry data to preserve all properties
-      const [year, month, day, time] = entryId.split('/');
-      const existingEntry = journal[year]?.[month]?.[day]?.[time];
-      
+      const existingEntry = entries[entryId];
+
       if (!existingEntry) {
         console.warn('[useAddTranscriptionToEntry] Entry not found:', entryId);
         return;
       }
 
-      // Update entry with transcribed content, preserving all other properties
-      journalActions.upsertEntry(entryId, {
-        ...existingEntry,
+      journalActions.updateEntry(entryId, {
         content: transcription,
+        status: 'PENDING_ANALYSIS',
       });
     },
-    [journalActions, journal]
+    [journalActions, entries]
   );
 
   return addTranscriptionToEntry;

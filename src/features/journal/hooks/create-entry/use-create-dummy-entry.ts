@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useJournalActions } from '@/stores/journal';
-import { JournalEntryData } from '@/types';
-import { getNormalizedDate } from '@/features/journal/utils/time-utils';
+import { generateEntryId } from '@/features/journal/utils/id-generator';
+import type { JournalEntryData } from '@/stores/journal';
 
 /**
  * Hook for creating a dummy/placeholder journal entry
@@ -13,7 +13,7 @@ import { getNormalizedDate } from '@/features/journal/utils/time-utils';
  * - Voice flow: "🎤 Transcribing..." (placeholder shown during processing)
  * - Manual flow: User's typed text (content already filled, no dummy display needed)
  * 
- * Entry ID is normalized using getNormalizedDate() for consistency with manual form.
+ * Entry ID uses the sortable generator to align with Firebase month queries.
  * Duration is stored in metadata immediately for AI processing to use.
  * 
  * **Hybrid Strategy:**
@@ -26,7 +26,7 @@ import { getNormalizedDate } from '@/features/journal/utils/time-utils';
  * @example
  * // Voice flow: Create dummy with placeholder
  * const createDummyEntry = useCreateDummyEntry();
- * const entryId = createDummyEntry('🎤 Transcribing...');  // Returns "2026/February/03/14:30:45.123"
+ * const entryId = createDummyEntry('🎤 Transcribing...');  // Returns "20260207-143000-xyz"
  * 
  * @example
  * // Manual flow: Create dummy with actual content (display suppressed by parent)
@@ -40,30 +40,23 @@ export const useCreateDummyEntry = () => {
   const journalActions = useJournalActions();
 
   const createDummyEntry = useCallback(
-    (
-      dummyContent: string = '🎤 Transcribing...',
-      duration?: string,
-      dateInfo?: { year?: string; month?: string; day?: string; time?: string }
-    ): string => {
-      // Use getNormalizedDate() for consistent date formatting (matches manual form)
-      const dateObj = getNormalizedDate(dateInfo);
-      
-      // Format entry ID: YYYY/MonthName/DD/HH:MM:SS.fff
-      const entryId = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
+    (dummyContent: string = '🎤 Transcribing...', duration?: string): string => {
+      const entryId = generateEntryId();
+      const parsedDuration = duration ? Number.parseFloat(duration) : undefined;
 
-      // Create dummy entry with flexible content and optional duration
       const dummyEntry: JournalEntryData = {
+        id: entryId,
         content: dummyContent,
+        status: dummyContent.includes('Transcribing') ? 'TRANSCRIBING' : 'DRAFT',
         actions: {},
         metadata: {
           flags: { aiAnalyzed: false },
           timePosted: new Date().toISOString(),
-          // Duration available immediately for AI processing to use
-          duration: duration || undefined,
+          duration: Number.isFinite(parsedDuration) ? parsedDuration : undefined,
         },
       };
 
-      journalActions.upsertEntry(entryId, dummyEntry);
+      journalActions.optimisticAdd(dummyEntry);
       return entryId;
     },
     [journalActions]

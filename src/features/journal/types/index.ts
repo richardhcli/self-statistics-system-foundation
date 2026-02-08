@@ -236,16 +236,18 @@ export interface VoiceRecorderProps {
  * - `processingEntries`: Set of entry IDs currently being analyzed
  * - `feedbackMessage`: User feedback for all entry operations
  * 
- * @property {JournalStore} data - Complete journal data hierarchy (GLOBAL STATE)
- * @property {function} onAddManualEntry - Callback to add entry at specific date
+ * @property {JournalTreeStructure} tree - Lightweight tree index (GLOBAL CACHE)
+ * @property {Record<string, JournalEntryData>} entries - Normalized entry map (GLOBAL CACHE)
+ * @property {function} onAddManualEntry - Callback to add entry at a specific date
  * @property {function} onParseEntry - Callback to trigger AI analysis for specific entry
  * @property {ProcessingEntries} processingEntries - Local state: IDs of entries being analyzed
  * @property {string} feedbackMessage - Local state: Current feedback message for user
  */
 export interface JournalViewProps {
-  data: JournalStore;
-  onAddManualEntry: (year: string, month: string, day: string, content: string) => void;
-  onParseEntry: (year: string, month: string, day: string, time: string) => void;
+  tree: JournalTreeStructure;
+  entries: Record<string, JournalEntryData>;
+  onAddManualEntry: (content: string, date?: Date) => void;
+  onParseEntry: (entryId: string) => void;
   processingEntries: ProcessingEntries;  // LOCAL STATE
   feedbackMessage: string;               // LOCAL STATE
 }

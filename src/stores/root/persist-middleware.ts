@@ -11,8 +11,8 @@ import { get, set, del, clear } from 'idb-keyval';
  * Uses idb-keyval for async IndexedDB operations that don't block the UI.
  * Automatically handles serialization/deserialization of JSON.
  * 
- * Architecture: Local-First, Sync-Behind
- * - IndexedDB is the primary source of truth during hydration and persistence
+ * Architecture: Hybrid Read-Aside, Sync-Behind
+ * - IndexedDB is the cache source of truth during hydration and persistence
  * - UI is optimistic (never waits for network during runtime)
  * - Each store independently persists its data via this middleware
  * - Background sync happens independently of persistence layer

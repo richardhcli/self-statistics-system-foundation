@@ -13,7 +13,7 @@ import {
   getUserIntegrations,
   setUserIntegrations,
 } from '@/stores/user-integrations';
-import { JournalStore } from '@/stores/journal';
+import { JournalPersistedState } from '@/stores/journal';
 import { PlayerStatistics } from '@/stores/player-statistics';
 import { UserInformation } from '@/stores/user-information';
 import { AIConfig } from '@/stores/ai-config';
@@ -31,7 +31,7 @@ import { IntegrationStore } from '@/features/integration/types';
  * NEVER access this during runtime operations. Use individual store hooks instead.
  */
 export interface RootState {
-  journal: JournalStore;
+  journal: JournalPersistedState;
   cdagTopology: GraphState;
   playerStatistics: PlayerStatistics;
   userInformation: UserInformation;
@@ -72,7 +72,11 @@ export const deserializeRootState = (state: RootState): void => {
  * Used for first-time app initialization.
  */
 export const INITIAL_ROOT_STATE: RootState = {
-  journal: {},
+  journal: {
+    entries: {},
+    tree: {},
+    metadata: {},
+  },
   cdagTopology: {
     nodes: {
       progression: {

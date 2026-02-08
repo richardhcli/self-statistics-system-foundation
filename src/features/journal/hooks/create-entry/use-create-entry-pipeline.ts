@@ -2,9 +2,9 @@ import { useCallback } from 'react';
 import { useCreateDummyEntry } from './use-create-dummy-entry';
 import { useAddTranscriptionToEntry } from './use-add-transcription-to-entry';
 import { useAnalyzeEntryWithAI } from './use-analyze-entry-with-ai';
-import { getNormalizedDate } from '@/features/journal/utils/time-utils';
 import { useJournalActions } from '@/stores/journal';
-import { JournalEntryData } from '@/types';
+import { generateEntryId } from '@/features/journal/utils/id-generator';
+import type { JournalEntryData } from '@/stores/journal';
 
 /**
  * Orchestrator hook for the complete entry creation pipeline
@@ -20,8 +20,7 @@ import { JournalEntryData } from '@/types';
  * - Both flows converge after transcription is complete (content matches final submission)
  * 
  * **Entry ID Format:**
- * Uses getNormalizedDate() for consistency: "YYYY/MonthName/DD/HH:MM:SS.fff"
- * Numeric format internally but displayed human-readable by journal-view component.
+ * Uses generateEntryId() for sortable IDs: "YYYYMMDD-HHmmss-xxxx"
  * 
  * **Duration Storage:**
  * Duration parameter is stored in Stage 1 metadata, available immediately for AI processing.
@@ -73,12 +72,11 @@ export const useCreateEntryPipeline = () => {
    * 
    * @param dummyContent - Content to display: "🎤 Transcribing..." or user text
    * @param duration - Optional duration for AI context (e.g., "45 mins")
-   * @param dateInfo - Optional date override (normally auto-generated)
-   * @returns Entry ID in format "YYYY/MonthName/DD/HH:MM:SS.fff"
+   * @returns Entry ID in format "YYYYMMDD-HHmmss-xxxx"
    */
   const createDummyEntryStage = useCallback(
-    (dummyContent?: string, duration?: string, dateInfo?: any): string => {
-      return createDummyEntry(dummyContent, duration, dateInfo);
+    (dummyContent?: string, duration?: string): string => {
+      return createDummyEntry(dummyContent, duration);
     },
     [createDummyEntry]
   );
@@ -137,32 +135,26 @@ export const useCreateEntryPipeline = () => {
       dateInfo?: any;
       duration?: string;
     }): Promise<void> => {
-      const { entry, actions = [], useAI = false, dateInfo, duration } = context;
-
-      // Generate normalized date ONCE to use for both loading and final entry
-      const dateObj = getNormalizedDate(dateInfo);
-
-      // Convert to date key string: YYYY/Month/DD/time
-      const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
+      const { entry, actions = [], useAI = false, duration } = context;
+      const entryId = generateEntryId();
+      const parsedDuration = duration ? Number.parseFloat(duration) : undefined;
 
       const loadingEntry: JournalEntryData = {
+        id: entryId,
         content: entry,
-        actions: { 'loading': 1 },
+        status: useAI ? 'ANALYZING' : 'DRAFT',
+        actions: actions.length ? Object.fromEntries(actions.map((action) => [action, 1])) : {},
         metadata: {
-          flags: { aiAnalyzed: useAI },
+          flags: { aiAnalyzed: false },
           timePosted: new Date().toISOString(),
-          duration: 'loading',
+          duration: Number.isFinite(parsedDuration) ? parsedDuration : undefined,
         },
       };
 
-      // Create loading placeholder at the normalized date
-      journalActions.upsertEntry(dateKey, loadingEntry);
-
-      // Apply full entry updates: Stage 2 (transcription) then Stage 3 (AI)
-      const dummyEntry = createDummyEntryStage(entry, duration, dateInfo);
-      await analyzeEntryWithAI(dummyEntry, entry);
+      journalActions.optimisticAdd(loadingEntry);
+      await analyzeEntryWithAI(entryId, entry);
     },
-    [journalActions, createDummyEntryStage, analyzeEntryWithAI]
+    [journalActions, analyzeEntryWithAI]
   );
 
   return {

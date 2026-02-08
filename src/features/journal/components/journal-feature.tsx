@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { useCreateJournalEntry } from '@/features/journal/hooks/create-entry';
-import { useJournalActions } from '@/stores/journal';
-import { getNormalizedDate } from '@/features/journal/utils/time-utils';
-import { useJournal } from '@/stores/journal';
+import { useAnalyzeEntryWithAI } from '@/features/journal/hooks/create-entry/use-analyze-entry-with-ai';
+import { generateEntryId } from '@/features/journal/utils/id-generator';
+import { useJournalActions, useJournalEntries, useJournalTree } from '@/stores/journal';
 import { JournalEntryData, JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
@@ -25,8 +24,8 @@ import VoiceRecorder from './voice-recorder/voice-recorder';
  * 5. JournalView re-parse: Parent handles (optional, for re-analyzing existing entry)
  * 
  * **Global State:**
- * - Reads journal data from global store (useJournal())
- * - Writes entries via journalActions (upsertEntry)
+ * - Reads journal data from global cache (useJournalEntries/useJournalTree)
+ * - Writes entries via journalActions (optimisticAdd/updateEntry)
  * - Parent does NOT manage entry creation - delegated to pipeline hooks
  * 
  * **Integration Points:**
@@ -43,9 +42,10 @@ import VoiceRecorder from './voice-recorder/voice-recorder';
  */
 
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
-  const journal = useJournal();
+  const entries = useJournalEntries();
+  const tree = useJournalTree();
   const journalActions = useJournalActions();
-  const createJournalEntry = useCreateJournalEntry();
+  const analyzeEntryWithAI = useAnalyzeEntryWithAI();
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceTranscriptionText, setVoiceTranscriptionText] = useState('');
   const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
@@ -78,30 +78,25 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
    * 1. If empty, just create placeholder in journal store
    * 2. If has content, process WITHOUT AI and update store
    */
-  const handleManualQuickEntry = async (y: string, m: string, d: string, content: string) => {
+  const handleManualQuickEntry = async (content: string, date?: Date) => {
     if (!content.trim()) {
-      // Empty entry - just create placeholder for UI
-      const dateObj = getNormalizedDate({ year: y, month: m, day: d });
-      const dateKey = `${dateObj.year}/${dateObj.month}/${dateObj.day}/${dateObj.time}`;
-      const placeholderEntry: JournalEntryData = {
-        content,
-        actions: {},
-        metadata: {
-          flags: { aiAnalyzed: false },
-          timePosted: new Date().toISOString()
-        }
-      };
-      journalActions.upsertEntry(dateKey, placeholderEntry);
       return;
     }
 
     setIsProcessing(true);
     try { 
-      await createJournalEntry({ 
-        entry: content, 
-        useAI: false, 
-        dateInfo: { year: y, month: m, day: d } 
-      });
+      const entryId = generateEntryId(date);
+      const placeholderEntry: JournalEntryData = {
+        id: entryId,
+        content,
+        status: 'DRAFT',
+        actions: {},
+        metadata: {
+          flags: { aiAnalyzed: false },
+          timePosted: new Date().toISOString(),
+        },
+      };
+      journalActions.optimisticAdd(placeholderEntry);
     } finally { 
       setIsProcessing(false); 
     }
@@ -143,24 +138,19 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
    * Handle re-parsing an existing entry
    * Useful when user wants to re-analyze an entry with AI
    */
-  const handleParseEntry = async (year: string, month: string, day: string, time: string) => {
-    const entry = journal[year]?.[month]?.[day]?.[time];
-    if (!entry || !entry.content) return;
+  const handleParseEntry = async (entryId: string) => {
+    const entry = entries[entryId];
+    if (!entry?.content) return;
 
     setIsProcessing(true);
     try {
-      await createJournalEntry({
-        entry: entry.content,
-        useAI: true,
-        dateInfo: { year, month, day, time },
-        duration: entry.metadata.duration
-      });
+      await analyzeEntryWithAI(entryId, entry.content);
 
       if (onIntegrationEvent) {
         await onIntegrationEvent('JOURNAL_AI_PROCESSED', {
           originalText: entry.content,
           source: 'reparse',
-          timestamp: `${year}-${month}-${day} ${time}`
+          entryId,
         });
       }
     } finally {
@@ -202,7 +192,8 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
       {/* Right Content - Journal View */}
       <div className="lg:col-span-2">
         <JournalView 
-          data={journal} 
+          tree={tree}
+          entries={entries}
           onAddManualEntry={handleManualQuickEntry}
           onParseEntry={handleParseEntry}
           processingEntries={processingEntries}

@@ -3,7 +3,7 @@ import { useGraphNodes, useGraphEdges, useGraphActions } from '@/stores/cdag-top
 import { usePlayerStatisticsActions } from '@/stores/player-statistics';
 import { useUserInformationActions } from '@/stores/user-information';
 import { useJournalActions } from '@/stores/journal';
-import { JournalEntryData } from '@/stores/journal';
+import type { JournalEntryData } from '@/stores/journal';
 import { calculateParentPropagation, analyzeEntry, transformActionsToTopology } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from '@/stores/player-statistics';
 import type { GraphState } from '@/stores/cdag-topology';
@@ -21,7 +21,7 @@ import type { GraphState } from '@/stores/cdag-topology';
  * 
  * Usage:
  * const { applyEntryUpdates } = useEntryOrchestrator();
- * await applyEntryUpdates(dateKey, entry, options);
+ * await applyEntryUpdates(entryId, entry, options);
  */
 export const useEntryOrchestrator = () => {
   // Store action hooks (stable, won't cause re-renders)
@@ -44,7 +44,7 @@ export const useEntryOrchestrator = () => {
    */
   const applyEntryUpdates = useCallback(
     async (
-      dateKey: string,
+      entryId: string,
       entry: string,
       options: {
         actions?: string[];
@@ -107,8 +107,12 @@ export const useEntryOrchestrator = () => {
       }
 
       // Step 7: Create and upsert journal entry with new schema
+      const parsedDuration = estimatedDuration ? Number.parseFloat(estimatedDuration) : undefined;
+
       const entryData: JournalEntryData = {
+        id: entryId,
         content: entry,
+        status: 'COMPLETED',
         actions: actionWeights,
         result: {
           levelsGained,
@@ -118,11 +122,11 @@ export const useEntryOrchestrator = () => {
         metadata: {
           flags: { aiAnalyzed: useAI },
           timePosted: new Date().toISOString(),
-          duration: estimatedDuration,
+          duration: Number.isFinite(parsedDuration) ? parsedDuration : undefined,
         },
       };
 
-      journalActions.upsertEntry(dateKey, entryData);
+      journalActions.upsertEntry(entryId, entryData);
 
       return { 
         totalExpIncrease: totalIncrease, 

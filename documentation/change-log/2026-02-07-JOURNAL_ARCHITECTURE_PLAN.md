@@ -3,7 +3,7 @@
 **Date**: February 7, 2026
 **Merged from**: `journal-blueprint.md`
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Phase 2 Complete
+**Status**: Phase 3 Complete
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
@@ -109,32 +109,34 @@ This document outlines the specifics for refactoring the **Journal** feature to 
 
 ---
 
-## Phase 3: Store & Cache (The "Store Side")
+## Phase 3: Store & Cache (The "Store Side") (Complete)
 
-### 3.1. Journal Storage Refactor
+### 3.1. Journal Storage Refactor (Complete)
 *   **File**: `src/stores/journal/store.ts`
 *   **Interface**:
     ```typescript
-    interface JournalState {
-      entries: Record<string, JournalEntryData>; // Normalized ID -> Data
-      tree: JournalTreeStructure; // The structure from Firebase
-      metadata: Record<string, { lastFetched: number }>; // Cache TTL
-      
+    interface JournalStoreState {
+      entries: Record<string, JournalEntryData>;
+      tree: JournalTreeStructure;
+      metadata: Record<string, JournalCacheInfo>;
+
       actions: {
-        addEntryPlaceholder: (entry: JournalEntryData) => void;
-        updateEntryStatus: (id: string, status: string, data?: any) => void;
+        setSnapshot: (snapshot: JournalPersistedState) => void;
         setTree: (tree: JournalTreeStructure) => void;
-        fetchMonthEntries: (year: string, month: string) => Promise<void>;
+        cacheEntries: (entries: JournalEntryData[]) => void;
+        optimisticAdd: (entry: JournalEntryData, treeUpdate?: Partial<JournalTreeStructure>) => void;
+        updateEntry: (entryId: string, updates: Partial<JournalEntryData>) => void;
+        fetchMonthEntries: (uid: string, year: string, month: string, force?: boolean) => Promise<void>;
       }
     }
     ```
 
-### 3.2. Persistence (Optimization)
+### 3.2. Persistence (Optimization) (Complete)
 *   **Mechanism**: `persist` middleware with `idb-keyval`.
 *   **Config**:
     ```typescript
     storage: createJSONStorage(() => idbStorage),
-    partialize: (state) => ({ entries: state.entries, metadata: state.metadata, tree: state.tree }),
+  partialize: (state) => ({ entries: state.entries, metadata: state.metadata, tree: state.tree }),
     ```
 
 ---

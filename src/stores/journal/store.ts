@@ -1,121 +1,220 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { JournalStore, JournalEntryData, JournalYear } from '@/features/journal/types';
+import { fetchMonthEntries as fetchMonthEntriesFromFirebase } from '@/lib/firebase/journal';
 import { indexedDBStorage } from '@/stores/root/persist-middleware';
+import type {
+  JournalCacheInfo,
+  JournalEntryData,
+  JournalPersistedState,
+  JournalTreeStructure,
+} from './types';
+
+const CACHE_TTL_MS = 1000 * 60 * 5;
+
+const mergeTreeStructure = (
+  current: JournalTreeStructure,
+  update: Partial<JournalTreeStructure>
+): JournalTreeStructure => {
+  const next: JournalTreeStructure = { ...current };
+
+  Object.entries(update).forEach(([year, yearValue]) => {
+    if (!yearValue) return;
+
+    const existingYear = next[year] ?? { totalExp: 0, months: {} };
+    const nextMonths = { ...existingYear.months };
+
+    Object.entries(yearValue.months ?? {}).forEach(([month, monthValue]) => {
+      if (!monthValue) return;
+
+      const existingMonth = nextMonths[month] ?? { totalExp: 0, days: {} };
+      const nextDays = { ...existingMonth.days };
+
+      Object.entries(monthValue.days ?? {}).forEach(([day, dayValue]) => {
+        if (!dayValue) return;
+        const existingDay = nextDays[day] ?? { totalExp: 0, entries: [] };
+        nextDays[day] = {
+          totalExp: dayValue.totalExp ?? existingDay.totalExp,
+          entries: dayValue.entries ?? existingDay.entries,
+        };
+      });
+
+      nextMonths[month] = {
+        totalExp: monthValue.totalExp ?? existingMonth.totalExp,
+        days: nextDays,
+      };
+    });
+
+    next[year] = {
+      totalExp: yearValue.totalExp ?? existingYear.totalExp,
+      months: nextMonths,
+    };
+  });
+
+  return next;
+};
+
+const isCacheStale = (cacheInfo: JournalCacheInfo | undefined, now: number): boolean => {
+  if (!cacheInfo) return true;
+  if (cacheInfo.isDirty) return true;
+  return now - cacheInfo.lastFetched > CACHE_TTL_MS;
+};
 
 interface JournalStoreState {
-  // PURE DATA (Persisted to IndexedDB)
-  entries: JournalStore;
+  entries: Record<string, JournalEntryData>;
+  tree: JournalTreeStructure;
+  metadata: Record<string, JournalCacheInfo>;
 
-  // LOGIC/ACTIONS (Never persisted - code is source of truth)
   actions: {
-    setEntries: (entries: JournalStore) => void;
-    updateEntry: (dateKey: string, entry: JournalEntryData) => void;
-    deleteEntry: (dateKey: string) => void;
-    upsertEntry: (dateKey: string, entry: JournalEntryData) => void;
+    setSnapshot: (snapshot: JournalPersistedState) => void;
+    setTree: (tree: JournalTreeStructure) => void;
+    cacheEntries: (entries: JournalEntryData[]) => void;
+    upsertEntry: (entryId: string, entry: JournalEntryData) => void;
+    updateEntry: (entryId: string, updates: Partial<JournalEntryData>) => void;
+    removeEntry: (entryId: string) => void;
+    optimisticAdd: (entry: JournalEntryData, treeUpdate?: Partial<JournalTreeStructure>) => void;
+    invalidateCache: (cacheKey: string) => void;
+    fetchMonthEntries: (uid: string, year: string, month: string, force?: boolean) => Promise<void>;
   };
 }
 
 /**
  * Journal Store (Zustand with Persist Middleware)
- * Manages all journal entries (historical records of thoughts and actions).
- * 
- * Persistence: Automatic via Zustand persist middleware + IndexedDB storage.
- * Local-First Architecture: Writes to IndexedDB immediately (no network wait).
- * 
- * This store is private - access ONLY via hooks:
- * - useJournal() - for state selectors
- * - useJournalActions() - for dispatching updates
+ *
+ * Firebase is the source of truth. Zustand + IndexedDB act as a read-aside cache.
+ * Access ONLY via hooks:
+ * - useJournalEntries / useJournalTree / useJournalMetadata
+ * - useJournalActions
  */
 export const useJournalStore = create<JournalStoreState>()(
   persist(
     (set, get) => ({
-  // PURE DATA (will be persisted)
-  entries: {},
+      entries: {},
+      tree: {},
+      metadata: {},
 
-  // LOGIC/ACTIONS (never persisted - stable object reference)
-  actions: {
-    setEntries: (entries: JournalStore) => set({ entries }),
-    
-    updateEntry: (dateKey: string, entry: JournalEntryData) => {
-      set((state) => {
-        const parts = dateKey.split('/');
-        if (parts.length !== 4) return state;
+      actions: {
+        setSnapshot: (snapshot: JournalPersistedState) =>
+          set({
+            entries: snapshot.entries ?? {},
+            tree: snapshot.tree ?? {},
+            metadata: snapshot.metadata ?? {},
+          }),
 
-        const [year, month, day, timeKey] = parts;
-        const next = { ...state.entries };
-        
-        if (!next[year]) next[year] = {};
-        if (!next[year][month]) next[year][month] = {};
-        if (!next[year][month][day]) next[year][month][day] = {};
-        
-        next[year][month][day][timeKey] = entry;
-        return { entries: next };
-      });
-    },
+        setTree: (tree: JournalTreeStructure) => set({ tree }),
 
-    deleteEntry: (dateKey: string) => {
-      set((state) => {
-        const parts = dateKey.split('/');
-        if (parts.length !== 4) return state;
+        cacheEntries: (entries: JournalEntryData[]) =>
+          set((state) => {
+            const nextEntries = { ...state.entries };
+            entries.forEach((entry) => {
+              nextEntries[entry.id] = entry;
+            });
+            return { entries: nextEntries };
+          }),
 
-        const [year, month, day, timeKey] = parts;
-        const next = { ...state.entries };
-        
-        if (next[year]?.[month]?.[day]) {
-          const dayEntries = { ...next[year][month][day] };
-          delete dayEntries[timeKey];
-          next[year][month][day] = dayEntries;
-        }
-        
-        return { entries: next };
-      });
-    },
+        upsertEntry: (entryId: string, entry: JournalEntryData) =>
+          set((state) => ({
+            entries: {
+              ...state.entries,
+              [entryId]: entry,
+            },
+          })),
 
-    upsertEntry: (dateKey: string, entry: JournalEntryData) => {
-      set((state) => {
-        const parts = dateKey.split('/');
-        if (parts.length !== 4) return state;
+        updateEntry: (entryId: string, updates: Partial<JournalEntryData>) =>
+          set((state) => {
+            const existing = state.entries[entryId];
+            if (!existing) {
+              console.warn('[Journal Store] updateEntry skipped (missing entry):', entryId);
+              return state;
+            }
 
-        const [year, month, day, timeKey] = parts;
-        const next = { ...state.entries };
-        
-        if (!next[year]) next[year] = {};
-        if (!next[year][month]) next[year][month] = {};
-        if (!next[year][month][day]) next[year][month][day] = {};
-        
-        next[year][month][day][timeKey] = {
-          ...(next[year][month][day][timeKey] || {}),
-          ...entry
-        };
-        
-        return { entries: next };
-      });
-    }
-  }
+            return {
+              entries: {
+                ...state.entries,
+                [entryId]: { ...existing, ...updates, id: entryId },
+              },
+            };
+          }),
+
+        removeEntry: (entryId: string) =>
+          set((state) => {
+            if (!state.entries[entryId]) return state;
+            const nextEntries = { ...state.entries };
+            delete nextEntries[entryId];
+            return { entries: nextEntries };
+          }),
+
+        optimisticAdd: (entry: JournalEntryData, treeUpdate?: Partial<JournalTreeStructure>) =>
+          set((state) => ({
+            entries: {
+              ...state.entries,
+              [entry.id]: entry,
+            },
+            tree: treeUpdate ? mergeTreeStructure(state.tree, treeUpdate) : state.tree,
+          })),
+
+        invalidateCache: (cacheKey: string) =>
+          set((state) => ({
+            metadata: {
+              ...state.metadata,
+              [cacheKey]: {
+                lastFetched: state.metadata[cacheKey]?.lastFetched ?? 0,
+                isDirty: true,
+              },
+            },
+          })),
+
+        fetchMonthEntries: async (uid: string, year: string, month: string, force = false) => {
+          const cacheKey = `${year}-${String(month).padStart(2, '0')}`;
+          const { metadata } = get();
+          const now = Date.now();
+
+          if (!force && !isCacheStale(metadata[cacheKey], now)) {
+            return;
+          }
+
+          const entries = await fetchMonthEntriesFromFirebase(uid, year, month);
+
+          set((state) => {
+            const nextEntries = { ...state.entries };
+            entries.forEach((entry) => {
+              nextEntries[entry.id] = entry;
+            });
+
+            return {
+              entries: nextEntries,
+              metadata: {
+                ...state.metadata,
+                [cacheKey]: {
+                  lastFetched: now,
+                  isDirty: false,
+                },
+              },
+            };
+          });
+        },
+      },
     }),
     {
-      name: 'journal-store-v1',
+      name: 'journal-store-v2',
       storage: indexedDBStorage,
-      version: 1,
-      
-      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
-      // Only serialize data, never actions/getters
+      version: 2,
+
       partialize: (state) => ({
         entries: state.entries,
+        tree: state.tree,
+        metadata: state.metadata,
       }),
-      
-      // Merge function: prioritize code's actions over any persisted junk
+
       merge: (persistedState: any, currentState: JournalStoreState) => ({
         ...currentState,
         ...persistedState,
-        actions: currentState.actions, // Always use fresh actions from code
+        actions: currentState.actions,
       }),
-      
+
       migrate: (state: any, version: number) => {
-        if (version !== 1) {
+        if (version !== 2) {
           console.warn('[Journal Store] Schema version mismatch - clearing persisted data');
-          return { entries: {} };
+          return { entries: {}, tree: {}, metadata: {} };
         }
         return state;
       },
@@ -124,23 +223,13 @@ export const useJournalStore = create<JournalStoreState>()(
 );
 
 /**
- * State Hook: Returns journal entries using fine-grained selector.
- * Only triggers re-renders when entries change.
+ * State Hooks: Fine-grained selectors for journal state.
  */
-export const useJournal = (selector?: (state: JournalStore) => any) => {
-  return useJournalStore((state) => {
-    if (!selector) return state.entries;
-    return selector(state.entries);
-  });
-};
+export const useJournalEntries = () => useJournalStore((state) => state.entries);
+export const useJournalTree = () => useJournalStore((state) => state.tree);
+export const useJournalMetadata = () => useJournalStore((state) => state.metadata);
 
 /**
  * Actions Hook: Returns stable action functions.
- * Components using only this hook will NOT re-render on data changes.
- * 
- * Uses Stable Actions Pattern: state.actions is a single object reference
- * that never changes, preventing unnecessary re-renders.
  */
-export const useJournalActions = () => {
-  return useJournalStore((state) => state.actions);
-};
+export const useJournalActions = () => useJournalStore((state) => state.actions);

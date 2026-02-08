@@ -115,3 +115,12 @@ export interface JournalCacheInfo {
   lastFetched: number;
   isDirty?: boolean;
 }
+
+/**
+ * Persisted journal store snapshot.
+ */
+export interface JournalPersistedState {
+  entries: Record<string, JournalEntryData>;
+  tree: JournalTreeStructure;
+  metadata: Record<string, JournalCacheInfo>;
+}
