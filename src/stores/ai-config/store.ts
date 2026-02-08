@@ -81,6 +81,16 @@ export const useAiConfigStore = create<AIConfigStoreState>()(
       name: 'ai-config-store-v1',
       storage: indexedDBStorage,
       version: 1,
+      // 🚨 CRITICAL: partialize = data whitelist (zero-function persistence)
+      partialize: (state) => ({
+        config: state.config,
+      }),
+      // Merge function: prioritize code's actions over any persisted junk
+      merge: (persistedState: any, currentState: AIConfigStoreState) => ({
+        ...currentState,
+        ...persistedState,
+        actions: currentState.actions,
+      }),
       migrate: (state: any, version: number) => {
         if (version !== 1) {
           console.warn('[AI Config Store] Schema version mismatch - clearing persisted data');
