@@ -1,44 +1,68 @@
-# AI & Gamification Pipeline Strategy
+# AI Pipeline Strategy
 
-## Core Architecture: Gemini 3 Flash (Preview)
+**Last Updated:** February 7, 2026
 
-The system relies on a high-speed, deterministic "Neural Brain" using `gemini-3-flash-preview`. 
+## 1. Core Architecture: Model Fallback
 
-**Key Configuration:**
-- **Temperature:** 0.0 (Strict Determinism)
-- **Mode:** Single-Shot JSON Generation
-- **Goal:** Consistent semantic topology from unstructured text.
+The system runs on a **Primary → Fallback** strategy for all AI operations. This ensures that we can leverage the speed of experimental models (`gemini-3-flash-preview`) while maintaining the reliability of stable models (`gemini-2.0-flash`).
 
-## The Semantic Pipeline
+*   **Primary Model:** `gemini-3-flash-preview` (Fast, experimental)
+*   **Secondary Model:** `gemini-2.0-flash` (Stable, proven reliability)
+*   **Configuration:**
+    *   **Temperature:** 0.0 (Strict Determinism)
+    *   **Fallback Logic:** If primary fails or times out, the system seamlessly retries with the secondary model.
 
-The application transforms raw journal entries into a structured knowledge graph (Concept DAG) through a 3-layer definition process:
+## 2. The Semantic Analysis Pipeline
 
-1.  **Action Extraction**: Identifies repeatable verb-based activities (e.g., "coding", "running").
-2.  **Skill Mapping**: Groups actions into trainable competencies (e.g., "Software Engineering", "Athletics").
-3.  **Attribute Characterization**: Maps skills to 7 core human attributes:
-    *   **Vitality** (Physical)
-    *   **Intellect** (Mental)
-    *   **Wisdom** (Metacognitive)
-    *   **Social** (Interpersonal)
-    *   **Discipline** (Executive Function)
-    *   **Creativity** (Generative)
-    *   **Leadership** (Strategic)
+The primary function of the AI is to convert unstructured journal text into a structured semantic knowledge graph. This is achieved through a **Single-Pass Topology** prompt.
 
-## Optimization: The "Stuffed Prompt" Strategy
+### Single-Prompt Optimization
+Instead of making multiple API calls, we use one highly optimized "Stuffed Prompt" that performs multiple classification tasks simultaneously:
 
-To reduce latency and API round-trips, we use a **Single-Prompt Topology** approach. Instead of 4 separate chained calls, a single consolidated prompt instructs the model to perform all classification steps in one pass.
+1.  **Action Extraction**: Identifies 1-5 broad gerund-based actions (e.g., "Debugging", "Running").
+2.  **Duration Estimation**: Extracts integer minutes from natural language time references.
+3.  **Skill Mapping**: Maps actions to parent skills (e.g., Debugging → Software Engineering).
+4.  **Attribute mapping**: Maps skills to 7 core RPG-style attributes (Vitality, Intellect, etc.).
+5.  **Generalization**: (Optional) builds a vertical abstraction chain up to the "progression" root node.
 
-### Prompt constraints for performance:
-- **Conciseness**: Instructions are stripped of conversational filler.
-- **Structured Output**: Enforced via JSON schema.
-- **Explicit Mappings**: The model must return parent-child relationships explicitly to build the graph edges.
-- **Validation**: Weights must sum to 1.0; duration must be an integer.
+**Key Implementation File:**
+See `SINGLE_PROMPT_TOPOLOGY_PROMPT` in [src/lib/google-ai/config/stuffed-prompt.ts](../../src/lib/google-ai/config/stuffed-prompt.ts).
 
-## Gamification Logic (Experience Propagation)
+### Analysis Execution Logic
+The execution logic resides in `text-to-topology.ts`. It handles the model fallback loop and sets aggressive timeouts (45s per attempt) to ensure the UI remains responsive even if the primary model hangs.
 
-1.  **Injection**: User time (Duration) is converted to EXP (30 mins = 1.0 EXP).
-2.  **Propagation**: EXP flows from Actions → Skills → Attributes.
-3.  **Path-Weighted Averaging**: If a node has multiple parents, EXP is averaged to prevent inflation.
-4.  **Progression Root**: All paths terminate at the "progression" node, measuring total lifetime growth.
+**Key Implementation File:**
+See `processTextToLocalTopologySinglePrompt` in [src/lib/google-ai/utils/single-prompt/text-to-topology.ts](../../src/lib/google-ai/utils/single-prompt/text-to-topology.ts).
 
-For more details on the legacy architecture, see `../ai-and-gamification.md`.
+## 3. Voice Transcription Pipeline
+
+The system uses a dedicated pipeline for processing WebM audio blobs directly from the browser's `MediaRecorder`.
+
+### Workflow
+1.  **Capture**: Browser records audio blobs.
+2.  **Upload**: Complete blob is sent to Gemini (Batch Mode).
+3.  **Fallback**: Attempts `gemini-3-flash-preview` first, falling back to `gemini-2.0-flash`.
+4.  **Output**: Returns raw text for subsequent semantic analysis.
+
+**Key Implementation File:**
+See `transcribeWebmAudio` in [src/lib/google-ai/utils/transcribe-webm-audio.ts](../../src/lib/google-ai/utils/transcribe-webm-audio.ts).
+
+## 4. Prompt Injection Safety
+
+To prevent "prompt injection" failures where user input (like quotes or newlines) breaks the JSON instruction set, all user content is strictly serialized before being injected into prompt templates.
+
+**Pattern Used:**
+```typescript
+// Safe Injection Pattern
+contents: SINGLE_PROMPT_TOPOLOGY_PROMPT(JSON.stringify(userText))
+```
+
+## 5. Gamification Rules (Experience Propagation)
+
+The AI's semantic graph output directly drives the gamification engine:
+
+1.  **Time = EXP**: 30 minutes of effort ≈ 1.0 Experience Point.
+2.  **Flow**: EXP flows upwards from Actions → Skills → Attributes → Progression.
+3.  **Weighting**: If an action is mapped to multiple skills, EXP is split or averaged based on edge weights defined by the AI.
+
+This creates a deterministic "Neural Brain" where identical journal entries consistently result in identical stat growth.
