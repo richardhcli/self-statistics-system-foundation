@@ -7,6 +7,19 @@
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
+## Finished: 
+### Summary: 
+All journal refactor changes are complete: the read-aside storage architecture is fully wired (Firebase read side, store/cache, orchestrator pipeline, and migration), UI integration is stable (default day expansion, auto-analysis for manual entries, resilient processing states), voice transcription has a reliable fallback, and documentation has been consolidated into the AI overview and human reference.
+
+
+### Fixes: 
+- **Data Integrity**: Guarded against Firestore `undefined` errors by ensuring `metadata.duration` is omitted if not present.
+- **Reliable Transcription**: Added Web Speech API fallback for voice entries to prevent "stuck" processing if Gemini fails.
+- **UX Optimization**: Updated default view to expand only the current day; automated AI analysis for manual text entries.
+- **Responsive Layout**: Implemented a sticky dual-column layout for desktop and a stacked vertical layout for mobile in `JournalFeature`.
+- **UI Feedback**: Improved `JournalEntryItem` processing states and kept `ManualEntryForm` submit button active during background tasks.
+- **Documentation**: Consolidated fragmented docs into a single AI Overview and a comprehensive Human Reference, replacing code snippets with direct file links.
+
 ---
 
 ## 🛑 Feature Specifics (Journal)
