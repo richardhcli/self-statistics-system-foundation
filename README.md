@@ -2,6 +2,8 @@
 
 Journal & Graph AI is a high-fidelity personal growth platform that transforms unstructured thoughts and voice recordings into a structured, hierarchical knowledge base. It leverages the **Google Gemini API** to classify human effort and visualizes progress through a stable **Directed Acyclic Graph (DAG)**.
 
+Project URL: https://self-statistics-system-v1.web.app
+
 ## 🚀 Core Philosophy & Mechanics
 
 ### 1. The 3-Layer Semantic Pipeline
