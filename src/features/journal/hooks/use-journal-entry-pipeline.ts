@@ -7,7 +7,6 @@ import { useCallback } from 'react';
 import { arrayUnion, increment } from 'firebase/firestore';
 import { transcribeWebmAudio } from '@/lib/google-ai';
 import {
-  appendEntryToTree,
   createEntryBatch,
   incrementTreeTotals,
   updateJournalEntry,
@@ -202,10 +201,13 @@ export const useJournalEntryPipeline = () => {
    * Manual entry flow: Draft -> Analyze (or manual actions if provided).
    */
   const processManualEntry = useCallback(
-    async (text: string, options?: { duration?: string; useAI?: boolean; actions?: string[] }) => {
-      const { duration, useAI = true, actions = [] } = options ?? {};
+    async (
+      text: string,
+      options?: { duration?: string; useAI?: boolean; actions?: string[]; date?: Date }
+    ) => {
+      const { duration, useAI = true, actions = [], date } = options ?? {};
       const uid = requireUserId();
-      const entryId = generateEntryId();
+      const entryId = generateEntryId(date);
       const draft = buildDraftEntry(entryId, text, useAI ? 'PENDING_ANALYSIS' : 'DRAFT', duration);
 
       journalActions.optimisticAdd(draft);
@@ -262,9 +264,9 @@ export const useJournalEntryPipeline = () => {
    * Quick log flow: Draft only (no analysis).
    */
   const processQuickLog = useCallback(
-    async (text: string) => {
+    async (text: string, date?: Date) => {
       const uid = requireUserId();
-      const entryId = generateEntryId();
+      const entryId = generateEntryId(date);
       const draft = buildDraftEntry(entryId, text, 'DRAFT');
 
       journalActions.optimisticAdd(draft);

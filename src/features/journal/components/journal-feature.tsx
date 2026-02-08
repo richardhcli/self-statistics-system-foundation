@@ -179,7 +179,6 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
           onSubmit={handleDetailedManualEntry} 
           isProcessing={isProcessing}
           initialText={voiceTranscriptionText}
-          onTextChange={setVoiceTranscriptionText}
         />
       </div>
 

@@ -7,17 +7,17 @@ import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
 /**
  * ManualEntryForm Component
  * 
- * Journal entry form for manual text input using unified progressive pipeline.
+ * Journal entry form for manual text input using the unified entry pipeline.
  * 
  * **Progressive Pipeline Integration:**
  * Uses three-stage entry creation internally:
- * 1. Creates dummy entry with user's actual text (isDummyContent=false)
+ * 1. Creates draft entry with user's actual text
  * 2. Content already filled (Stage 2 skipped internally)
  * 3. Triggers AI analysis immediately in background
  * 
  * **Hybrid Strategy:**
- * - Dummy entry display suppressed by parent (initialText already filled)
- * - Progressive pipeline runs internally (user sees immediate confirmation)
+ * - Draft entry display suppressed by parent (initialText already filled)
+ * - Unified pipeline runs internally (user sees immediate confirmation)
  * - AI analysis completes in background (user continues using app)
  * 
  * **Voice Integration:**
@@ -33,7 +33,7 @@ import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
  * 1. User types or pastes text
  * 2. User optionally adds duration
  * 3. User clicks "Submit Entry"
- * 4. Pipeline Stage 1: Create dummy with user's text + duration
+ * 4. Pipeline Stage 1: Create draft with user's text + duration
  * 5. Pipeline Stage 3: Trigger AI analysis immediately
  * 6. Parent's onSubmit callback called for integration events
  * 
@@ -43,8 +43,7 @@ import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ 
   onSubmit, 
   isProcessing, 
-  initialText = '',
-  onTextChange 
+  initialText = ''
 }) => {
   const { processManualEntry } = useJournalEntryPipeline();
   const [content, setContent] = useState(initialText);
@@ -52,13 +51,9 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
 
   /**
    * Handles textarea content changes.
-   * Syncs with parent component for voice transcription flow.
    */
   const handleContentChange = (value: string) => {
     setContent(value);
-    if (onTextChange) {
-      onTextChange(value);
-    }
   };
 
   // Track last appended transcription to avoid duplicates

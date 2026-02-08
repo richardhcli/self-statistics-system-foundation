@@ -140,7 +140,6 @@ export interface EntryResultsProps {
  * 
  * **Voice Integration:**
  * - `initialText` pre-populated from voice "To Text" button
- * - `onTextChange` syncs textarea content with parent component
  * - User can edit before submitting
  * 
  * **Local State:**
@@ -150,7 +149,6 @@ export interface EntryResultsProps {
  * @property {function} onSubmit - Callback with form data (content, duration)
  * @property {boolean} isProcessing - Loading state during submission
  * @property {string} [initialText] - Pre-populated text from voice transcription
- * @property {function} [onTextChange] - Callback when textarea content changes
  * @property {string} feedbackMessage - User feedback message (LOCAL STATE)
  * @property {function} setFeedbackMessage - Update feedback message
  */
@@ -161,7 +159,6 @@ export interface ManualEntryFormProps {
   }) => void;
   isProcessing: boolean;
   initialText?: string;
-  onTextChange?: (text: string) => void;
 }
 
 // ============================================================
