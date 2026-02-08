@@ -39,8 +39,8 @@ const DatastoresView: React.FC = () => {
       <div className="max-w-6xl mx-auto space-y-6 p-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <DatastoresConsole entries={entries} />
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <LocalDatastoreView />
           <DatabaseView onLog={handleLog} />
+          <LocalDatastoreView />
         </div>
       </div>
     </div>
