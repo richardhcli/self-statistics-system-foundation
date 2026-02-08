@@ -39,12 +39,12 @@ export const initDB = (): Promise<IDBDatabase> => {
       const db = (event.target as IDBOpenDBRequest).result;
       
       // Clean up old stores from previous versions
-      const storeNames = ['appData', 'cdagTopology', 'playerStatistics', 'userInformation', 'visualGraph'];
-      storeNames.forEach(name => {
-        if (db.objectStoreNames.contains(name)) {
-          db.deleteObjectStore(name);
-        }
-      });
+      // const storeNames = ['appData', 'cdagTopology', 'playerStatistics', 'userInformation', 'visualGraph'];
+      // storeNames.forEach(name => {
+      //   if (db.objectStoreNames.contains(name)) {
+      //     db.deleteObjectStore(name);
+      //   }
+      // });
       
       // Create single root state store
       if (!db.objectStoreNames.contains(STORE_NAME)) {

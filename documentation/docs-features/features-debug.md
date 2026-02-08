@@ -4,7 +4,7 @@ The Debug Console provides low-level access to the application's engine and pers
 
 ## Routing
 - Base route: `/app/debug`
-- Sub-routes: `/app/debug/console`, `/app/debug/graph`, `/app/debug/manual-journal-entry`, `/app/debug/authentication`
+- Sub-routes: `/app/debug/console`, `/app/debug/graph`, `/app/debug/manual-journal-entry`, `/app/debug/datastores`, `/app/debug/authentication`
 - Layout: [src/features/debug/components/debug-view.tsx](../../src/features/debug/components/debug-view.tsx) renders the tab bar and an `Outlet` for nested panels.
 
 ## Architecture Compliance
@@ -97,6 +97,14 @@ Displays private authentication diagnostics for the active session.
 - UID, email, display name, photo URL
 - Provider metadata and sign-in timestamps
 - `AuthProvider` loading/timeout state
+
+### 6. DatastoresView
+**File:** [src/features/debug/components/datastores-view.tsx](../../src/features/debug/components/datastores-view.tsx)
+
+Split debug view for local and backend datastore tooling. Includes:
+- Console feed: [src/features/debug/components/datastores-console.tsx](../../src/features/debug/components/datastores-console.tsx)
+- Local datastore panel: [src/features/debug/components/local-datastore-view.tsx](../../src/features/debug/components/local-datastore-view.tsx)
+- Backend datastore panel: [src/features/debug/components/database-view.tsx](../../src/features/debug/components/database-view.tsx)
 
 ## Tools
 - **Batch Data Injection**:

@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
  * Architecture: Local-First, Sync-Behind
  * - Read Flow: UI reads from Zustand (hydrated from IndexedDB immediately)
  * - Write Flow: UI → Zustand → IndexedDB (automatic, non-blocking)
- * - Sync: Backend sync happens independently (future implementation)
+ * - Sync: Backend sync happens independently (debug tools or future orchestrators)
  * 
  * No manual IndexedDB serialization needed - the persist middleware handles it.
  * Each store persists independently to IndexedDB with automatic version management.

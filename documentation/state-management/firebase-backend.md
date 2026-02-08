@@ -13,6 +13,10 @@ Firebase provides authentication and cloud persistence for user profile + settin
 - **Config**: [src/lib/firebase/services.ts](../../src/lib/firebase/services.ts)
 
 ### Firestore Schema (Current)
+ALWAYS USE snake_case for collection and document names! For key names, use camelCase!
+
+TODO: refactor: change collection and document names from kebab-case to snake_case. 
+
 ```
 users/{uid}
 	displayName
@@ -54,6 +58,12 @@ users/{uid}
 	user-information/
 		profile-display
 			class
+	journal_meta/
+		tree_structure
+			...
+	journal_entries/
+		YYYYMMDD-HHmmss-suffix
+	
 ```
 
 ## features:

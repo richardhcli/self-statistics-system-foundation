@@ -5,10 +5,8 @@ import DebugHeader from "./debug-header";
 import SystemLog from "./system-log";
 import DirectInput from "./direct-input";
 import TopologyManager from "./topology-manager";
-import PersistenceView from "./persistence-view";
 import PlayerStatsView from "./player-stats-view";
 import BrowserInfoView from "./browser-info-view";
-import DataInjectionPanel from "./data-injection-panel";
 
 /**
  * DebugConsolePanel
@@ -17,7 +15,7 @@ import DataInjectionPanel from "./data-injection-panel";
  * This panel is URL-routed under /app/debug/console.
  * 
  * Responsibilities:
- * - Render debug utilities (logs, data injection, stats, persistence)
+ * - Render debug utilities (logs, stats, topology, environment)
  * - Read-only access to stores for diagnostics
  * 
  * @returns JSX.Element
@@ -45,12 +43,10 @@ const DebugConsolePanel: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           <SystemLog />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <DataInjectionPanel />
             <DirectInput nodeLabels={nodeLabels} recordExperience={recordExperience} />
           </div>
           <PlayerStatsView stats={stats} />
           <TopologyManager />
-          <PersistenceView />
           <BrowserInfoView />
         </div>
       </div>

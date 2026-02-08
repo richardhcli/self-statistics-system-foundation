@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import { Edit3, Network, ShieldCheck, Terminal } from "lucide-react";
+import { Database, Edit3, Network, ShieldCheck, Terminal } from "lucide-react";
 import { HorizontalTabNav, useTabNavigation } from "@/components/tabs";
 import type { TabConfig } from "@/components/tabs";
 
@@ -15,10 +15,11 @@ import type { TabConfig } from "@/components/tabs";
  * @returns {JSX.Element} Debug view with tabbed interface
  */
 const DebugView: React.FC = () => {
-  const tabs: TabConfig<"console" | "graph" | "manual-journal-entry" | "authentication">[] = [
+  const tabs: TabConfig<"console" | "graph" | "manual-journal-entry" | "datastores" | "authentication">[] = [
     { id: "console", icon: Terminal, label: "Debug Console", path: "console" },
     { id: "graph", icon: Network, label: "Graph Editor", path: "graph" },
     { id: "manual-journal-entry", icon: Edit3, label: "Manual Journal Entry", path: "manual-journal-entry" },
+    { id: "datastores", icon: Database, label: "Datastores", path: "datastores" },
     { id: "authentication", icon: ShieldCheck, label: "Authentication", path: "authentication" },
   ];
 
