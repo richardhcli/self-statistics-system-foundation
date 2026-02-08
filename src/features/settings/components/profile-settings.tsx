@@ -101,15 +101,15 @@ const ProfileSettings: React.FC = () => {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Google Account</p>
             <div className="mt-4 flex items-center gap-4">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-200">
-                {profile?.photoURL ? (
+                {profile?.photoURL || user?.photoURL ? (
                   <img
-                    src={profile.photoURL}
-                    alt={profile.displayName || "User"}
+                    src={profile?.photoURL || user?.photoURL || "/default-avatar.png"}
+                    alt={profile?.displayName || user?.displayName || "User"}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-500 font-black">
-                    {profile?.displayName?.charAt(0) ?? "?"}
+                    {profile?.displayName?.charAt(0) ?? user?.displayName?.charAt(0) ?? "?"}
                   </div>
                 )}
               </div>

@@ -19,18 +19,24 @@ Authentication is handled via Firebase Authentication with Google as the identit
 - **Access Hook**: `useAuth()` returns `{ user, loading, hasTimedOut }`
 - **Observer**: `onAuthStateChanged(auth, ...)` tracks authentication state
 
-### User Flow
-1. User visits `/auth/login` and sees [AuthView](../../src/features/auth/components/auth-view.tsx)
-2. User clicks "Sign in with Google" button
-3. Firebase authentication popup appears
-4. On success, Firestore user profile is created (if new user) and account-config defaults are seeded
-5. `AuthProvider` updates global auth state
-6. User is automatically redirected to `/app`
+### Intended Causal Flow
+1. User visits `/auth/login` and sees [AuthView](../../src/features/auth/components/auth-view.tsx).
+2. User clicks "Sign in with Google" in [LoginForm](../../src/features/auth/components/log-in-form.tsx).
+3. `loginWithGoogle()` runs the Firebase popup flow and returns a Firebase `User`.
+4. `syncUserProfile(user)` writes `users/{uid}` and seeds `account-config/*` (first login only).
+5. `AuthProvider` listens to `onAuthStateChanged(auth, ...)` and publishes `{ user, loading, hasTimedOut }`.
+6. `ProtectedRoute` gates `/app/*` routes based on the auth state.
+7. Feature UIs read `useAuth()` and load Firestore data (profile, settings, journal tree, etc).
 
 ### Route Protection
 - **Protected routes**: All `/app/*` paths
 - **Gatekeeper**: [ProtectedRoute](../../src/routes/protected-route.tsx) component
 - **Redirect**: Unauthenticated users sent to `/auth/login`
+
+### Debugging
+- **Auth diagnostics tab**: `/app/debug/authentication`
+- **UI component**: [AuthenticationView](../../src/features/debug/components/authentication-view.tsx)
+- Displays private session state (UID, provider data, metadata) for troubleshooting.
 
 ---
 

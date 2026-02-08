@@ -4,7 +4,7 @@ The Debug Console provides low-level access to the application's engine and pers
 
 ## Routing
 - Base route: `/app/debug`
-- Sub-routes: `/app/debug/console`, `/app/debug/graph`, `/app/debug/manual-journal-entry`
+- Sub-routes: `/app/debug/console`, `/app/debug/graph`, `/app/debug/manual-journal-entry`, `/app/debug/authentication`
 - Layout: [src/features/debug/components/debug-view.tsx](../../src/features/debug/components/debug-view.tsx) renders the tab bar and an `Outlet` for nested panels.
 
 ## Architecture Compliance
@@ -87,6 +87,16 @@ Batch data injection utilities for testing.
 - `injectSampleJournalEntries()` - Adds mock journal data
 - `injectSampleTopology()` - Creates sample graph structure
 - `injectSamplePlayerStats()` - Injects XP values
+
+### 5. AuthenticationView
+**File:** `src/features/debug/components/authentication-view.tsx`
+
+Displays private authentication diagnostics for the active session.
+
+**Fields:**
+- UID, email, display name, photo URL
+- Provider metadata and sign-in timestamps
+- `AuthProvider` loading/timeout state
 
 ## Tools
 - **Batch Data Injection**:

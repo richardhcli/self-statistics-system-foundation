@@ -7,7 +7,7 @@ import { getDateFromId } from '../utils/id-generator';
 import { useCachedFetch } from '../hooks/use-cached-fetch';
 
 
-const JournalView: React.FC<JournalViewProps> = ({ tree, entries, onAddManualEntry, onParseEntry, processingEntries, feedbackMessage }) => {
+const JournalView: React.FC<JournalViewProps> = ({ tree, entries, isTreeReady, onAddManualEntry, onParseEntry, processingEntries, feedbackMessage }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
   const [manualText, setManualText] = useState('');
@@ -61,7 +61,23 @@ const JournalView: React.FC<JournalViewProps> = ({ tree, entries, onAddManualEnt
     setAddingToDay(null);
   };
 
-  if (years.length === 0) return <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-6 text-center"><Loader2 className="w-12 h-12 mb-2 animate-spin opacity-20" /><p>Initializing...</p></div>;
+  if (!isTreeReady) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-6 text-center">
+        <Loader2 className="w-12 h-12 mb-2 animate-spin opacity-20" />
+        <p>Initializing...</p>
+      </div>
+    );
+  }
+
+  if (years.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-6 text-center">
+        <p className="text-sm font-semibold">No journal entries yet.</p>
+        <p className="text-xs">Create your first entry to populate the timeline.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 journal-scroll-area">

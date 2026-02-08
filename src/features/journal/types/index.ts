@@ -235,6 +235,7 @@ export interface VoiceRecorderProps {
  * 
  * @property {JournalTreeStructure} tree - Lightweight tree index (GLOBAL CACHE)
  * @property {Record<string, JournalEntryData>} entries - Normalized entry map (GLOBAL CACHE)
+ * @property {boolean} isTreeReady - True once the tree subscription resolves (LOCAL STATE)
  * @property {function} onAddManualEntry - Callback to add entry at a specific date
  * @property {function} onParseEntry - Callback to trigger AI analysis for specific entry
  * @property {ProcessingEntries} processingEntries - Local state: IDs of entries being analyzed
@@ -243,6 +244,7 @@ export interface VoiceRecorderProps {
 export interface JournalViewProps {
   tree: JournalTreeStructure;
   entries: Record<string, JournalEntryData>;
+  isTreeReady: boolean;
   onAddManualEntry: (content: string, date?: Date) => void;
   onParseEntry: (entryId: string) => void;
   processingEntries: ProcessingEntries;  // LOCAL STATE

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useJournalEntryPipeline } from '@/features/journal/hooks/use-journal-entry-pipeline';
-import { useJournalEntries, useJournalTree } from '@/stores/journal';
+import { useJournalActions, useJournalEntries, useJournalTree } from '@/stores/journal';
 import { JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder/voice-recorder';
 import { runJournalMigration } from '@/stores/journal/migration';
+import { subscribeToTree } from '@/lib/firebase/journal';
+import { useAuth } from '@/providers/auth-provider';
 
 /**
  * JournalFeature - Main journal container with dual submission flows.
@@ -44,17 +46,42 @@ import { runJournalMigration } from '@/stores/journal/migration';
 const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) => {
   const entries = useJournalEntries();
   const tree = useJournalTree();
+  const { setTree } = useJournalActions();
   const { processQuickLog, retryAnalysis } = useJournalEntryPipeline();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceTranscriptionText, setVoiceTranscriptionText] = useState('');
   const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [isTreeReady, setIsTreeReady] = useState(false);
 
   useEffect(() => {
     runJournalMigration().catch((error) => {
       console.warn('[JournalFeature] Journal migration failed:', error);
     });
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setIsTreeReady(false);
+      return;
+    }
+
+    setIsTreeReady(false);
+    const unsubscribe = subscribeToTree(
+      user.uid,
+      (nextTree) => {
+        setTree(nextTree);
+        setIsTreeReady(true);
+      },
+      (error) => {
+        console.warn('[JournalFeature] Tree subscription failed:', error);
+        setIsTreeReady(true);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [setTree, user?.uid]);
 
   /**
    * Handle "To Text" button from voice recorder.
@@ -187,6 +214,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
         <JournalView 
           tree={tree}
           entries={entries}
+          isTreeReady={isTreeReady}
           onAddManualEntry={handleManualQuickEntry}
           onParseEntry={handleParseEntry}
           processingEntries={processingEntries}
