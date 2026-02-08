@@ -10,6 +10,7 @@ export { default as ManualEntryForm } from './components/manual-entry-form';
 // Utils and API
 export * from './utils/journal-entry-utils';
 export * from './hooks/use-journal-entry-pipeline';
+export * from './hooks/use-cached-fetch';
 export * from './api/get-journal';
 export * from './api/update-journal';
 

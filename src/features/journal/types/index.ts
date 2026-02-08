@@ -193,7 +193,7 @@ export type { TextToActionResponse, WeightedAction };
  *    - Hook calls onProcessingStateChange for parent to track AI analysis state
  *
  * 2. Manual review ("To Text" button):
- *    - User clicks button → Gemini batch transcription → onToTextReview callback
+ *    - User clicks button → Web Speech preview text → onToTextReview callback
  *    - Parent populates textarea for user review and editing
  *
  * **Processing State Tracking:**
@@ -217,7 +217,7 @@ export interface VoiceRecorderProps {
   
   /**
    * Callback for tracking AI analysis processing state per entry.
-  * Called by useJournalEntryPipeline when AI analysis starts/ends.
+   * Called by useJournalEntryPipeline when AI analysis starts/ends.
    * Parent should use this to update processingEntries Set for "Analyzing..." button state.
    * 
    * **LOCAL STATE:** Transient UI state (cleared after AI analysis completes)

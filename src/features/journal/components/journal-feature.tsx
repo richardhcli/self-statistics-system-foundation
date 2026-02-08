@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useJournalEntryPipeline } from '@/features/journal/hooks/use-journal-entry-pipeline';
 import { useJournalEntries, useJournalTree } from '@/stores/journal';
 import { JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder/voice-recorder';
+import { runJournalMigration } from '@/stores/journal/migration';
 
 /**
  * JournalFeature - Main journal container with dual submission flows.
@@ -49,6 +50,12 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
+  useEffect(() => {
+    runJournalMigration().catch((error) => {
+      console.warn('[JournalFeature] Journal migration failed:', error);
+    });
+  }, []);
+
   /**
    * Handle "To Text" button from voice recorder.
    * Populates textarea with transcribed text for user review/editing.
@@ -83,7 +90,7 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
 
     setIsProcessing(true);
     try { 
-      await processQuickLog(content);
+      await processQuickLog(content, date);
     } finally { 
       setIsProcessing(false); 
     }

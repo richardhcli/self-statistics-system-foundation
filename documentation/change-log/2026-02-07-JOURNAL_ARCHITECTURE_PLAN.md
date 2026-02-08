@@ -3,7 +3,7 @@
 **Date**: February 7, 2026
 **Merged from**: `journal-blueprint.md`
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Phase 4 Complete
+**Status**: Phase 6 Complete
 
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
@@ -182,35 +182,21 @@ const processVoiceEntry = async (audioBlob: Blob) => {
 
 ---
 
-## Phase 5: UI Integration
+## Phase 5: UI Integration (Complete)
 
-### 5.1. Smart Fetch Hook (`useCachedFetch`)
-*   **Logic**:
-    ```typescript
-    const useJournalEntries = (year, month) => {
-      const cacheKey = `${year}-${month}`;
-      const lastFetched = metadata[cacheKey]?.lastFetched || 0;
-      const isStale = (Date.now() - lastFetched) > (1000 * 60 * 5); // 5 mins
+### 5.1. Smart Fetch Hook (`useCachedFetch`) (Complete)
+*   **File**: `src/features/journal/hooks/use-cached-fetch.ts`
+*   **Behavior**: Watches expanded months and triggers `fetchMonthEntries` only on cache miss.
 
-      useEffect(() => {
-        if (!metadata[cacheKey] || isStale) {
-          fetchEntries(year, month);
-        }
-      }, [year, month]);
-      
-      return getEntriesForMonth(entries, year, month);
-    };
-    ```
-
-### 5.2. Component Refactor
-*   **JournalView**: Renders `tree` (Lightweight).
-*   **MonthContainer**: Rendered by View. Calls `useCachedFetch` on mount.
-*   **EntryItem**: Atomic component. Uses `useFeatureItem(id)`.
+### 5.2. Component Refactor (Complete)
+*   **JournalView**: Renders `tree` and calls `useCachedFetch` for expanded months.
+*   **EntryItem**: Atomic component renders from normalized `entries` map.
 
 ---
 
-## Phase 6: Migration Utility
+## Phase 6: Migration Utility (Complete)
 
 ### 6.1. Wipe & Reset
-*   **Script**: One-time utility to purge legacy `YYYY/MM/DD` IDB keys.
-*   **Trigger**: Run on app boot if "v2_migration_complete" flag is missing.
+*   **File**: `src/stores/journal/migration.ts`
+*   **Behavior**: Removes legacy `journal-store-v1` and `journal-store-v2` keys and marks completion.
+*   **Trigger**: Runs on JournalFeature boot if migration flag is missing.

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useCreateJournalEntry } from "@/features/journal/hooks/create-entry";
+import { useJournalEntryPipeline } from "@/features/journal/hooks/use-journal-entry-pipeline";
 import DebuggingManualJournalEntryForm from "./debugging-manual-journal-entry-form";
 
 /**
@@ -16,7 +16,7 @@ import DebuggingManualJournalEntryForm from "./debugging-manual-journal-entry-fo
  */
 const DebugManualJournalEntryPanel: React.FC = () => {
   const [isDebugEntryProcessing, setIsDebugEntryProcessing] = useState(false);
-  const createJournalEntry = useCreateJournalEntry();
+  const { processManualEntry } = useJournalEntryPipeline();
 
   /**
    * Handles debug manual journal entries with direct action tags.
@@ -33,12 +33,10 @@ const DebugManualJournalEntryPanel: React.FC = () => {
   }) => {
     setIsDebugEntryProcessing(true);
     try {
-      await createJournalEntry({
-        entry: payload.content,
+      await processManualEntry(payload.content, {
         actions: payload.actions,
         useAI: payload.useAI,
         duration: payload.duration,
-        dateInfo: payload.time ? { time: payload.time } : undefined,
       });
     } finally {
       setIsDebugEntryProcessing(false);

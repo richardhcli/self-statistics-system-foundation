@@ -7,7 +7,7 @@ import {
   arrayUnion,
   collection,
   doc,
-  FieldPath,
+  documentId,
   getDocs,
   increment,
   onSnapshot,
@@ -150,8 +150,8 @@ export const fetchMonthEntries = async (
 
   const entriesQuery = query(
     entriesRef,
-    where(FieldPath.documentId(), ">=", start),
-    where(FieldPath.documentId(), "<", end)
+    where(documentId(), ">=", start),
+    where(documentId(), "<", end)
   );
 
   const snapshot = await getDocs(entriesQuery);

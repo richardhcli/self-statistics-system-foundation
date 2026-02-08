@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { JournalViewProps } from '../types';
 import { ChevronRight, ChevronDown, Plus, Loader2 } from 'lucide-react';
 import JournalEntryItem from './journal-entry-item/index';
 import TextOnlyManualEntryForm from './textonly-manual-entry-form';
 import { getDateFromId } from '../utils/id-generator';
+import { useCachedFetch } from '../hooks/use-cached-fetch';
 
 
 const JournalView: React.FC<JournalViewProps> = ({ tree, entries, onAddManualEntry, onParseEntry, processingEntries, feedbackMessage }) => {
@@ -29,6 +30,23 @@ const JournalView: React.FC<JournalViewProps> = ({ tree, entries, onAddManualEnt
   const toggleExpanded = (path: string) => {
     setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
   };
+
+  const expandedMonths = useMemo(() => {
+    const months: Array<{ year: string; month: string }> = [];
+    Object.entries(expanded).forEach(([key, isOpen]) => {
+      if (!isOpen) return;
+      const parts = key.split('-');
+      if (parts.length === 2) {
+        const [year, month] = parts;
+        if (tree[year]?.months?.[month]) {
+          months.push({ year, month });
+        }
+      }
+    });
+    return months;
+  }, [expanded, tree]);
+
+  useCachedFetch(expandedMonths);
 
   // Chronological sort: earliest year first
   const years = Object.keys(tree).sort();

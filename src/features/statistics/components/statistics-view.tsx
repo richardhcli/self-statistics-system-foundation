@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { useJournal } from '@/stores/journal';
+import { useJournalEntries, useJournalTree } from '@/stores/journal';
 import { useGraphNodes } from '@/stores/cdag-topology';
 import { usePlayerStatistics } from '@/stores/player-statistics';
 import { useUserInformation } from '@/stores/user-information';
@@ -16,7 +16,8 @@ type TabType = 'player-status' | 'all-statistics';
 
 const StatisticsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('player-status');
-  const journal = useJournal();
+  const entries = useJournalEntries();
+  const tree = useJournalTree();
   const nodes = useGraphNodes();
   const playerStatistics = usePlayerStatistics();
   const userInformation = useUserInformation();
@@ -38,33 +39,22 @@ const StatisticsView: React.FC = () => {
     };
     
     // Aggregation Logic for UI Stats
-    Object.keys(journal).forEach(y => {
-      if (y === 'metadata') return;
-      Object.keys(journal[y]).forEach(m => {
-        if (m === 'metadata') return;
-        Object.keys(journal[y][m]).forEach(d => {
-          if (d === 'metadata') return;
-          Object.keys(journal[y][m][d]).forEach(t => {
-            if (t === 'metadata') return;
-            const entry = journal[y][m][d][t];
-            if (entry.content) totalEntries++;
-            
-            // Fix: Derived domain statistics from node increases in result instead of metadata
-            if (entry.result?.nodeIncreases) {
-              Object.keys(entry.result.nodeIncreases).forEach(nodeId => {
-                const nodeData = nodes[nodeId];
-                if (nodeData?.type === 'characteristic') {
-                  // Normalize keys for case-insensitive matching
-                  const match = Object.keys(domainCounts).find(k => k.toLowerCase() === nodeData.label.toLowerCase());
-                  if (match) {
-                    domainCounts[match] = (domainCounts[match] || 0) + 1;
-                  }
-                }
-              });
+    Object.values(entries).forEach((entry) => {
+      if (entry.content) totalEntries++;
+
+      if (entry.result?.nodeIncreases) {
+        Object.keys(entry.result.nodeIncreases).forEach((nodeId) => {
+          const nodeData = nodes[nodeId];
+          if (nodeData?.type === 'characteristic') {
+            const match = Object.keys(domainCounts).find(
+              (key) => key.toLowerCase() === nodeData.label.toLowerCase()
+            );
+            if (match) {
+              domainCounts[match] = (domainCounts[match] || 0) + 1;
             }
-          });
+          }
         });
-      });
+      }
     });
 
     const playerLevel = Math.floor(totalEntries / 5) + 1;
@@ -86,13 +76,15 @@ const StatisticsView: React.FC = () => {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
 
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    
+    const toDateParts = (dateObj: Date) => ({
+      year: dateObj.getFullYear().toString(),
+      month: String(dateObj.getMonth() + 1).padStart(2, '0'),
+      day: String(dateObj.getDate()).padStart(2, '0'),
+    });
+
     const getDateMeta = (dateObj: Date) => {
-      const y = dateObj.getFullYear().toString();
-      const m = monthNames[dateObj.getMonth()];
-      const d = dateObj.getDate().toString();
-      return journal[y]?.[m]?.[d]?.metadata?.totalExp || 0;
+      const { year, month, day } = toDateParts(dateObj);
+      return tree[year]?.months?.[month]?.days?.[day]?.totalExp || 0;
     };
 
     const expToday = getDateMeta(now);
@@ -112,7 +104,7 @@ const StatisticsView: React.FC = () => {
       highestExpNode: sortedByExp[0] || null,
       highestLevelNode: sortedByLevel[0] || null
     };
-  }, [journal, nodes, playerStatistics]);
+  }, [entries, nodes, playerStatistics, tree]);
 
   const toggleView = () => {
     setActiveTab(prev => prev === 'player-status' ? 'all-statistics' : 'player-status');
