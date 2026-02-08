@@ -190,11 +190,11 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 lg:items-start">
       {/* Left Sidebar - Input Controls */}
-      <div className="lg:col-span-1 space-y-6">
-        {/* Voice Recorder Card - Dual submission flows */}
-        <div className="sticky top-24">
+      <div className="lg:col-span-1 lg:sticky lg:top-24 lg:self-start">
+        <div className="space-y-6">
+          {/* Voice Recorder Card - Dual submission flows */}
           <VoiceRecorder 
             onToTextReview={handleVoiceToTextReview}
             onProcessingStateChange={(entryId, isProcessing) => {
@@ -209,29 +209,29 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
               });
             }}
           />
+          
+          {/* Manual Entry Form - Includes textarea for voice review */}
+          <ManualEntryForm 
+            onSubmit={handleDetailedManualEntry} 
+            isProcessing={isProcessing}
+            initialText={voiceTranscriptionText}
+            onProcessingStateChange={(entryId, isProcessing) => {
+              setProcessingEntries(prev => {
+                const next = new Set(prev);
+                if (isProcessing) {
+                  next.add(entryId);
+                } else {
+                  next.delete(entryId);
+                }
+                return next;
+              });
+            }}
+          />
         </div>
-        
-        {/* Manual Entry Form - Includes textarea for voice review */}
-        <ManualEntryForm 
-          onSubmit={handleDetailedManualEntry} 
-          isProcessing={isProcessing}
-          initialText={voiceTranscriptionText}
-          onProcessingStateChange={(entryId, isProcessing) => {
-            setProcessingEntries(prev => {
-              const next = new Set(prev);
-              if (isProcessing) {
-                next.add(entryId);
-              } else {
-                next.delete(entryId);
-              }
-              return next;
-            });
-          }}
-        />
       </div>
 
       {/* Right Content - Journal View */}
-      <div className="lg:col-span-2">
+      <div className="lg:col-span-2 lg:max-h-[calc(100vh-6rem)] lg:overflow-auto">
         <JournalView 
           tree={tree}
           entries={entries}

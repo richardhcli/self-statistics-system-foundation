@@ -27,6 +27,10 @@ Unified orchestrator: [src/features/journal/hooks/use-journal-entry-pipeline.ts]
 - **Entry item**: [src/features/journal/components/journal-entry-item/journal-entry-item.tsx](../../src/features/journal/components/journal-entry-item/journal-entry-item.tsx)
 - **Cache-aware fetch**: [src/features/journal/hooks/use-cached-fetch.ts](../../src/features/journal/hooks/use-cached-fetch.ts)
 
+## Layout Behavior
+- **Mobile**: Voice recorder → manual entry → journal view (stacked).
+- **Desktop**: Voice recorder and manual entry are sticky in the left column; journal view scrolls in the right column.
+
 ## Integration Notes
 - Requires authenticated user: `auth.currentUser.uid` for Firebase writes.
 - Tree structure assumes numeric month/day keys and sortable entry IDs.
