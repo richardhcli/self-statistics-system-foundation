@@ -5,7 +5,7 @@
 ## Entry Flows
 - **Voice auto-submit**: record -> stop -> transcribe (Gemini, fallback to Web Speech) -> analyze
 - **To-Text review**: record -> Web Speech preview -> edit -> submit
-- **Manual entry**: type -> submit -> analyze
+- **Manual entry**: type -> submit -> analyze automatically
 - **Quick log**: type -> save (no analysis)
 
 ## Core Files
@@ -24,3 +24,4 @@
 - **Entries missing**: ensure tree uses numeric month/day keys
 - **Cache stale**: trigger a month expand to fetch
 - **Stuck on transcribing**: Web Speech fallback should populate content when Gemini fails
+- **Analyze button missing**: entries show "Analyzing..." while processing in the background

@@ -20,6 +20,7 @@ import { minutesToText } from '../../utils/journal-entry-utils';
 const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProcessing, onParseEntry }) => {
   const [showResults, setShowResults] = useState(false);
   const isParsed = entry.metadata.flags.aiAnalyzed && Object.keys(entry.actions).length > 0;
+  const showProcessingButton = isProcessing;
   const hasResults = !!entry.result?.nodeIncreases;
   
   // Format the time string to HH:mm:ss
@@ -70,7 +71,16 @@ const JournalEntryItem: React.FC<JournalEntryItemProps> = ({ time, entry, isProc
 
           <div className="mt-auto pt-2 border-t border-slate-50 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              {isParsed ? (
+              {showProcessingButton ? (
+                <button
+                  onClick={onParseEntry}
+                  disabled={true}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all shadow-sm active:scale-95 bg-amber-50 text-amber-600 border-amber-200 opacity-75 cursor-wait"
+                >
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Analyzing...
+                </button>
+              ) : isParsed ? (
                 <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
                   {Object.entries(entry.actions).map(([action, weight], idx) => (
                     <span key={`action-${idx}`} className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase border border-indigo-100/50">

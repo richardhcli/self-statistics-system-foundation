@@ -16,15 +16,14 @@ const JournalView: React.FC<JournalViewProps> = ({ tree, entries, isTreeReady, o
   useEffect(() => {
     const now = new Date();
     const y = now.getFullYear().toString();
-    const m = monthNames[now.getMonth()];
-    const d = now.getDate().toString();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
     const dayPath = `${y}-${m}-${d}`;
-    setExpanded(prev => ({ 
-      ...prev, 
-      [y]: true, 
-      [`${y}-${m}`]: true, 
-      [dayPath]: true 
-    }));
+    setExpanded({
+      [y]: true,
+      [`${y}-${m}`]: true,
+      [dayPath]: true,
+    });
   }, []);
 
   const toggleExpanded = (path: string) => {

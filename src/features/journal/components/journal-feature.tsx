@@ -164,6 +164,11 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
     if (!entry?.content) return;
 
     setIsProcessing(true);
+    setProcessingEntries(prev => {
+      const next = new Set(prev);
+      next.add(entryId);
+      return next;
+    });
     try {
       await retryAnalysis(entryId);
 
@@ -176,6 +181,11 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
       }
     } finally {
       setIsProcessing(false);
+      setProcessingEntries(prev => {
+        const next = new Set(prev);
+        next.delete(entryId);
+        return next;
+      });
     }
   };
 
@@ -206,6 +216,17 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
           onSubmit={handleDetailedManualEntry} 
           isProcessing={isProcessing}
           initialText={voiceTranscriptionText}
+          onProcessingStateChange={(entryId, isProcessing) => {
+            setProcessingEntries(prev => {
+              const next = new Set(prev);
+              if (isProcessing) {
+                next.add(entryId);
+              } else {
+                next.delete(entryId);
+              }
+              return next;
+            });
+          }}
         />
       </div>
 

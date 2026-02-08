@@ -149,6 +149,7 @@ export interface EntryResultsProps {
  * @property {function} onSubmit - Callback with form data (content, duration)
  * @property {boolean} isProcessing - Loading state during submission
  * @property {string} [initialText] - Pre-populated text from voice transcription
+ * @property {function} [onProcessingStateChange] - Optional analysis state callback
  * @property {string} feedbackMessage - User feedback message (LOCAL STATE)
  * @property {function} setFeedbackMessage - Update feedback message
  */
@@ -159,6 +160,7 @@ export interface ManualEntryFormProps {
   }) => void;
   isProcessing: boolean;
   initialText?: string;
+  onProcessingStateChange?: (entryId: string, isProcessing: boolean) => void;
 }
 
 // ============================================================

@@ -214,7 +214,8 @@ export const useJournalEntryPipeline = () => {
   const processManualEntry = useCallback(
     async (
       text: string,
-      options?: { duration?: string; useAI?: boolean; actions?: string[]; date?: Date }
+      options?: { duration?: string; useAI?: boolean; actions?: string[]; date?: Date },
+      onProcessingStateChange?: (entryId: string, isProcessing: boolean) => void
     ) => {
       const { duration, useAI = true, actions = [], date } = options ?? {};
       const uid = requireUserId();
@@ -242,7 +243,16 @@ export const useJournalEntryPipeline = () => {
       });
 
       if (useAI) {
-        await runAnalysisPipeline(entryId, text, duration);
+        if (onProcessingStateChange) {
+          onProcessingStateChange(entryId, true);
+        }
+        try {
+          await runAnalysisPipeline(entryId, text, duration);
+        } finally {
+          if (onProcessingStateChange) {
+            onProcessingStateChange(entryId, false);
+          }
+        }
         return entryId;
       }
 

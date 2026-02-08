@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Type, Hourglass, Send, Loader2 } from 'lucide-react';
+import { Type, Hourglass, Send } from 'lucide-react';
 import { ManualEntryFormProps } from '../types';
 import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
 
@@ -42,8 +42,9 @@ import { useJournalEntryPipeline } from '../hooks/use-journal-entry-pipeline';
  */
 const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ 
   onSubmit, 
-  isProcessing, 
-  initialText = ''
+  isProcessing: _isProcessing, 
+  initialText = '',
+  onProcessingStateChange
 }) => {
   const { processManualEntry } = useJournalEntryPipeline();
   const [content, setContent] = useState(initialText);
@@ -94,7 +95,11 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
     if (!content.trim()) return;
 
     try {
-      await processManualEntry(content, { duration: duration || undefined, useAI: true });
+      await processManualEntry(
+        content,
+        { duration: duration || undefined, useAI: true },
+        onProcessingStateChange
+      );
 
       // Call parent's onSubmit callback for integration events
       onSubmit({
@@ -146,17 +151,11 @@ const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
         <div className="flex items-center justify-end pt-2">
           <button
             type="submit"
-            disabled={isProcessing || !content.trim()}
+            disabled={!content.trim()}
             className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isProcessing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                Submit Entry
-              </>
-            )}
+            <Send className="w-4 h-4" />
+            Submit Entry
           </button>
         </div>
       </form>

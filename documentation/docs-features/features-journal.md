@@ -16,9 +16,9 @@ The Journal feature is the primary input pipeline. Firebase is the source of tru
 
 ## Entry Pipelines
 Unified orchestrator: [src/features/journal/hooks/use-journal-entry-pipeline.ts](../../src/features/journal/hooks/use-journal-entry-pipeline.ts)
-- **Voice auto-submit**: Draft -> Transcribe -> Analyze
+- **Voice auto-submit**: Draft -> Transcribe -> Analyze (Web Speech fallback)
 - **To-Text review**: Web Speech preview -> manual edit -> Submit
-- **Manual entry**: Draft -> Analyze (or manual actions)
+- **Manual entry**: Draft -> Analyze automatically (no extra button needed)
 - **Quick log**: Draft only
 
 ## UI Integration
@@ -30,6 +30,7 @@ Unified orchestrator: [src/features/journal/hooks/use-journal-entry-pipeline.ts]
 ## Integration Notes
 - Requires authenticated user: `auth.currentUser.uid` for Firebase writes.
 - Tree structure assumes numeric month/day keys and sortable entry IDs.
+- Entry items show an "Analyzing..." button state while AI processing runs.
 
 ## Related Docs
 - [documentation/change-log/2026-02-07-JOURNAL_ARCHITECTURE_PLAN.md](../change-log/2026-02-07-JOURNAL_ARCHITECTURE_PLAN.md)
