@@ -56,7 +56,8 @@ export const transcribeWebmAudio = async (audioBlob: Blob): Promise<string> => {
 
   const ai = new GoogleGenAI({ apiKey });
   
-  const modelsToTry = ['gemini-3-flash', 'gemini-2.5-flash'];
+  // Use preview model first, fallback to stable 2.0
+  const modelsToTry = ['gemini-3-flash-preview', 'gemini-2.0-flash'];
   let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
   let lastError: unknown = null;
 

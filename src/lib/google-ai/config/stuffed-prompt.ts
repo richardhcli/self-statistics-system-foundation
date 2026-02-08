@@ -39,5 +39,5 @@ You are an expert ontological architect. Analyze the journal entry to produce a 
 }
 
 # ENTRY
-"${text}"
+${JSON.stringify(text)}
 `;

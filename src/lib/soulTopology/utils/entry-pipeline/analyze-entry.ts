@@ -47,7 +47,6 @@ export const analyzeEntry = async (
 	// STEP 1: AI Semantic Extraction
 	// ============================================================
 	console.log('📍 [Entry Pipeline] Step 1: AI semantic extraction...');
-	console.log('   Entry length:', entry.length, 'characters');
 	
 	const analysis = await processTextToLocalTopologySinglePrompt(entry);
 	

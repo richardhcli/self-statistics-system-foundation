@@ -243,11 +243,22 @@ export const useJournalEntryPipeline = () => {
       });
 
       if (useAI) {
+        console.log(`[JournalPipeline] Starting AI Analysis for manual entry ${entryId}`);
         if (onProcessingStateChange) {
           onProcessingStateChange(entryId, true);
         }
         try {
           await runAnalysisPipeline(entryId, text, duration);
+          console.log(`[JournalPipeline] AI Analysis completed successfully for manual entry ${entryId}`);
+        } catch (error) {
+          console.error(`[JournalPipeline] AI Analysis FAILED for manual entry ${entryId}:`, error);
+          try {
+            await updateJournalEntry(uid, entryId, { status: 'ANALYSIS_FAILED' });
+            journalActions.updateEntry(entryId, { status: 'ANALYSIS_FAILED' });
+          } catch (storageError) {
+             console.error('[JournalPipeline] Failed to update error status:', storageError);
+          }
+          throw error; // Re-throw to alert user
         } finally {
           if (onProcessingStateChange) {
             onProcessingStateChange(entryId, false);
