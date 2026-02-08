@@ -51,3 +51,11 @@ The system uses a deterministic "Neural Brain" to convert text → valid semanti
 *   **Change Log:** Update `documentation/change-log/` after every meaningful session.
 *   **Guidelines:** Review this file before proposing architectural changes.
 *   **Features:** Keep `documentation/docs-features/` relevant to the current code state.
+
+# AI COMMANDS:
+
+#### Follow Ideology for rapid prototyping: 
+- Edit directly: Immediate edit files without terminal commands. 
+- Always completely migrate: Completely physically delete and destroy all legacy files; backward compatibility is unnecessary and unneeded. Remove converter files.  Update all utilities, functions, and documentation to adhere to the new standard.  
+- Prepare commit: after changing, create a summary of all changes, and write a git add and git commit message to summarize changes made. Return this copy-pastable message to the user for user convenience. 
+- Documentation standards: always adhere to JSDoc or similar comment standards. After major changes, create a small short concise paragraph summary of the change appended to documentation/change-log/<today's date README>. There is no need for a new documentation note. If the change can be summarized in the git commit message, there is no need for a dedicated log. 
