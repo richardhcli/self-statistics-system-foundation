@@ -3,7 +3,7 @@
 **Updated**: 2026-02-07
 
 ## Entry Flows
-- **Voice auto-submit**: record -> stop -> transcribe -> analyze
+- **Voice auto-submit**: record -> stop -> transcribe (Gemini, fallback to Web Speech) -> analyze
 - **To-Text review**: record -> Web Speech preview -> edit -> submit
 - **Manual entry**: type -> submit -> analyze
 - **Quick log**: type -> save (no analysis)
@@ -23,3 +23,4 @@
 - **No user**: pipeline requires `auth.currentUser.uid`
 - **Entries missing**: ensure tree uses numeric month/day keys
 - **Cache stale**: trigger a month expand to fetch
+- **Stuck on transcribing**: Web Speech fallback should populate content when Gemini fails

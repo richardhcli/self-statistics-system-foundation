@@ -38,17 +38,25 @@ const parseDuration = (duration?: string): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const buildDraftEntry = (entryId: string, content: string, status: JournalEntryData['status'], duration?: string): JournalEntryData => ({
-  id: entryId,
-  content,
-  status,
-  actions: {},
-  metadata: {
-    flags: { aiAnalyzed: false },
-    timePosted: new Date().toISOString(),
-    duration: parseDuration(duration),
-  },
-});
+const buildDraftEntry = (
+  entryId: string,
+  content: string,
+  status: JournalEntryData['status'],
+  duration?: string
+): JournalEntryData => {
+  const parsedDuration = parseDuration(duration);
+  return {
+    id: entryId,
+    content,
+    status,
+    actions: {},
+    metadata: {
+      flags: { aiAnalyzed: false },
+      timePosted: new Date().toISOString(),
+      ...(parsedDuration !== undefined ? { duration: parsedDuration } : {}),
+    },
+  };
+};
 
 /**
  * Provides the unified journal entry pipeline for voice, manual, and quick logs.
@@ -109,10 +117,11 @@ export const useJournalEntryPipeline = () => {
       });
 
       const existing = entries[entryId];
+      const nextDuration = parseDuration(duration) ?? existing?.metadata.duration;
       const nextMetadata = {
         flags: { aiAnalyzed: true },
         timePosted: existing?.metadata.timePosted ?? new Date().toISOString(),
-        duration: parseDuration(duration) ?? existing?.metadata.duration,
+        ...(nextDuration !== undefined ? { duration: nextDuration } : {}),
       };
 
       await updateJournalEntry(uid, entryId, {
@@ -165,6 +174,7 @@ export const useJournalEntryPipeline = () => {
       });
 
       let transcription = '';
+      const fallback = fallbackText?.trim() ?? '';
 
       try {
         transcription = (await transcribeWebmAudio(audioBlob)) ?? '';
@@ -172,11 +182,12 @@ export const useJournalEntryPipeline = () => {
         console.warn('[useJournalEntryPipeline] Gemini transcription failed:', error);
       }
 
-      if (!transcription.trim() && fallbackText?.trim()) {
-        transcription = fallbackText.trim();
+      transcription = transcription.trim();
+      if (!transcription && fallback) {
+        transcription = fallback;
       }
 
-      if (!transcription.trim()) {
+      if (!transcription) {
         journalActions.updateEntry(entryId, { status: 'ANALYSIS_FAILED' });
         await updateJournalEntry(uid, entryId, { status: 'ANALYSIS_FAILED' });
         return entryId;
@@ -238,6 +249,7 @@ export const useJournalEntryPipeline = () => {
       if (actions.length > 0) {
         const result = await applyEntryUpdates(entryId, text, { useAI: false, actions, duration });
         const { year, month, day } = toDateParts(getDateFromId(entryId));
+        const manualDuration = parseDuration(duration);
         await updateJournalEntry(uid, entryId, {
           status: 'COMPLETED',
           actions: result.actions,
@@ -249,7 +261,7 @@ export const useJournalEntryPipeline = () => {
           metadata: {
             flags: { aiAnalyzed: false },
             timePosted: new Date().toISOString(),
-            duration: parseDuration(duration),
+            ...(manualDuration !== undefined ? { duration: manualDuration } : {}),
           },
         });
         await incrementTreeTotals(uid, year, month, day, result.totalExpIncrease);

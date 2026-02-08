@@ -1,5 +1,4 @@
-# Feature: Journal (Read-Aside)
-
+# Feature: Journal
 **Last updated**: 2026-02-07
 
 ## Overview
