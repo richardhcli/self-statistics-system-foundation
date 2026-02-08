@@ -5,7 +5,6 @@ import { JournalFeatureProps } from '../types';
 import JournalView from './journal-view';
 import ManualEntryForm from './manual-entry-form';
 import VoiceRecorder from './voice-recorder/voice-recorder';
-import { runJournalMigration } from '@/stores/journal/migration';
 import { subscribeToTree } from '@/lib/firebase/journal';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -54,12 +53,6 @@ const JournalFeature: React.FC<JournalFeatureProps> = ({ onIntegrationEvent }) =
   const [processingEntries, setProcessingEntries] = useState<Set<string>>(new Set());
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isTreeReady, setIsTreeReady] = useState(false);
-
-  useEffect(() => {
-    runJournalMigration().catch((error) => {
-      console.warn('[JournalFeature] Journal migration failed:', error);
-    });
-  }, []);
 
   useEffect(() => {
     if (!user?.uid) {

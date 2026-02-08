@@ -23,17 +23,17 @@ Firebase Firestore is the canonical system of record.
 **Reference**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
 
 - [x] **1.1. Firebase Configuration**
-    - `src/lib/firebase/config.ts` initialized.
+    - `src/lib/firebase/services.ts` initialized.
     - Auth (Anonymous/Google) configured.
 
-- [ ] **1.2. Journal Store Migration**
-    - Implement `StandardStoreState` pattern.
-    - Split "Metadata" (Calendar/List) from "Content" (Entry Details).
+- [x] **1.2. Journal Store Migration**
+    - Read-aside store in [src/stores/journal/store.ts](src/stores/journal/store.ts) with normalized `entries`, lightweight `tree`, and `metadata` cache.
+    - Detail fetch on demand via [src/features/journal/hooks/use-cached-fetch.ts](src/features/journal/hooks/use-cached-fetch.ts).
     - **Goal**: Reduce read costs by only fetching full entry text when opened.
 
-- [ ] **1.3. Persistence Layer Update**
-    - Reconfigure `persist` middleware to act as a cache restorer, not the primary database loader.
-    - Implement "Stale-While-Revalidate" logic on boot.
+- [x] **1.3. Persistence Layer Update**
+    - Cache-first persistence in [src/stores/root/persist-middleware.ts](src/stores/root/persist-middleware.ts).
+    - Cache invalidation and TTL checks handled in journal store actions.
 
 ---
 

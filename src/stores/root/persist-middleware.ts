@@ -6,13 +6,13 @@ import { get, set, del, clear } from 'idb-keyval';
  * 
  * ⚠️ RESTRICTED USAGE: This module should NEVER be used directly during runtime operations
  * or imported in feature components. Its sole responsibility is to bridge Zustand in-memory
- * state with IndexedDB as the master source of truth.
+ * state with IndexedDB as a persistent offline cache.
  * 
  * Uses idb-keyval for async IndexedDB operations that don't block the UI.
  * Automatically handles serialization/deserialization of JSON.
  * 
  * Architecture: Hybrid Read-Aside, Sync-Behind
- * - IndexedDB is the cache source of truth during hydration and persistence
+ * - IndexedDB is the cache layer for hydration and persistence
  * - UI is optimistic (never waits for network during runtime)
  * - Each store independently persists its data via this middleware
  * - Background sync happens independently of persistence layer
