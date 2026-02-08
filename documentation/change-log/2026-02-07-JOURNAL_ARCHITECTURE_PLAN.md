@@ -8,6 +8,7 @@
 This document outlines the specifics for refactoring the **Journal** feature to use the new **Read-Aside Storage Architecture**.
 
 ## Finished: 
+
 ### Summary: 
 All journal refactor changes are complete: the read-aside storage architecture is fully wired (Firebase read side, store/cache, orchestrator pipeline, and migration), UI integration is stable (default day expansion, auto-analysis for manual entries, resilient processing states), voice transcription has a reliable fallback, and documentation has been consolidated into the AI overview and human reference.
 
