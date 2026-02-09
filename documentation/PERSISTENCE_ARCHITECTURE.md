@@ -1,4 +1,4 @@
-# Persistence Architecture: Local-First, Sync-Behind
+# Persistence Architecture: Hybrid Read-Aside, Sync-Behind
 
 **Date**: February 1, 2026  
 **Status**: ✅ COMPLETE  
@@ -8,15 +8,15 @@
 
 ## Executive Summary
 
-This application uses a **Local-First, Sync-Behind** architecture with **Zero-Function Persistence**. IndexedDB serves as the primary source of truth for DATA, while CODE is the source of truth for LOGIC.
+This application uses a **Hybrid Read-Aside, Sync-Behind** architecture with **Zero-Function Persistence**. Firebase is the source of truth for cloud-backed data, while Zustand + IndexedDB are the persistent cache for fast boot and offline reads. CODE remains the source of truth for LOGIC.
 
 ### Key Design Principles
 
-- **Primary Source**: IndexedDB (local) for DATA only
+- **Primary Source**: Firebase (cloud) for data; IndexedDB is the persistent cache
 - **Code Authority**: All actions/getters defined in code, never persisted
 - **UI Philosophy**: Optimistic (never waits for network)
-- **Write Flow**: UI → Zustand → IndexedDB (Data Only) → Sync to Server (Background)
-- **Read Flow**: UI → Zustand → IndexedDB (Data Only)
+- **Write Flow**: UI → Zustand → IndexedDB (Data Only) → Async sync to Firebase
+- **Read Flow**: UI → Zustand/IndexedDB → Fetch from Firebase on cache miss or stale
 - **Persistence Strategy**: `partialize` whitelist - only serialize data, never functions
 
 ---
@@ -61,7 +61,7 @@ interface StoreState {
 - Pattern C: Separated state/action hooks for optimal re-renders
 - Each store uses `persist` middleware with IndexedDB backend
 
-### 2. **Persist Middleware** (`lib/persist-middleware.ts`)
+### 2. **Persist Middleware** (`src/stores/root/persist-middleware.ts`)
 - Wraps all stores with automatic persistence
 - Uses `idb-keyval` for async, non-blocking IndexedDB operations
 - Handles version management for schema migrations
@@ -416,7 +416,7 @@ if (!isInitialized) return <LoadingScreen />;
 ### `clearAllPersistedData()` Function
 
 ```typescript
-import { clearAllPersistedData } from '@/lib/persist-middleware';
+import { clearAllPersistedData } from '@/stores/root/persist-middleware';
 
 // Clears entire IndexedDB (all stores)
 await clearAllPersistedData();
@@ -427,7 +427,7 @@ await clearAllPersistedData();
 ### `listPersistedKeys()` Function
 
 ```typescript
-import { listPersistedKeys } from '@/lib/persist-middleware';
+import { listPersistedKeys } from '@/stores/root/persist-middleware';
 
 // Lists all persisted keys (for debugging)
 const keys = await listPersistedKeys();

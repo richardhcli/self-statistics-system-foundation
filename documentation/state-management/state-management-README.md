@@ -13,7 +13,7 @@ This file establishes the "Rules of Engagement" for the overall state architectu
 ---
 
 ## Architecture Overview
-This project follows a **Local-First** architecture where client-side storage is the Primary Source of Truth.
+This project follows a **Hybrid Read-Aside** architecture where Firebase is the source of truth and client-side storage is a persistent cache.
 
 ### State Hierarchy
 1. **Global State (Zustand)**: Domain-specific data that must persist and be accessible across features (e.g., Graph Topology, Player Stats).
@@ -24,7 +24,7 @@ This project follows a **Local-First** architecture where client-side storage is
 
 ## Core Rules of Engagement
 
-* **Local-First Master**: IndexedDB is the Primary Source of Truth. The Server is a passive storage cache.
+* **Read-Aside Master**: Firebase is the source of truth for cloud-backed data. IndexedDB is a persistent cache for fast boots and offline reads.
 * **Utility Purity**: Utility functions must be **pure** (Data In → Data Out). They must never call hooks or access stores directly.
 * **The Orchestrator Pattern**: Operations spanning multiple stores must be handled by **Orchestrator Hooks** to ensure atomic updates and store decoupling. See [ORCHESTRATOR_PATTERN.md](./ORCHESTRATOR_PATTERN.md) for detailed guidelines.
 * **Type Safety**: Always use the modern `GraphState` format; legacy format support has been removed.

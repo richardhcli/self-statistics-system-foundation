@@ -3,7 +3,7 @@
 **Last Updated**: February 8, 2026
 
 ## Purpose
-Firebase provides authentication and cloud persistence for user profile, settings, and graph/journal data. The app remains local-first for core data; Firestore is the backend source of truth and is synced via read-aside services.
+Firebase provides authentication and cloud persistence for user profile, settings, and graph/journal data. The app follows a hybrid read-aside model: Firestore is the source of truth and Zustand/IndexedDB act as the persistent cache via read-aside services.
 
 ## Current architecture: 
 

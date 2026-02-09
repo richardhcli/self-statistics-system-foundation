@@ -2,7 +2,10 @@
 
 **Version**: 1.0  
 **Effective Date**: February 1, 2026  
-**Phase**: Manual Sync (Phase 1)
+**Status**: Deprecated (Superseded by read-aside Firebase graph storage)
+**Deprecation Date**: February 8, 2026
+
+**Current Strategy**: Graph data now follows the Hybrid Read-Aside model with Firebase as the source of truth and structure-first caching. See [change-log/2026-02-08-graph_storage_in_firebase.md](change-log/2026-02-08-graph_storage_in_firebase.md) and [architecture/firebase-backend-schema.md](architecture/firebase-backend-schema.md) for the current approach.
 
 ## Overview
 

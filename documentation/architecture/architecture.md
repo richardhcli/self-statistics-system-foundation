@@ -13,6 +13,10 @@ The application operates on a **Hybrid Read-Aside** basis, using Firebase as the
 - **Persistence**: `indexedDB` persists the cache for offline support and fast boot times.
 - **Blueprint**: See [2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md](../change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md) for the implementation details.
 
+**Implementation Status**:
+- **Read-aside stores**: Journal and CDAG topology.
+- **Local-only stores (pending migration)**: User information, AI config, player statistics, and user integrations.
+
 ## Folder Structure
 
 ### `/app`

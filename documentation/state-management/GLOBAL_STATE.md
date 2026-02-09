@@ -55,10 +55,10 @@ export const useFeatureActions = () => useStore(state => state.actions);
 
 ## 2. Persistence & Hydration Rules
 
-* **IndexedDB as Master**: Following Local-First principles, IndexedDB is the primary source of truth.
+* **Firebase as Master**: For cloud-backed domains, Firestore is the source of truth and IndexedDB is the persistent cache.
 * **Asynchronous Storage**: Use `idb-keyval` as the storage engine to prevent blocking the UI thread during disk I/O.
 * **Pure Data Isolation**: Always use the `partialize` middleware option to whitelist data keys. Never persist functions, utility objects, or actions to IndexedDB.
-* **Non-Destructive Migrations**: Implement the `version` and `migrate` properties. Transformations must be non-destructive to preserve user data; never return `null` to clear the store on a version mismatch.
+* **Schema Migrations**: Implement the `version` and `migrate` properties. Prefer non-destructive transforms, but cache-only stores may clear on incompatible versions.
 
 ## 3. Data Normalization
 
