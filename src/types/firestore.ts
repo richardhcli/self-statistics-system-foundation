@@ -18,7 +18,7 @@ export interface UserProfile {
 }
 
 /**
- * AI Settings stored in users/{uid}/account-config/ai-settings
+ * AI Settings stored in users/{uid}/account_config/ai_settings
  */
 export interface AISettings {
   provider: "gemini" | "openai";
@@ -31,7 +31,7 @@ export interface AISettings {
 }
 
 /**
- * UI Preferences stored in users/{uid}/account-config/ui-preferences
+ * UI Preferences stored in users/{uid}/account_config/ui_preferences
  */
 export interface UIPreferences {
   theme: "light" | "dark";
@@ -43,7 +43,7 @@ export interface UIPreferences {
 }
 
 /**
- * Privacy settings stored in users/{uid}/account-config/privacy
+ * Privacy settings stored in users/{uid}/account_config/privacy
  */
 export interface PrivacySettings {
   encryptionEnabled: boolean;
@@ -52,7 +52,7 @@ export interface PrivacySettings {
 }
 
 /**
- * Notification settings stored in users/{uid}/account-config/notifications
+ * Notification settings stored in users/{uid}/account_config/notifications
  */
 export interface NotificationSettings {
   pushEnabled: boolean;
@@ -61,7 +61,7 @@ export interface NotificationSettings {
 }
 
 /**
- * Integration settings stored in users/{uid}/account-config/integrations
+ * Integration settings stored in users/{uid}/account_config/integrations
  */
 export interface IntegrationSettings {
   obsidianEnabled: boolean;
@@ -70,7 +70,7 @@ export interface IntegrationSettings {
 }
 
 /**
- * Billing settings stored in users/{uid}/account-config/billing-settings
+ * Billing settings stored in users/{uid}/account_config/billing_settings
  */
 export interface BillingSettings {
   plan: "free" | "pro" | "enterprise";
@@ -82,22 +82,22 @@ export interface BillingSettings {
  * Union type for all account config types
  */
 export type AccountConfigType =
-  | "ai-settings"
-  | "ui-preferences"
+  | "ai_settings"
+  | "ui_preferences"
   | "privacy"
   | "notifications"
   | "integrations"
-  | "billing-settings";
+  | "billing_settings";
 
 /**
- * Profile display settings stored in users/{uid}/user-information/profile-display
+ * Profile display settings stored in users/{uid}/user_information/profile_display
  */
 export interface ProfileDisplaySettings {
   class: string;
 }
 
 /**
- * User statistics stored in users/{uid}/user-information/statistics
+ * User statistics stored in users/{uid}/user_information/statistics
  */
 export interface UserStatistics {
   totalEntries: number;
@@ -106,7 +106,7 @@ export interface UserStatistics {
 }
 
 /**
- * User achievements stored in users/{uid}/user-information/achievements
+ * User achievements stored in users/{uid}/user_information/achievements
  */
 export interface UserAchievements {
   badges: string[];

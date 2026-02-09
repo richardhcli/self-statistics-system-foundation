@@ -9,7 +9,7 @@ import { syncUserProfile } from "@/lib/firebase/user-profile";
 
 /**
  * Signs the user in with Google and syncs their profile with Firestore.
- * On first login: creates user document and default account-config.
+ * On first login: creates user document and default account_config.
  * On subsequent logins: updates only changed profile fields (smart sync).
  *
  * @returns Firebase User object

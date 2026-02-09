@@ -17,7 +17,7 @@ import {
   subscribeToStructure,
   updateEdgeBatch,
   updateNodeBatch,
-} from '@/lib/firebase/cdag-topology';
+} from '@/lib/firebase/graph-service';
 import { auth } from '@/lib/firebase/services';
 import { indexedDBStorage } from '@/stores/root/persist-middleware';
 import type {

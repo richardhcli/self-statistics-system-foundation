@@ -155,13 +155,13 @@ const ForceSyncPanel: React.FC<ForceSyncPanelProps> = ({ onLog }) => {
       },
       {
         label: "Account Config",
-        rootPath: `users/${uid}/account-config`,
+        rootPath: `users/${uid}/account_config`,
         rootKind: "collection" as const,
         data: snapshot.accountConfig ?? {},
       },
       {
         label: "User Information",
-        rootPath: `users/${uid}/user-information`,
+        rootPath: `users/${uid}/user_information`,
         rootKind: "collection" as const,
         data: snapshot.userInformation ?? {},
       },

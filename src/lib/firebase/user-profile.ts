@@ -27,7 +27,7 @@ import type {
 
 /**
  * Syncs user profile with Firestore, only updating changed fields.
- * On first login, creates user document and default account-config subcollection.
+ * On first login, creates user document and default account_config subcollection.
  * On subsequent logins, updates only changed fields (smart sync).
  *
  * @param user - Firebase User object from authentication
@@ -48,7 +48,7 @@ export const syncUserProfile = async (user: User): Promise<void> => {
       lastUpdated: serverTimestamp(),
     });
 
-    // Create default account-config subcollection
+    // Create default account_config subcollection
     await createDefaultAccountConfig(user.uid);
     await createDefaultUserInformation(user.uid);
   } else {
@@ -75,17 +75,17 @@ export const syncUserProfile = async (user: User): Promise<void> => {
 };
 
 /**
- * Creates default account configuration subcollection on first login.
+ * Creates default account_config subcollection on first login.
  * Initializes AI settings, UI preferences, integrations, and billing settings.
  *
  * @param uid - User ID
  * @throws Error if Firestore operation fails
  */
 const createDefaultAccountConfig = async (uid: string): Promise<void> => {
-  const configRef = collection(db, "users", uid, "account-config");
+  const configRef = collection(db, "users", uid, "account_config");
 
   // AI Settings
-  await setDoc(doc(configRef, "ai-settings"), {
+  await setDoc(doc(configRef, "ai_settings"), {
     provider: "gemini",
     model: {
       voiceTranscriptionModel: "gemini-2-flash",
@@ -96,7 +96,7 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
   } as AISettings);
 
   // UI Preferences
-  await setDoc(doc(configRef, "ui-preferences"), {
+  await setDoc(doc(configRef, "ui_preferences"), {
     theme: "dark",
     language: "en",
     showCumulativeExp: true,
@@ -127,14 +127,14 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
   } as IntegrationSettings);
 
   // Billing Settings
-  await setDoc(doc(configRef, "billing-settings"), {
+  await setDoc(doc(configRef, "billing_settings"), {
     plan: "free",
     status: "active",
   } as BillingSettings);
 };
 
 const createDefaultUserInformation = async (uid: string): Promise<void> => {
-  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  const profileDisplayRef = doc(db, "users", uid, "user_information", "profile_display");
   await setDoc(profileDisplayRef, {
     class: "",
   } as ProfileDisplaySettings);
@@ -188,7 +188,7 @@ export const loadAccountConfig = async <T>(
   uid: string,
   configType: AccountConfigType
 ): Promise<T> => {
-  const configRef = doc(db, "users", uid, "account-config", configType);
+  const configRef = doc(db, "users", uid, "account_config", configType);
   const snapshot = await getDoc(configRef);
 
   if (!snapshot.exists()) {
@@ -212,7 +212,7 @@ export const updateAccountConfig = async <T>(
   configType: AccountConfigType,
   updates: Partial<T>
 ): Promise<void> => {
-  const configRef = doc(db, "users", uid, "account-config", configType);
+  const configRef = doc(db, "users", uid, "account_config", configType);
   await setDoc(configRef, updates as Record<string, any>, { merge: true });
 };
 
@@ -223,7 +223,7 @@ export const updateAccountConfig = async <T>(
  * @returns AI settings configuration
  */
 export const loadAISettings = async (uid: string): Promise<AISettings> => {
-  return loadAccountConfig<AISettings>(uid, "ai-settings");
+  return loadAccountConfig<AISettings>(uid, "ai_settings");
 };
 
 /**
@@ -236,7 +236,7 @@ export const updateAISettings = async (
   uid: string,
   updates: Partial<AISettings>
 ): Promise<void> => {
-  return updateAccountConfig(uid, "ai-settings", updates);
+  return updateAccountConfig(uid, "ai_settings", updates);
 };
 
 /**
@@ -248,7 +248,7 @@ export const updateAISettings = async (
 export const loadUIPreferences = async (
   uid: string
 ): Promise<UIPreferences> => {
-  return loadAccountConfig<UIPreferences>(uid, "ui-preferences");
+  return loadAccountConfig<UIPreferences>(uid, "ui_preferences");
 };
 
 /**
@@ -261,7 +261,7 @@ export const updateUIPreferences = async (
   uid: string,
   updates: Partial<UIPreferences>
 ): Promise<void> => {
-  return updateAccountConfig(uid, "ui-preferences", updates);
+  return updateAccountConfig(uid, "ui_preferences", updates);
 };
 
 /**
@@ -323,7 +323,7 @@ export const updateNotificationSettings = async (
 export const loadProfileDisplay = async (
   uid: string
 ): Promise<ProfileDisplaySettings> => {
-  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  const profileDisplayRef = doc(db, "users", uid, "user_information", "profile_display");
   const snapshot = await getDoc(profileDisplayRef);
 
   if (!snapshot.exists()) {
@@ -343,6 +343,6 @@ export const updateProfileDisplay = async (
   uid: string,
   updates: Partial<ProfileDisplaySettings>
 ): Promise<void> => {
-  const profileDisplayRef = doc(db, "users", uid, "user-information", "profile-display");
+  const profileDisplayRef = doc(db, "users", uid, "user_information", "profile_display");
   await setDoc(profileDisplayRef, updates as Record<string, any>, { merge: true });
 };

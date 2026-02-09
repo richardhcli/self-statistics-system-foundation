@@ -52,8 +52,8 @@ export const fetchBackendDatastoreSnapshot = async (
   const [userProfile, accountConfig, userInformation, journalTree, journalEntries] =
     await Promise.all([
       safeGetDocument(`users/${uid}`),
-      safeGetCollection(`users/${uid}/account-config`),
-      safeGetCollection(`users/${uid}/user-information`),
+      safeGetCollection(`users/${uid}/account_config`),
+      safeGetCollection(`users/${uid}/user_information`),
       safeGetDocument(`users/${uid}/journal_meta/tree_structure`),
       safeGetCollection(`users/${uid}/journal_entries`),
     ]);
@@ -83,13 +83,13 @@ export const buildRootStateFromSnapshot = (
   currentState: RootState = serializeRootState()
 ): RootState => {
   const aiSettings = snapshot.accountConfig[
-    "ai-settings"
+    "ai_settings"
   ] as unknown as AISettings | undefined;
   const integrationSettings = snapshot.accountConfig[
     "integrations"
   ] as unknown as IntegrationSettings | undefined;
   const profileDisplay = snapshot.userInformation[
-    "profile-display"
+    "profile_display"
   ] as unknown as ProfileDisplaySettings | undefined;
 
   const nextJournalEntries = snapshot.journalEntries ?? currentState.journal.entries;
