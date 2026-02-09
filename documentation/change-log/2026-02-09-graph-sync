@@ -1,0 +1,95 @@
+# Graph Sync Debug Log - 2026-02-09
+
+Status: FIXED
+
+## Summary of Actions
+- Forced CDAG structure fetch + subscription on app load and added detailed logs in `useCdagStructure`.
+- Normalized structure payloads to tolerate `adjacencyList` stored as arrays or keyed maps.
+- Added a fallback path that fetches all nodes and edges when structure data is present but adjacency is empty.
+- Introduced shared node/edge serializers and normalizers to standardize Firestore read/write formats.
+- Added full-collection Firebase fetch helpers for nodes and edges.
+- Updated documentation and change logs to reflect the hydration pipeline and debugging steps.
+
+## Current Symptom
+The UI still only renders the default node after app load. Logs show structure refreshes, but node and edge fetching does not populate the visual graph.
+
+## Hypotheses
+1. Firestore documents omit required fields (e.g., `id`, `source`, `target`) or have different casing than expected.
+2. Structure document is missing adjacency data, preventing targeted fetches.
+3. Auth UID used for fetch does not match the data owner.
+4. Firestore rules block reads for graph subcollections.
+5. Firestore data shape is correct but mapping into the store is failing or being overwritten.
+
+## Plan of Action
+1. **Verify raw Firestore data**
+	- Use the debug panel to inspect `users/{uid}/graphs/cdag_topology`, `nodes`, and `edges`.
+	- Confirm required fields and ensure edge IDs match `${source}->${target}`.
+
+2. **Inspect fetch results in-app**
+	- Add temporary logs for node/edge counts and sample payloads right after `fetchAllNodes`/`fetchAllEdges`.
+	- Confirm normalized documents contain `id`, `source`, `target`, and `type`.
+
+3. **Validate store hydration**
+	- Verify `setStructure`, `cacheNodes`, and `cacheEdges` are executed.
+	- Check for rehydration overwrites (IndexedDB merge vs. live updates).
+
+4. **Confirm auth and security rules**
+	- Ensure the UID used by the app matches the owner of the `cdag_topology` document.
+	- Validate Firestore rules allow read access to graph subcollections.
+
+5. **Compare with journal pipeline**
+	- Ensure graph fetch uses the same authenticated user and read-aside workflow as journal entries.
+	- Add parity logging for auth resolution and fetch timings.
+
+## Summary of Fixes and Refactors
+- **Structure fetch pipeline**: Forced structure fetch + subscription on app load, added telemetry to trace fetch counts and structure snapshots.
+- **Schema normalization**: Standardized node/edge reads and writes with shared normalizers/serializers to guarantee `id`, `source`, and `target` integrity.
+- **Fallback hydration**: Added a full-graph fallback when structure data is present but adjacency is empty.
+- **Structure storage refactor**: Moved adjacency and summaries into dedicated `adjacency_list` and `node_summaries` collections to eliminate dotted keys.
+- **Debug tooling**: Expanded debug snapshot to show structure metadata, adjacency_list, node_summaries, nodes, and edges.
+- **Fetch minimization**: Full graph fetch occurs once per app load, then only when stale (30-minute TTL). Lightweight collections refresh on graph view focus.
+
+## Current Status
+- Structure snapshots now resolve correctly from Firebase.
+- Full graph fetch runs on first app load and updates cache metadata.
+- Lightweight adjacency and summaries hydrate the structure without forcing full refetches.
+
+## Remaining Verification Checklist
+1. Confirm `adjacency_list` and `node_summaries` collections are populated after CRUD operations.
+2. Verify `fullFetchAt` persists to IndexedDB and suppresses repeat full fetches within the TTL.
+3. Ensure graph view re-entry only re-checks lightweight collections, not full node/edge fetches.
+
+
+
+
+# Changes: 
+Refactored the Neural Source of Truth (NSOT) architecture for the CDAG topology to improve synchronization reliability and performance. This overhaul migrates away from monolithic document storage with problematic dotted field keys toward a robust multi-collection structure and implements a session-scoped "Minimalist Fetch" strategy to optimize Firebase read operations.
+
+Key Changes
+1. Backend Architecture: Multi-Collection Topology
+Collection Migration: Moved away from storing adjacencyList and nodeSummaries as nested fields within the cdag_topology document. These are now stored in dedicated sub-collections:
+users/{uid}/graphs/cdag_topology/adjacency_list: One document per node containing its target edges.
+users/{uid}/graphs/cdag_topology/node_summaries: One document per node containing lightweight metadata (label, type).
+Atomic Updates: Refactored graph-service.ts to utilize Firestore writeBatch for all graph CRUD operations. Every node/edge creation now atomically updates the primary node/edge document, the adjacency list, the node summary, and the topology metadata.
+Dotted Key Removal: Eliminated the use of "dotted keys" (e.g., adjacencyList.NodeId) which previously caused partial update failures and synchronization drift.
+2. Synchronization Pipeline: Minimalist Fetch Strategy
+Session-Scoped Full Fetch: Implemented a "Full Fetch" policy that triggers only once per app session (via sessionFullFetchUid module state) or when the local cache exceeds a 30-minute staleness TTL.
+Lightweight View Hydrography: Navigation to graph views now only triggers a synchronization of the topology structure (adjacency and summaries) rather than re-fetching the entire node and edge collections.
+Read-Aside Optimization: Reduced the reliance on real-time listeners for the entire graph, favoring a "Metadata Sync -> Structure Sync -> Detail Expansion" pipeline.
+Forced Sync on Load: Added a guaranteed structure fetch + subscription on initial mount in useCdagStructure to ensure the visual graph is always grounded in the latest backend state.
+3. Data Normalization & Integrity
+Standardized Edge IDs: Centralized edge ID generation to the source->target format in graph-normalizers.ts, ensuring consistency between local lookups and Firebase keys.
+Shared Normalizers: Introduced normalizeNodeDocument and normalizeEdgeDocument to guarantee that all Firestore reads include required fields (id, source, target, type) regardless of historical data variances.
+Fallback Hydration: Added logic to verify adjacency data; if structure metadata exists but adjacency is missing, the system gracefully falls back to a full collection scan to rebuild the local store.
+4. Debugging & Maintenance
+Debug Dashboard Expansion: Updated the data-sync debug tools to visualize the new adjacency_list and node_summaries collections in real-time.
+Architectural Documentation: Updated cdag-topology.md and created 2026-02-09-graph-sync to reflect the new 5-part storage model (Metadata + 4 Collections).
+Telemetry & Logging: Added detailed console telemetry to use-cdag-structure.ts to trace the reason for full-fetch triggers (session-start vs. stale vs. metadata-change).
+Technical Details
+Files Modified:
+graph-service.ts: Refactored for multi-collection batch operations.
+store.ts: Added fullFetchAt metadata and summary update logic.
+use-cdag-structure.ts: Implemented TTL and session-based fetch logic.
+graph-normalizers.ts: Unified ID and doc normalization.
+datastore-sync.ts: Added visibility for new collections.
+cdag-topology.md: Updated persistence architecture docs.

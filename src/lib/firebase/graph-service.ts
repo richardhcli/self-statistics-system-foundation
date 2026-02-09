@@ -4,25 +4,40 @@
  */
 
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
-  deleteDoc,
   doc,
   documentId,
   getDoc,
   getDocs,
   onSnapshot,
   query,
-  setDoc,
   writeBatch,
   where,
 } from 'firebase/firestore';
 import type { CdagStructure, EdgeData, NodeData } from '@/types';
 import { db } from './services';
+import {
+  normalizeEdgeDocument,
+  normalizeNodeDocument,
+  serializeEdgeDocument,
+  serializeEdgeUpdate,
+  serializeNodeDocument,
+  serializeNodeUpdate,
+} from './utils/graph-normalizers';
+
+const DEFAULT_NODE_ID = 'progression';
+const DEFAULT_NODE_SUMMARY = {
+  id: DEFAULT_NODE_ID,
+  label: 'Progression',
+  type: 'characteristic',
+};
 
 const buildEmptyStructure = (): CdagStructure => ({
-  adjacencyList: {},
-  nodeSummaries: {},
-  metrics: { nodeCount: 0, edgeCount: 0 },
+  adjacencyList: { [DEFAULT_NODE_ID]: [] },
+  nodeSummaries: { [DEFAULT_NODE_ID]: DEFAULT_NODE_SUMMARY },
+  metrics: { nodeCount: 1, edgeCount: 0 },
   version: 1,
 });
 
@@ -33,6 +48,47 @@ const normalizeStructure = (payload?: Partial<CdagStructure>): CdagStructure => 
   lastUpdated: payload?.lastUpdated,
   version: payload?.version ?? 1,
 });
+
+const normalizeAdjacencyTargets = (payload?: unknown): string[] => {
+  if (!payload) return [];
+  return Array.isArray(payload) ? payload : [];
+};
+
+const fetchAdjacencyList = async (uid: string): Promise<Record<string, string[]>> => {
+  const adjacencyRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list');
+  const snapshot = await getDocs(adjacencyRef);
+
+  if (snapshot.empty) {
+    return { [DEFAULT_NODE_ID]: [] };
+  }
+
+  return snapshot.docs.reduce<Record<string, string[]>>((acc, docSnap) => {
+    const data = docSnap.data() as { targets?: unknown };
+    acc[docSnap.id] = normalizeAdjacencyTargets(data.targets);
+    return acc;
+  }, {});
+};
+
+const fetchNodeSummaries = async (
+  uid: string
+): Promise<CdagStructure['nodeSummaries']> => {
+  const summariesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries');
+  const snapshot = await getDocs(summariesRef);
+
+  if (snapshot.empty) {
+    return { [DEFAULT_NODE_ID]: DEFAULT_NODE_SUMMARY };
+  }
+
+  return snapshot.docs.reduce<CdagStructure['nodeSummaries']>((acc, docSnap) => {
+    const data = docSnap.data() as { label?: string; type?: CdagStructure['nodeSummaries'][string]['type'] };
+    acc[docSnap.id] = {
+      id: docSnap.id,
+      label: data.label ?? docSnap.id,
+      type: data.type ?? 'none',
+    };
+    return acc;
+  }, {});
+};
 
 const chunkIds = (ids: string[], size: number) => {
   const chunks: string[][] = [];
@@ -56,7 +112,21 @@ export const subscribeToStructure = (
     structureRef,
     (snapshot) => {
       const data = snapshot.data();
-      onUpdate(data ? normalizeStructure(data as CdagStructure) : buildEmptyStructure());
+      const baseStructure = data ? normalizeStructure(data as CdagStructure) : buildEmptyStructure();
+
+      void Promise.all([fetchAdjacencyList(uid), fetchNodeSummaries(uid)])
+        .then(([adjacencyList, nodeSummaries]) => {
+          onUpdate({
+            ...baseStructure,
+            adjacencyList,
+            nodeSummaries,
+          });
+        })
+        .catch((error) => {
+          if (onError) {
+            onError(error as Error);
+          }
+        });
     },
     (error) => {
       if (onError) {
@@ -72,10 +142,19 @@ export const subscribeToStructure = (
 export const fetchStructure = async (uid: string): Promise<CdagStructure> => {
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
   const snapshot = await getDoc(structureRef);
-  if (!snapshot.exists()) {
-    return buildEmptyStructure();
-  }
-  return normalizeStructure(snapshot.data() as CdagStructure);
+  const baseStructure = snapshot.exists()
+    ? normalizeStructure(snapshot.data() as CdagStructure)
+    : buildEmptyStructure();
+  const [adjacencyList, nodeSummaries] = await Promise.all([
+    fetchAdjacencyList(uid),
+    fetchNodeSummaries(uid),
+  ]);
+
+  return {
+    ...baseStructure,
+    adjacencyList,
+    nodeSummaries,
+  };
 };
 
 /**
@@ -93,11 +172,22 @@ export const fetchNodesByIds = async (uid: string, ids: string[]): Promise<NodeD
       query(nodesRef, where(documentId(), 'in', chunk))
     );
     snapshot.docs.forEach((docSnap) => {
-      results.push(docSnap.data() as NodeData);
+      results.push(normalizeNodeDocument(docSnap.id, docSnap.data() as NodeData));
     });
   }
 
   return results;
+};
+
+/**
+ * Fetch all node documents.
+ */
+export const fetchAllNodes = async (uid: string): Promise<NodeData[]> => {
+  const nodesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes');
+  const snapshot = await getDocs(nodesRef);
+  return snapshot.docs.map((docSnap) =>
+    normalizeNodeDocument(docSnap.id, docSnap.data() as NodeData)
+  );
 };
 
 /**
@@ -115,11 +205,22 @@ export const fetchEdgesByIds = async (uid: string, ids: string[]): Promise<EdgeD
       query(edgesRef, where(documentId(), 'in', chunk))
     );
     snapshot.docs.forEach((docSnap) => {
-      results.push(docSnap.data() as EdgeData);
+      results.push(normalizeEdgeDocument(docSnap.id, docSnap.data() as EdgeData));
     });
   }
 
   return results;
+};
+
+/**
+ * Fetch all edge documents.
+ */
+export const fetchAllEdges = async (uid: string): Promise<EdgeData[]> => {
+  const edgesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'edges');
+  const snapshot = await getDocs(edgesRef);
+  return snapshot.docs.map((docSnap) =>
+    normalizeEdgeDocument(docSnap.id, docSnap.data() as EdgeData)
+  );
 };
 
 /**
@@ -132,9 +233,11 @@ export const createNodeBatch = async (
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', node.id);
+  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', node.id);
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
-  batch.set(nodeRef, node, { merge: true });
+  batch.set(nodeRef, serializeNodeDocument(node), { merge: true });
+  batch.set(summaryRef, { label: node.label, type: node.type }, { merge: true });
   batch.set(structureRef, structureUpdate, { merge: true });
 
   await batch.commit();
@@ -151,9 +254,18 @@ export const updateNodeBatch = async (
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
+  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', nodeId);
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
-  batch.set(nodeRef, updates, { merge: true });
+  batch.set(nodeRef, serializeNodeUpdate(nodeId, updates), { merge: true });
+  batch.set(
+    summaryRef,
+    {
+      ...(updates.label !== undefined ? { label: updates.label } : {}),
+      ...(updates.type !== undefined ? { type: updates.type } : {}),
+    },
+    { merge: true }
+  );
   batch.set(structureRef, structureUpdate, { merge: true });
 
   await batch.commit();
@@ -169,9 +281,13 @@ export const deleteNodeBatch = async (
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
+  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', nodeId);
+  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', nodeId);
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.delete(nodeRef);
+  batch.delete(summaryRef);
+  batch.delete(adjacencyRef);
   batch.set(structureRef, structureUpdate, { merge: true });
 
   await batch.commit();
@@ -187,9 +303,15 @@ export const createEdgeBatch = async (
 ): Promise<void> => {
   const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edge.id);
+  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', edge.source);
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
-  batch.set(edgeRef, edge, { merge: true });
+  batch.set(edgeRef, serializeEdgeDocument(edge), { merge: true });
+  batch.set(
+    adjacencyRef,
+    { targets: arrayUnion(edge.target) },
+    { merge: true }
+  );
   batch.set(structureRef, structureUpdate, { merge: true });
 
   await batch.commit();
@@ -203,8 +325,49 @@ export const updateEdgeBatch = async (
   edgeId: string,
   updates: Partial<EdgeData>
 ): Promise<void> => {
+  const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
-  await setDoc(edgeRef, updates, { merge: true });
+  batch.set(edgeRef, serializeEdgeUpdate(edgeId, updates), { merge: true });
+
+  if (updates.source || updates.target) {
+    const [prevSource, prevTarget] = edgeId.split('->');
+    const nextSource = updates.source ?? prevSource;
+    const nextTarget = updates.target ?? prevTarget;
+
+    if (prevSource !== nextSource || prevTarget !== nextTarget) {
+      const prevAdjacencyRef = doc(
+        db,
+        'users',
+        uid,
+        'graphs',
+        'cdag_topology',
+        'adjacency_list',
+        prevSource
+      );
+      const nextAdjacencyRef = doc(
+        db,
+        'users',
+        uid,
+        'graphs',
+        'cdag_topology',
+        'adjacency_list',
+        nextSource
+      );
+
+      batch.set(
+        prevAdjacencyRef,
+        { targets: arrayRemove(prevTarget) },
+        { merge: true }
+      );
+      batch.set(
+        nextAdjacencyRef,
+        { targets: arrayUnion(nextTarget) },
+        { merge: true }
+      );
+    }
+  }
+
+  await batch.commit();
 };
 
 /**
@@ -213,20 +376,25 @@ export const updateEdgeBatch = async (
 export const deleteEdgeBatch = async (
   uid: string,
   edgeId: string,
+  source: string,
+  target: string,
   structureUpdate?: Record<string, unknown>
 ): Promise<void> => {
-  if (!structureUpdate) {
-    const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
-    await deleteDoc(edgeRef);
-    return;
-  }
-
   const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
+  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', source);
   const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.delete(edgeRef);
-  batch.set(structureRef, structureUpdate, { merge: true });
+  batch.set(
+    adjacencyRef,
+    { targets: arrayRemove(target) },
+    { merge: true }
+  );
+
+  if (structureUpdate) {
+    batch.set(structureRef, structureUpdate, { merge: true });
+  }
 
   await batch.commit();
 };

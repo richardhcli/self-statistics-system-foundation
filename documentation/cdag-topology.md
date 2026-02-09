@@ -11,6 +11,13 @@ Firebase is the source of truth; Zustand + IndexedDB cache data for fast reads.
 
 Firebase access lives in [src/lib/firebase/graph-service.ts](../src/lib/firebase/graph-service.ts). The cache schema is defined in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
+## 📚 Firestore Collections
+- **cdag_topology**: Structure metadata (`metrics`, `version`, `lastUpdated`).
+- **adjacency_list**: Lightweight adjacency data for fast layout.
+- **node_summaries**: Lightweight node summaries for quick labels/types.
+- **nodes**: Full node documents.
+- **edges**: Full edge documents.
+
 ### Data Structure
 See the authoritative types in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
@@ -31,5 +38,5 @@ Edge weights are adjusted via the `mergeTopology` logic using a global `LEARNING
 ## 🔄 Read-Aside Flow
 1. UI requests graph data via selectors (nodes/edges/structure).
 2. Store checks cache metadata; if stale, it fetches from Firebase.
-3. Structure loads first (adjacency + node summaries).
-4. Node/edge details load on-demand via smart fetch.
+3. Structure metadata loads first, then adjacency_list and node_summaries collections hydrate the lightweight structure.
+4. Node/edge details load on-demand via smart fetch, with a full graph sync once per app load and only when stale afterwards.

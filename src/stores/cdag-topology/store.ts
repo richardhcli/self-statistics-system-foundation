@@ -1,16 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import {
-  arrayRemove,
-  arrayUnion,
-  deleteField,
-  increment,
-} from 'firebase/firestore';
+import { increment } from 'firebase/firestore';
 import {
   createEdgeBatch,
   createNodeBatch,
   deleteEdgeBatch,
   deleteNodeBatch,
+  fetchAllEdges,
+  fetchAllNodes,
   fetchEdgesByIds,
   fetchNodesByIds,
   fetchStructure as fetchStructureFromFirebase,
@@ -27,63 +24,18 @@ import type {
   EdgeData,
   NodeData,
 } from './types';
-
-const CACHE_TTL_MS = 1000 * 60 * 5;
-const DEFAULT_NODE_ID = 'progression';
-const DEFAULT_NODE: NodeData = {
-  id: DEFAULT_NODE_ID,
-  label: 'Progression',
-  type: 'characteristic',
-};
-
-const buildEdgeId = (source: string, target: string) => `${source}->${target}`;
+import { buildEdgeId } from '@/lib/firebase/utils/graph-normalizers';
+import {
+  DEFAULT_NODE,
+  DEFAULT_NODE_ID,
+  buildEmptyMetadata,
+  buildEmptyStructure,
+  ensureDefaultNode,
+  ensureStructureDefaults,
+  isCacheStale,
+} from './store-helpers';
 
 const getCurrentUserId = () => auth.currentUser?.uid ?? null;
-
-const isCacheStale = (cacheInfo: { lastFetched: number; isDirty?: boolean } | undefined) => {
-  if (!cacheInfo) return true;
-  if (cacheInfo.isDirty) return true;
-  return Date.now() - cacheInfo.lastFetched > CACHE_TTL_MS;
-};
-
-const buildEmptyStructure = (): CdagStructure => ({
-  adjacencyList: {},
-  nodeSummaries: {
-    [DEFAULT_NODE_ID]: {
-      id: DEFAULT_NODE_ID,
-      label: DEFAULT_NODE.label,
-      type: DEFAULT_NODE.type,
-    },
-  },
-  metrics: { nodeCount: 1, edgeCount: 0 },
-  version: 1,
-});
-
-const buildEmptyMetadata = (): CdagMetadata => ({
-  nodes: {},
-  edges: {},
-  structure: { lastFetched: 0, isDirty: false },
-});
-
-const ensureDefaultNode = (nodes: Record<string, NodeData>) => {
-  if (nodes[DEFAULT_NODE_ID]) return nodes;
-  return { ...nodes, [DEFAULT_NODE_ID]: DEFAULT_NODE };
-};
-
-const ensureStructureDefaults = (structure?: CdagStructure): CdagStructure => {
-  if (!structure) return buildEmptyStructure();
-
-  return {
-    adjacencyList: structure.adjacencyList ?? {},
-    nodeSummaries: {
-      ...buildEmptyStructure().nodeSummaries,
-      ...(structure.nodeSummaries ?? {}),
-    },
-    metrics: structure.metrics ?? { nodeCount: 0, edgeCount: 0 },
-    lastUpdated: structure.lastUpdated,
-    version: structure.version ?? 1,
-  };
-};
 
 /**
  * Internal store interface - includes state and stable actions object.
@@ -112,6 +64,9 @@ interface GraphStoreState {
     subscribeToStructure: (uid: string) => () => void;
     fetchNodes: (uid: string, ids: string[], force?: boolean) => Promise<void>;
     fetchEdges: (uid: string, ids: string[], force?: boolean) => Promise<void>;
+    fetchAllNodes: (uid: string) => Promise<number>;
+    fetchAllEdges: (uid: string) => Promise<number>;
+    setFullFetchTimestamp: (timestamp: number) => void;
   };
 }
 
@@ -136,7 +91,10 @@ export const useGraphStore = create<GraphStoreState>()(
             nodes: ensureDefaultNode(snapshot.nodes ?? {}),
             edges: snapshot.edges ?? {},
             structure: ensureStructureDefaults(snapshot.structure),
-            metadata: snapshot.metadata ?? buildEmptyMetadata(),
+            metadata: {
+              ...buildEmptyMetadata(),
+              ...(snapshot.metadata ?? {}),
+            },
           })),
 
         setStructure: (structure: CdagStructure) =>
@@ -149,12 +107,19 @@ export const useGraphStore = create<GraphStoreState>()(
               nodes: { ...state.metadata.nodes },
               edges: { ...state.metadata.edges },
               structure: { lastFetched: now, isDirty: false },
+              fullFetchAt: state.metadata.fullFetchAt ?? 0,
             };
 
             Object.values(nextStructure.nodeSummaries).forEach((summary) => {
               if (!nextNodes[summary.id]) {
                 nextNodes[summary.id] = {
                   id: summary.id,
+                  label: summary.label,
+                  type: summary.type,
+                };
+              } else {
+                nextNodes[summary.id] = {
+                  ...nextNodes[summary.id],
                   label: summary.label,
                   type: summary.type,
                 };
@@ -225,6 +190,14 @@ export const useGraphStore = create<GraphStoreState>()(
             };
           }),
 
+        setFullFetchTimestamp: (timestamp: number) =>
+          set((state) => ({
+            metadata: {
+              ...state.metadata,
+              fullFetchAt: timestamp,
+            },
+          })),
+
         upsertNode: (node: NodeData) => {
           const { nodes } = get();
           if (nodes[node.id]) {
@@ -275,7 +248,6 @@ export const useGraphStore = create<GraphStoreState>()(
           if (!uid) return;
 
           void createNodeBatch(uid, node, {
-            [`nodeSummaries.${node.id}`]: { id: node.id, label: node.label, type: node.type },
             'metrics.nodeCount': increment(1),
             lastUpdated: new Date().toISOString(),
           });
@@ -318,11 +290,6 @@ export const useGraphStore = create<GraphStoreState>()(
           if (!uid) return;
 
           void updateNodeBatch(uid, nodeId, { ...updates, updatedAt }, {
-            [`nodeSummaries.${nodeId}`]: {
-              id: nodeId,
-              label: updates.label ?? get().nodes[nodeId]?.label ?? nodeId,
-              type: updates.type ?? get().nodes[nodeId]?.type ?? 'none',
-            },
             lastUpdated: new Date().toISOString(),
           });
         },
@@ -368,16 +335,10 @@ export const useGraphStore = create<GraphStoreState>()(
           });
 
           const structureUpdates: Record<string, unknown> = {
-            [`nodeSummaries.${nodeId}`]: deleteField(),
-            [`adjacencyList.${nodeId}`]: deleteField(),
             'metrics.nodeCount': increment(-1),
             'metrics.edgeCount': increment(-relatedEdges.length),
             lastUpdated: new Date().toISOString(),
           };
-
-          relatedEdges.forEach((edge) => {
-            structureUpdates[`adjacencyList.${edge.source}`] = arrayRemove(edge.target);
-          });
 
           const uid = getCurrentUserId();
           if (!uid) return;
@@ -385,7 +346,7 @@ export const useGraphStore = create<GraphStoreState>()(
           void deleteNodeBatch(uid, nodeId, structureUpdates);
 
           relatedEdges.forEach((edge) => {
-            void deleteEdgeBatch(uid, edge.id);
+            void deleteEdgeBatch(uid, edge.id, edge.source, edge.target);
           });
         },
 
@@ -427,7 +388,6 @@ export const useGraphStore = create<GraphStoreState>()(
           if (!uid) return;
 
           void createEdgeBatch(uid, edge, {
-            [`adjacencyList.${edge.source}`]: arrayUnion(edge.target),
             'metrics.edgeCount': increment(1),
             lastUpdated: new Date().toISOString(),
           });
@@ -491,8 +451,7 @@ export const useGraphStore = create<GraphStoreState>()(
           const uid = getCurrentUserId();
           if (!uid) return;
 
-          void deleteEdgeBatch(uid, edgeId, {
-            [`adjacencyList.${edge.source}`]: arrayRemove(edge.target),
+          void deleteEdgeBatch(uid, edgeId, edge.source, edge.target, {
             'metrics.edgeCount': increment(-1),
             lastUpdated: new Date().toISOString(),
           });
@@ -539,6 +498,16 @@ export const useGraphStore = create<GraphStoreState>()(
 
           const edges = await fetchEdgesByIds(uid, targets);
           actions.cacheEdges(edges);
+        },
+        fetchAllNodes: async (uid: string) => {
+          const nodes = await fetchAllNodes(uid);
+          actions.cacheNodes(nodes);
+          return nodes.length;
+        },
+        fetchAllEdges: async (uid: string) => {
+          const edges = await fetchAllEdges(uid);
+          actions.cacheEdges(edges);
+          return edges.length;
         },
       };
 

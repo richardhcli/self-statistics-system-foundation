@@ -8,9 +8,11 @@ All graph data lives under `users/{uid}/graphs/cdag_topology`.
 
 | Location | Key Fields |
 | --- | --- |
-| **`users/{uid}/graphs/cdag_topology`** | `adjacencyList`, `nodeSummaries`, `metrics`, `lastUpdated`, `version` |
+| **`users/{uid}/graphs/cdag_topology`** | `metrics`, `lastUpdated`, `version` |
 | **`users/{uid}/graphs/cdag_topology/nodes/{nodeId}`** | `label`, `type`, `metadata` |
 | **`users/{uid}/graphs/cdag_topology/edges/{edgeId}`** | `source`, `target`, `weight`, `metadata` |
+| **`users/{uid}/graphs/cdag_topology/adjacency_list/{nodeId}`** | `targets` |
+| **`users/{uid}/graphs/cdag_topology/node_summaries/{nodeId}`** | `label`, `type` |
 
 * **Why this works:** Decoupling edges from nodes allows edges to scale up to 10+ connections per node with complex metadata without hitting the 1MB document limit.
 * **Unique IDs:** Using `${source}->${target}` as the Edge ID prevents duplicate relationships and allows O(1) direct lookups.
@@ -22,6 +24,23 @@ All graph data lives under `users/{uid}/graphs/cdag_topology`.
 * **Flat Retrieval:** For a graph of this size, a single `getDocs` call on `users/{uid}/graphs/cdag_topology/edges` is more efficient than recursive calls.
 * **Efficient Traversals:** Indexed queries on `source` or `target` fields allow lightning-fast parent/child lookups.
 * **Cost Efficiency:** 1,000 nodes fit comfortably within Firebase's free tier for daily reads, provided you implement basic caching or state management.
+
+---
+
+## 🔄 Read-Aside Hydration Pipeline
+
+The visual graph now follows a deterministic hydration pipeline to guarantee fast boot and accurate data:
+
+1. **IndexedDB Hydration**: Zustand loads cached CDAG data immediately for instant rendering.
+2. **Structure Fetch**: `users/{uid}/graphs/cdag_topology` is fetched and applied to overwrite stale cache metadata.
+3. **Lightweight Hydration**: `adjacency_list` and `node_summaries` hydrate quick-load structure data.
+4. **Structure Subscription**: The structure document is subscribed to for live refreshes.
+5. **Details Refresh**: Nodes and edges are fetched in full once per app load, then only on stale data (30-minute TTL).
+
+Implementation references:
+- Graph read-aside service: [src/lib/firebase/graph-service.ts](../../src/lib/firebase/graph-service.ts)
+- Store + cache logic: [src/stores/cdag-topology/store.ts](../../src/stores/cdag-topology/store.ts)
+- Visual graph sync hook: [src/hooks/use-cdag-structure.ts](../../src/hooks/use-cdag-structure.ts)
 
 ---
 

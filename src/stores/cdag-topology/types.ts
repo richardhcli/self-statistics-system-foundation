@@ -87,6 +87,7 @@ export interface CdagMetadata {
   nodes: Record<string, CdagCacheInfo>;
   edges: Record<string, CdagCacheInfo>;
   structure: CdagCacheInfo;
+  fullFetchAt: number; // Timestamp of last full fetch (used for cache invalidation) - metadata to track stale full-sync timing and updated docs to match the new policy
 }
 
 /**

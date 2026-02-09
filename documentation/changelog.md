@@ -2,6 +2,11 @@
 
 This document tracks the iterative development of the Journal & Graph AI application.
 
+## [v1.6.0] - Complete overhaul of backend
+- jornal, graph, and user settings all stored in backend
+- firebase backend used as main source of truth. 
+- indexDB caching for read-aside architecture. 
+
 ## [v1.5.0] - The Modular Journal Refactor
 - **Self-Contained Journal Feature**: Completely refactored the journal feature to be a fully modular, self-contained React component.
 - **Simplified State Management**: Replaced Zustand local store with simple React useState for component-scoped UI state (dropdowns, forms, processing).

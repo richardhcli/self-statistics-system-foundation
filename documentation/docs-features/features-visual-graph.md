@@ -25,6 +25,19 @@ The visual graph uses a Firebase-first read-aside flow:
 - **Backend Sync**: The CDAG structure is fetched from Firebase on mount and re-synced through the subscription stream.
 - **Authoritative Overwrite**: Nodes and edges referenced by the structure are force-refreshed from Firebase to overwrite any stale cache data.
 
+## Hydration Pipeline
+The CDAG load path follows a strict sequence for fast render and accurate data:
+1. **Cache Hydration**: IndexedDB restores the last known CDAG snapshot.
+2. **Structure Overwrite**: `users/{uid}/graphs/cdag_topology` is fetched and applied to refresh metadata.
+3. **Lightweight Hydration**: `adjacency_list` and `node_summaries` collections hydrate quick-load structure data.
+4. **Live Structure Sync**: A Firebase snapshot subscription keeps the structure metadata up to date.
+5. **Detail Expansion**: The graph fetches the full node/edge collections once per app load, then only re-fetches when the data is stale.
+
+Implementation references:
+- Sync hook: [src/hooks/use-cdag-structure.ts](../../src/hooks/use-cdag-structure.ts)
+- Store cache logic: [src/stores/cdag-topology/store.ts](../../src/stores/cdag-topology/store.ts)
+- Firebase service: [src/lib/firebase/graph-service.ts](../../src/lib/firebase/graph-service.ts)
+
 ## Highlighting System
 - **Primary Selection**: Selected nodes receive an **Indigo Glow Aura** and bold stroke.
 - **Relationship Tracing**: Immediate parents and children of selected nodes are highlighted with indigo strokes, and the connecting edges turn solid indigo to reveal the specific flow of effort.

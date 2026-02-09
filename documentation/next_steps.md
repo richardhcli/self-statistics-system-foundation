@@ -1,9 +1,6 @@
 # Potential next steps for this app
 
 
-### temporary bypass:
-
-
 ### full delete: 
 Go back to recent "firebase migration plans" documents.
 

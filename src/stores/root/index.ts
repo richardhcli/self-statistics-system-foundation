@@ -102,6 +102,7 @@ export const INITIAL_ROOT_STATE: RootState = {
       nodes: {},
       edges: {},
       structure: { lastFetched: 0, isDirty: false },
+      fullFetchAt: 0,
     },
   },
   playerStatistics: {

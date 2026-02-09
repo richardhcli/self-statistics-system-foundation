@@ -38,8 +38,12 @@
 ### Graphs (CDAG)
 - Collection: users/{uid}/graphs
   - Document: cdag_topology
-    - Fields: adjacencyList, nodeSummaries, metrics, version, lastUpdated
-  - Subcollections: nodes, edges
+    - Fields: metrics, version, lastUpdated
+  - Subcollections:
+    - nodes
+    - edges
+    - adjacency_list
+    - node_summaries
 
 ## References
 - Schema types: [src/types/firestore.ts](../../src/types/firestore.ts)
