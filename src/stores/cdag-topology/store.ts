@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { increment } from 'firebase/firestore';
+import { deleteField, increment } from 'firebase/firestore';
 import {
   createEdgeBatch,
   createNodeBatch,
@@ -131,14 +131,20 @@ export const useGraphStore = create<GraphStoreState>()(
             });
 
             Object.entries(nextStructure.adjacencyList).forEach(([source, targets]) => {
-              targets.forEach((target) => {
-                const edgeId = buildEdgeId(source, target);
+              targets.forEach((entry) => {
+                if (!entry?.target) return;
+                const edgeId = buildEdgeId(source, entry.target);
                 if (!nextEdges[edgeId]) {
                   nextEdges[edgeId] = {
                     id: edgeId,
                     source,
-                    target,
-                    weight: 1.0,
+                    target: entry.target,
+                    weight: entry.weight ?? 1.0,
+                  };
+                } else if (entry.weight !== undefined && nextEdges[edgeId].weight !== entry.weight) {
+                  nextEdges[edgeId] = {
+                    ...nextEdges[edgeId],
+                    weight: entry.weight,
                   };
                 }
 
@@ -220,6 +226,10 @@ export const useGraphStore = create<GraphStoreState>()(
           set((state) => {
             const nextNodes = { ...state.nodes, [node.id]: node };
             const nextStructure = ensureStructureDefaults(state.structure);
+            const nextAdjacency = { ...nextStructure.adjacencyList };
+            if (!nextAdjacency[node.id]) {
+              nextAdjacency[node.id] = [];
+            }
 
             return {
               nodes: ensureDefaultNode(nextNodes),
@@ -229,6 +239,7 @@ export const useGraphStore = create<GraphStoreState>()(
                   ...nextStructure.nodeSummaries,
                   [node.id]: { id: node.id, label: node.label, type: node.type },
                 },
+                adjacencyList: nextAdjacency,
                 metrics: {
                   nodeCount: nextStructure.metrics.nodeCount + 1,
                   edgeCount: nextStructure.metrics.edgeCount,
@@ -250,6 +261,8 @@ export const useGraphStore = create<GraphStoreState>()(
           void createNodeBatch(uid, node, {
             'metrics.nodeCount': increment(1),
             lastUpdated: new Date().toISOString(),
+            [`nodes.${node.id}`]: { label: node.label, type: node.type },
+            [`edges.${node.id}`]: [],
           });
         },
 
@@ -289,9 +302,21 @@ export const useGraphStore = create<GraphStoreState>()(
           const uid = getCurrentUserId();
           if (!uid) return;
 
-          void updateNodeBatch(uid, nodeId, { ...updates, updatedAt }, {
+          const manifestUpdate: Record<string, unknown> = {
             lastUpdated: new Date().toISOString(),
-          });
+          };
+
+          if (updates.label !== undefined || updates.type !== undefined) {
+            const nextNode = get().nodes[nodeId];
+            if (nextNode) {
+              manifestUpdate[`nodes.${nodeId}`] = {
+                label: nextNode.label,
+                type: nextNode.type,
+              };
+            }
+          }
+
+          void updateNodeBatch(uid, nodeId, { ...updates, updatedAt }, manifestUpdate);
         },
 
         removeNode: (nodeId: string) => {
@@ -314,7 +339,7 @@ export const useGraphStore = create<GraphStoreState>()(
               delete nextEdges[edge.id];
               if (nextAdjacency[edge.source]) {
                 nextAdjacency[edge.source] = nextAdjacency[edge.source].filter(
-                  (target) => target !== edge.target
+                  (entry) => entry.target !== edge.target
                 );
               }
             });
@@ -334,16 +359,23 @@ export const useGraphStore = create<GraphStoreState>()(
             };
           });
 
-          const structureUpdates: Record<string, unknown> = {
+          const manifestUpdates: Record<string, unknown> = {
             'metrics.nodeCount': increment(-1),
             'metrics.edgeCount': increment(-relatedEdges.length),
             lastUpdated: new Date().toISOString(),
+            [`nodes.${nodeId}`]: deleteField(),
+            [`edges.${nodeId}`]: deleteField(),
           };
+
+          relatedEdges.forEach((edge) => {
+            manifestUpdates[`edges.${edge.source}`] =
+              get().structure.adjacencyList[edge.source] ?? [];
+          });
 
           const uid = getCurrentUserId();
           if (!uid) return;
 
-          void deleteNodeBatch(uid, nodeId, structureUpdates);
+          void deleteNodeBatch(uid, nodeId, manifestUpdates);
 
           relatedEdges.forEach((edge) => {
             void deleteEdgeBatch(uid, edge.id, edge.source, edge.target);
@@ -357,9 +389,19 @@ export const useGraphStore = create<GraphStoreState>()(
             const nextTargets = nextAdjacency[edge.source]
               ? [...nextAdjacency[edge.source]]
               : [];
+            const existingIndex = nextTargets.findIndex(
+              (entry) => entry.target === edge.target
+            );
+            const nextWeight = edge.weight ?? 1.0;
 
-            if (!nextTargets.includes(edge.target)) {
-              nextTargets.push(edge.target);
+            if (existingIndex >= 0) {
+              nextTargets[existingIndex] = {
+                ...nextTargets[existingIndex],
+                target: edge.target,
+                weight: nextWeight,
+              };
+            } else {
+              nextTargets.push({ target: edge.target, weight: nextWeight });
             }
 
             nextAdjacency[edge.source] = nextTargets;
@@ -390,33 +432,104 @@ export const useGraphStore = create<GraphStoreState>()(
           void createEdgeBatch(uid, edge, {
             'metrics.edgeCount': increment(1),
             lastUpdated: new Date().toISOString(),
+            [`edges.${edge.source}`]: get().structure.adjacencyList[edge.source] ?? [],
           });
         },
 
         updateEdge: (edgeId: string, updates: Partial<EdgeData>) => {
           const updatedAt = new Date().toISOString();
 
-          set((state) => {
-            const existing = state.edges[edgeId];
-            if (!existing) return state;
+          const existing = get().edges[edgeId];
+          if (!existing) return;
 
-            const nextEdge = { ...existing, ...updates, updatedAt };
-            return {
-              edges: { ...state.edges, [edgeId]: nextEdge },
-              metadata: {
-                ...state.metadata,
-                edges: {
-                  ...state.metadata.edges,
-                  [edgeId]: { lastFetched: Date.now(), isDirty: false },
-                },
+          const nextEdge = { ...existing, ...updates, updatedAt };
+          const nextStructure = ensureStructureDefaults(get().structure);
+          const nextAdjacency = { ...nextStructure.adjacencyList };
+          const manifestUpdate: Record<string, unknown> = {
+            lastUpdated: new Date().toISOString(),
+          };
+          let adjacencyChanged = false;
+
+          if (updates.source || updates.target) {
+            const prevSource = existing.source;
+            const prevTarget = existing.target;
+            const nextSource = updates.source ?? prevSource;
+            const nextTarget = updates.target ?? prevTarget;
+
+            if (nextAdjacency[prevSource]) {
+              nextAdjacency[prevSource] = nextAdjacency[prevSource].filter(
+                (entry) => entry.target !== prevTarget
+              );
+              manifestUpdate[`edges.${prevSource}`] = nextAdjacency[prevSource];
+              adjacencyChanged = true;
+            }
+
+            const nextTargets = nextAdjacency[nextSource]
+              ? [...nextAdjacency[nextSource]]
+              : [];
+            const nextWeight = updates.weight ?? existing.weight ?? 1.0;
+            const existingIndex = nextTargets.findIndex(
+              (entry) => entry.target === nextTarget
+            );
+
+            if (existingIndex >= 0) {
+              nextTargets[existingIndex] = {
+                ...nextTargets[existingIndex],
+                target: nextTarget,
+                weight: nextWeight,
+              };
+            } else {
+              nextTargets.push({ target: nextTarget, weight: nextWeight });
+            }
+
+            nextAdjacency[nextSource] = nextTargets;
+            manifestUpdate[`edges.${nextSource}`] = nextTargets;
+            adjacencyChanged = true;
+          } else if (updates.weight !== undefined) {
+            const source = existing.source;
+            const targets = nextAdjacency[source] ? [...nextAdjacency[source]] : [];
+            const entryIndex = targets.findIndex(
+              (entry) => entry.target === existing.target
+            );
+
+            if (entryIndex >= 0) {
+              targets[entryIndex] = {
+                ...targets[entryIndex],
+                target: existing.target,
+                weight: updates.weight,
+              };
+            } else {
+              targets.push({ target: existing.target, weight: updates.weight });
+            }
+
+            nextAdjacency[source] = targets;
+            manifestUpdate[`edges.${source}`] = targets;
+            adjacencyChanged = true;
+          }
+
+          set((state) => ({
+            edges: { ...state.edges, [edgeId]: nextEdge },
+            structure: adjacencyChanged
+              ? { ...nextStructure, adjacencyList: nextAdjacency }
+              : state.structure,
+            metadata: {
+              ...state.metadata,
+              edges: {
+                ...state.metadata.edges,
+                [edgeId]: { lastFetched: Date.now(), isDirty: false },
               },
-            };
-          });
+            },
+          }));
 
           const uid = getCurrentUserId();
           if (!uid) return;
 
-          void updateEdgeBatch(uid, edgeId, { ...updates, updatedAt });
+          void updateEdgeBatch(
+            uid,
+            edgeId,
+            { ...updates, updatedAt },
+            adjacencyChanged ? manifestUpdate : undefined
+          );
         },
 
         removeEdge: (edgeId: string) => {
@@ -430,7 +543,7 @@ export const useGraphStore = create<GraphStoreState>()(
             delete nextEdges[edgeId];
             if (edge && nextAdjacency[edge.source]) {
               nextAdjacency[edge.source] = nextAdjacency[edge.source].filter(
-                (target) => target !== edge.target
+                (entry) => entry.target !== edge.target
               );
             }
             return {
@@ -454,6 +567,7 @@ export const useGraphStore = create<GraphStoreState>()(
           void deleteEdgeBatch(uid, edgeId, edge.source, edge.target, {
             'metrics.edgeCount': increment(-1),
             lastUpdated: new Date().toISOString(),
+            [`edges.${edge.source}`]: get().structure.adjacencyList[edge.source] ?? [],
           });
         },
 
@@ -521,9 +635,9 @@ export const useGraphStore = create<GraphStoreState>()(
       };
     },
     {
-      name: 'cdag-topology-store-v3',
+      name: 'cdag-topology-store-v4',
       storage: indexedDBStorage,
-      version: 3,
+      version: 4,
       // ✅ CRITICAL: Only persist data, never persist actions/functions to IndexedDB
       partialize: (state) => ({
         nodes: state.nodes,
@@ -540,7 +654,7 @@ export const useGraphStore = create<GraphStoreState>()(
         actions: currentState.actions,
       }),
       migrate: (state: any, version: number) => {
-        if (version !== 3) {
+        if (version !== 4) {
           console.warn('[CDAG Store] Schema mismatch - clearing persisted data');
           return {
             nodes: { [DEFAULT_NODE_ID]: DEFAULT_NODE },

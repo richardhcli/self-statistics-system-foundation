@@ -20,15 +20,15 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 **Goal**: Normalize topology storage for Firebase + Zustand read-aside.
 
 - [x] **1.1. Firebase Schema**
-  - `users/{uid}/graphs/cdag_topology` (structure doc: adjacency list & lightweight stats)
+  - `users/{uid}/graphs/cdag_topology/graph_metadata/topology_manifest` (manifest doc: node summaries + weighted adjacency)
   - `users/{uid}/graphs/cdag_topology/nodes/{nodeId}`
   - `users/{uid}/graphs/cdag_topology/edges/{edgeId}`
 
 - [x] **1.2. Structure Document Shape**
-  - `structure` holds lightweight relationship data and metadata:
-    - `adjacencyList`: Record<string, string[]> (for quick traversals without loading all node data)
-    - `nodeCount`, `edgeCount`
-    - `lastUpdated`, `version`
+  - Manifest holds lightweight relationship data and metadata:
+    - `nodes`: Record<string, { label: string; type: string }>
+    - `edges`: Record<string, Array<{ target: string; weight?: number }>>
+    - `metrics`, `lastUpdated`, `version`
 
 ---
 
@@ -40,7 +40,7 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
   - File: `src/lib/firebase/cdag-topology.ts`
 
 - [x] **2.2. Read Methods**
-  - `subscribeToStructure(uid, cb)` (Real-time listener for structure/meta)
+  - `subscribeToStructure(uid, cb)` (Real-time listener for manifest/meta)
   - `fetchNodesByIds(uid, ids)` (On-demand detail fetch)
   - `fetchEdgesByIds(uid, ids)`
 
@@ -60,7 +60,7 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
   - Implementation: [src/stores/cdag-topology/store.ts](../../src/stores/cdag-topology/store.ts)
 
 - [x] **3.2. Actions Implementation Strategy**
-  - `fetchStructure()`: Loads adjacency list & counts. Updates `structure` and `metadata.structure.lastFetched`.
+  - `fetchStructure()`: Loads manifest adjacency + summaries. Updates `structure` and `metadata.structure.lastFetched`.
   - `fetchNodes(ids)`: Smart fetch. Checks `metadata.nodes[id].lastFetched`. Only requests stale/missing keys from Firebase.
   - `addNode(node)`: 
     1. Optimistic update (Zustand).

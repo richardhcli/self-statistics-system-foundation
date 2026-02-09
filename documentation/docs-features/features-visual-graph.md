@@ -22,16 +22,15 @@ The graph uses a custom layering engine (`use-dag-layout`) that ensures a predic
 ## Data Synchronization
 The visual graph uses a Firebase-first read-aside flow:
 - **Fast Boot**: IndexedDB hydrates the cached topology immediately on load.
-- **Backend Sync**: The CDAG structure is fetched from Firebase on mount and re-synced through the subscription stream.
+- **Backend Sync**: The manifest is fetched from Firebase on mount and re-synced through the subscription stream.
 - **Authoritative Overwrite**: Nodes and edges referenced by the structure are force-refreshed from Firebase to overwrite any stale cache data.
 
 ## Hydration Pipeline
 The CDAG load path follows a strict sequence for fast render and accurate data:
 1. **Cache Hydration**: IndexedDB restores the last known CDAG snapshot.
-2. **Structure Overwrite**: `users/{uid}/graphs/cdag_topology` is fetched and applied to refresh metadata.
-3. **Lightweight Hydration**: `adjacency_list` and `node_summaries` collections hydrate quick-load structure data.
-4. **Live Structure Sync**: A Firebase snapshot subscription keeps the structure metadata up to date.
-5. **Detail Expansion**: The graph fetches the full node/edge collections once per app load, then only re-fetches when the data is stale.
+2. **Manifest Overwrite**: `users/{uid}/graphs/cdag_topology/graph_metadata/topology_manifest` is fetched and applied.
+3. **Live Structure Sync**: A Firebase snapshot subscription keeps the manifest up to date.
+4. **Detail Expansion**: The graph fetches the full node/edge collections once per app load, then only re-fetches when the data is stale (30-minute TTL).
 
 Implementation references:
 - Sync hook: [src/hooks/use-cdag-structure.ts](../../src/hooks/use-cdag-structure.ts)

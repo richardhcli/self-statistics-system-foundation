@@ -1,41 +1,49 @@
-This blueprint outlines the technical implementation for a 1,000-node weighted Directed Acyclic Graph (DAG) using a "Sprint-style" Firebase architecture.
+This blueprint defines the Manifest Pattern for CDAG storage in Firebase.
 
 ---
 
-## 🛠️ Data Schema (Graph Collection)
+## Data Schema (Manifest + Source of Truth)
 
 All graph data lives under `users/{uid}/graphs/cdag_topology`.
 
 | Location | Key Fields |
 | --- | --- |
-| **`users/{uid}/graphs/cdag_topology`** | `metrics`, `lastUpdated`, `version` |
+| **`users/{uid}/graphs/cdag_topology/graph_metadata/topology_manifest`** | `nodes`, `edges`, `metrics`, `lastUpdated`, `version` |
 | **`users/{uid}/graphs/cdag_topology/nodes/{nodeId}`** | `label`, `type`, `metadata` |
 | **`users/{uid}/graphs/cdag_topology/edges/{edgeId}`** | `source`, `target`, `weight`, `metadata` |
-| **`users/{uid}/graphs/cdag_topology/adjacency_list/{nodeId}`** | `targets` |
-| **`users/{uid}/graphs/cdag_topology/node_summaries/{nodeId}`** | `label`, `type` |
 
-* **Why this works:** Decoupling edges from nodes allows edges to scale up to 10+ connections per node with complex metadata without hitting the 1MB document limit.
-* **Unique IDs:** Using `${source}->${target}` as the Edge ID prevents duplicate relationships and allows O(1) direct lookups.
-
----
-
-## 🚀 Performance & Scaling for 1,000 Nodes
-
-* **Flat Retrieval:** For a graph of this size, a single `getDocs` call on `users/{uid}/graphs/cdag_topology/edges` is more efficient than recursive calls.
-* **Efficient Traversals:** Indexed queries on `source` or `target` fields allow lightning-fast parent/child lookups.
-* **Cost Efficiency:** 1,000 nodes fit comfortably within Firebase's free tier for daily reads, provided you implement basic caching or state management.
+Why this works:
+- Manifest provides a fast, single-read boot path for graph rendering.
+- Nodes/edges collections remain the authoritative, full-detail store.
 
 ---
 
-## 🔄 Read-Aside Hydration Pipeline
+## Manifest Structure
 
-The visual graph now follows a deterministic hydration pipeline to guarantee fast boot and accurate data:
+The manifest stores lightweight node summaries and adjacency + weights:
 
-1. **IndexedDB Hydration**: Zustand loads cached CDAG data immediately for instant rendering.
-2. **Structure Fetch**: `users/{uid}/graphs/cdag_topology` is fetched and applied to overwrite stale cache metadata.
-3. **Lightweight Hydration**: `adjacency_list` and `node_summaries` hydrate quick-load structure data.
-4. **Structure Subscription**: The structure document is subscribed to for live refreshes.
-5. **Details Refresh**: Nodes and edges are fetched in full once per app load, then only on stale data (30-minute TTL).
+```typescript
+{
+  lastUpdated: string,
+  version: number,
+  metrics: { nodeCount: number, edgeCount: number },
+  nodes: {
+    [nodeId: string]: { label: string, type: string }
+  },
+  edges: {
+    [nodeId: string]: Array<{ target: string, weight?: number }>
+  }
+}
+```
+
+---
+
+## Read-Aside Hydration Pipeline
+
+1. IndexedDB Hydration (Zustand cached data renders immediately).
+2. Manifest Fetch (single document read).
+3. Structure Subscription (manifest onSnapshot for live refresh).
+4. Details Refresh (full nodes + edges fetch once per app load, then stale-only with a 30-minute TTL).
 
 Implementation references:
 - Graph read-aside service: [src/lib/firebase/graph-service.ts](../../src/lib/firebase/graph-service.ts)
@@ -44,25 +52,21 @@ Implementation references:
 
 ---
 
-## 🎣 Feature Hook: `useGraphData`
+## Batch Write Requirements
 
-See the read-aside service implementation in [src/lib/firebase/graph-service.ts](../../src/lib/firebase/graph-service.ts) and the cache state in [src/stores/cdag-topology/store.ts](../../src/stores/cdag-topology/store.ts).
+All topology changes must update BOTH tiers in one batch:
+
+- Nodes collection document
+- Edges collection document (if applicable)
+- Manifest `nodes` and `edges` entries
+- Manifest `metrics` and `lastUpdated`
+
+No backward compatibility is maintained. Legacy collections and dotted-field schemas are removed.
 
 ---
 
-## ⚠️ Critical DAG Considerations
+## Performance Notes (1,000 Node Target)
 
-### 1. Cycle Prevention (App Logic)
-
-Firestore does not enforce DAG constraints. You **must** verify that `targetId` is not an ancestor of `sourceId` in your React logic before calling `upsertEdge`.
-
-### 2. Required Indexes
-
-To filter edges by source, target, or metadata, you must define indexes in `firestore.indexes.json`:
-
-* `edges`: `source` (Asc) + `weight` (Desc)
-* `edges`: `target` (Asc) + `metadata.type` (Asc)
-
-### 3. State Management
-
-For visualization (e.g., using React Flow), transform the flat Firestore lists into an object-mapped structure in a local `useEffect` to avoid redundant O(n²) array searches.
+- Single manifest read is O(1) for boot.
+- Full detail fetches are amortized with TTL and session-only sync.
+- Edge IDs remain `${source}->${target}` for direct lookups.

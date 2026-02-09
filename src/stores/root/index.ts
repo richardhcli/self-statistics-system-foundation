@@ -87,7 +87,9 @@ export const INITIAL_ROOT_STATE: RootState = {
     },
     edges: {},
     structure: {
-      adjacencyList: {},
+      adjacencyList: {
+        progression: [],
+      },
       nodeSummaries: {
         progression: {
           id: 'progression',

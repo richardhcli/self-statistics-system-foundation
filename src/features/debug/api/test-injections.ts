@@ -80,8 +80,11 @@ const buildSnapshotFromGraph = (graph: GraphState): CdagStoreSnapshot => {
     if (!adjacencyList[edge.source]) {
       adjacencyList[edge.source] = [];
     }
-    if (!adjacencyList[edge.source].includes(edge.target)) {
-      adjacencyList[edge.source].push(edge.target);
+    if (!adjacencyList[edge.source].some((entry) => entry.target === edge.target)) {
+      adjacencyList[edge.source].push({
+        target: edge.target,
+        weight: edge.weight,
+      });
     }
   });
 
@@ -97,6 +100,7 @@ const buildSnapshotFromGraph = (graph: GraphState): CdagStoreSnapshot => {
     nodes: {},
     edges: {},
     structure: { lastFetched: 0, isDirty: false },
+    fullFetchAt: 0,
   };
 
   return {

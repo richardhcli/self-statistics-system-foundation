@@ -72,7 +72,10 @@ export const useCdagStructure = () => {
 
     const nodeIds = Object.keys(structure.nodeSummaries ?? {});
     const edgeIds = Object.entries(structure.adjacencyList ?? {}).flatMap(
-      ([source, targets]) => targets.map((target) => buildEdgeId(source, target))
+      ([source, targets]) =>
+        targets
+          .filter((entry) => entry?.target)
+          .map((entry) => buildEdgeId(source, entry.target))
     );
 
     console.log('[useCdagStructure] Structure snapshot', {

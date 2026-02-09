@@ -35,11 +35,10 @@ export interface BackendDatastoreSnapshot {
   userInformation: Record<string, Record<string, unknown>>;
   journalTree: JournalTreeStructure | null;
   journalEntries: Record<string, JournalEntryData>;
+  graphManifest: Record<string, unknown> | null;
   graphStructure: CdagStructure | null;
   graphNodes: Record<string, NodeData>;
   graphEdges: Record<string, EdgeData>;
-  graphAdjacencyList: Record<string, string[]>;
-  graphNodeSummaries: CdagStructure['nodeSummaries'];
 }
 
 const safeGetDocument = async (path: string) => {
@@ -60,6 +59,61 @@ const safeGetCollection = async (path: string) => {
   }
 };
 
+const normalizeManifestAdjacency = (payload?: unknown) => {
+  if (!payload || !Array.isArray(payload)) return [];
+  return payload
+    .map((entry) => {
+      if (typeof entry === 'string') return { target: entry };
+      if (entry && typeof entry === 'object') {
+        const target = (entry as { target?: string; t?: string }).target ?? (entry as { t?: string }).t;
+        if (!target) return null;
+        const weight = (entry as { weight?: number; w?: number }).weight ?? (entry as { w?: number }).w;
+        return weight === undefined ? { target } : { target, weight };
+      }
+      return null;
+    })
+    .filter((entry): entry is { target: string; weight?: number } => Boolean(entry));
+};
+
+const normalizeManifestStructure = (manifest: Record<string, unknown> | null): CdagStructure | null => {
+  if (!manifest) return null;
+
+  const nodes = (manifest as { nodes?: Record<string, { label?: string; type?: NodeData['type'] }> }).nodes ?? {};
+  const edges = (manifest as { edges?: Record<string, unknown> }).edges ?? {};
+
+  const nodeSummaries = Object.fromEntries(
+    Object.entries(nodes).map(([nodeId, summary]) => [
+      nodeId,
+      {
+        id: nodeId,
+        label: summary.label ?? nodeId,
+        type: summary.type ?? 'none',
+      },
+    ])
+  ) as CdagStructure['nodeSummaries'];
+
+  const adjacencyList = Object.fromEntries(
+    Object.entries(edges).map(([source, targets]) => [
+      source,
+      normalizeManifestAdjacency(targets),
+    ])
+  ) as CdagStructure['adjacencyList'];
+
+  const metrics = (manifest as { metrics?: { nodeCount: number; edgeCount: number } }).metrics;
+  const edgeCount = Object.values(adjacencyList).reduce((sum, targets) => sum + targets.length, 0);
+
+  return ensureStructureDefaults({
+    adjacencyList,
+    nodeSummaries,
+    metrics: metrics ?? {
+      nodeCount: Object.keys(nodeSummaries).length,
+      edgeCount,
+    },
+    lastUpdated: (manifest as { lastUpdated?: string }).lastUpdated,
+    version: (manifest as { version?: number }).version ?? 1,
+  });
+};
+
 /**
  * Fetches Firestore data for debug inspection and local hydration.
  */
@@ -72,22 +126,18 @@ export const fetchBackendDatastoreSnapshot = async (
     userInformation,
     journalTree,
     journalEntries,
-    graphStructure,
+    graphManifest,
     graphNodes,
     graphEdges,
-    graphAdjacencyList,
-    graphNodeSummaries,
   ] = await Promise.all([
     safeGetDocument(`users/${uid}`),
     safeGetCollection(`users/${uid}/account_config`),
     safeGetCollection(`users/${uid}/user_information`),
     safeGetDocument(`users/${uid}/journal_meta/tree_structure`),
     safeGetCollection(`users/${uid}/journal_entries`),
-    safeGetDocument(`users/${uid}/graphs/cdag_topology`),
+    safeGetDocument(`users/${uid}/graphs/cdag_topology/graph_metadata/topology_manifest`),
     safeGetCollection(`users/${uid}/graphs/cdag_topology/nodes`),
     safeGetCollection(`users/${uid}/graphs/cdag_topology/edges`),
-    safeGetCollection(`users/${uid}/graphs/cdag_topology/adjacency_list`),
-    safeGetCollection(`users/${uid}/graphs/cdag_topology/node_summaries`),
   ]);
 
   const normalizedJournalEntries = Object.fromEntries(
@@ -111,24 +161,8 @@ export const fetchBackendDatastoreSnapshot = async (
     ])
   );
 
-  const normalizedAdjacencyList = Object.fromEntries(
-    Object.entries(graphAdjacencyList).map(([source, entry]) => [
-      source,
-      Array.isArray((entry as { targets?: unknown }).targets)
-        ? ((entry as { targets: string[] }).targets ?? [])
-        : [],
-    ])
-  );
-
-  const normalizedNodeSummaries = Object.fromEntries(
-    Object.entries(graphNodeSummaries).map(([nodeId, summary]) => [
-      nodeId,
-      {
-        id: nodeId,
-        label: (summary as { label?: string }).label ?? nodeId,
-        type: (summary as { type?: NodeData['type'] }).type ?? 'none',
-      },
-    ])
+  const normalizedManifest = normalizeManifestStructure(
+    (graphManifest ?? null) as Record<string, unknown> | null
   );
 
   return {
@@ -137,11 +171,10 @@ export const fetchBackendDatastoreSnapshot = async (
     userInformation,
     journalTree: (journalTree ?? null) as JournalTreeStructure | null,
     journalEntries: normalizedJournalEntries as Record<string, JournalEntryData>,
-    graphStructure: (graphStructure ?? null) as CdagStructure | null,
+    graphManifest: (graphManifest ?? null) as Record<string, unknown> | null,
+    graphStructure: normalizedManifest,
     graphNodes: normalizedGraphNodes as Record<string, NodeData>,
     graphEdges: normalizedGraphEdges as Record<string, EdgeData>,
-    graphAdjacencyList: normalizedAdjacencyList as Record<string, string[]>,
-    graphNodeSummaries: normalizedNodeSummaries as CdagStructure['nodeSummaries'],
   };
 };
 
@@ -169,11 +202,7 @@ export const buildRootStateFromSnapshot = (
   const nextJournalEntries = snapshot.journalEntries ?? currentState.journal.entries;
   const nextJournalTree = snapshot.journalTree ?? currentState.journal.tree;
   const nextGraphStructure = ensureStructureDefaults(
-    {
-      ...(snapshot.graphStructure ?? currentState.cdagTopology.structure),
-      adjacencyList: snapshot.graphAdjacencyList ?? currentState.cdagTopology.structure.adjacencyList,
-      nodeSummaries: snapshot.graphNodeSummaries ?? currentState.cdagTopology.structure.nodeSummaries,
-    }
+    snapshot.graphStructure ?? currentState.cdagTopology.structure
   );
   const nextGraphNodes = ensureDefaultNode(
     snapshot.graphNodes ?? currentState.cdagTopology.nodes

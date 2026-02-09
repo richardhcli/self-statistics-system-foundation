@@ -63,22 +63,10 @@ const ForceSyncSnapshot: React.FC<ForceSyncSnapshotProps> = ({
         data: snapshot.journalEntries ?? {},
       },
       {
-        label: "Graph Structure",
-        rootPath: `users/${uid}/graphs/cdag_topology`,
+        label: "Graph Manifest",
+        rootPath: `users/${uid}/graphs/cdag_topology/graph_metadata/topology_manifest`,
         rootKind: "doc",
-        data: snapshot.graphStructure ?? {},
-      },
-      {
-        label: "Adjacency List",
-        rootPath: `users/${uid}/graphs/cdag_topology/adjacency_list`,
-        rootKind: "collection",
-        data: snapshot.graphAdjacencyList ?? {},
-      },
-      {
-        label: "Node Summaries",
-        rootPath: `users/${uid}/graphs/cdag_topology/node_summaries`,
-        rootKind: "collection",
-        data: snapshot.graphNodeSummaries ?? {},
+        data: snapshot.graphManifest ?? {},
       },
       {
         label: "Graph Nodes",

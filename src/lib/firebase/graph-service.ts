@@ -4,8 +4,6 @@
  */
 
 import {
-  arrayRemove,
-  arrayUnion,
   collection,
   doc,
   documentId,
@@ -33,6 +31,31 @@ const DEFAULT_NODE_SUMMARY = {
   label: 'Progression',
   type: 'characteristic',
 };
+const MANIFEST_COLLECTION = 'graph_metadata';
+const MANIFEST_DOC_ID = 'topology_manifest';
+
+type ManifestNodeSummary = {
+  label?: string;
+  type?: CdagStructure['nodeSummaries'][string]['type'];
+};
+
+type ManifestAdjacencyEntry = {
+  target?: string;
+  weight?: number;
+  t?: string;
+  w?: number;
+};
+
+interface CdagTopologyManifest {
+  nodes?: Record<string, ManifestNodeSummary>;
+  edges?: Record<string, ManifestAdjacencyEntry[] | string[]>;
+  metrics?: { nodeCount: number; edgeCount: number };
+  lastUpdated?: string;
+  version?: number;
+}
+
+const getManifestRef = (uid: string) =>
+  doc(db, 'users', uid, 'graphs', 'cdag_topology', MANIFEST_COLLECTION, MANIFEST_DOC_ID);
 
 const buildEmptyStructure = (): CdagStructure => ({
   adjacencyList: { [DEFAULT_NODE_ID]: [] },
@@ -41,53 +64,80 @@ const buildEmptyStructure = (): CdagStructure => ({
   version: 1,
 });
 
-const normalizeStructure = (payload?: Partial<CdagStructure>): CdagStructure => ({
-  adjacencyList: payload?.adjacencyList ?? {},
-  nodeSummaries: payload?.nodeSummaries ?? {},
-  metrics: payload?.metrics ?? { nodeCount: 0, edgeCount: 0 },
-  lastUpdated: payload?.lastUpdated,
-  version: payload?.version ?? 1,
-});
+const normalizeAdjacencyTargets = (
+  payload?: unknown
+): CdagStructure['adjacencyList'][string] => {
+  if (!payload || !Array.isArray(payload)) return [];
 
-const normalizeAdjacencyTargets = (payload?: unknown): string[] => {
-  if (!payload) return [];
-  return Array.isArray(payload) ? payload : [];
+  const normalized = payload
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return { target: entry };
+      }
+
+      if (entry && typeof entry === 'object') {
+        const target = (entry as ManifestAdjacencyEntry).target ?? (entry as ManifestAdjacencyEntry).t;
+        if (!target || typeof target !== 'string') return null;
+
+        const weight = (entry as ManifestAdjacencyEntry).weight ?? (entry as ManifestAdjacencyEntry).w;
+        return weight === undefined ? { target } : { target, weight };
+      }
+
+      return null;
+    })
+    .filter((entry): entry is { target: string; weight?: number } => Boolean(entry));
+
+  return normalized;
 };
 
-const fetchAdjacencyList = async (uid: string): Promise<Record<string, string[]>> => {
-  const adjacencyRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list');
-  const snapshot = await getDocs(adjacencyRef);
+const normalizeManifestStructure = (payload?: Partial<CdagTopologyManifest>): CdagStructure => {
+  if (!payload) return buildEmptyStructure();
 
-  if (snapshot.empty) {
-    return { [DEFAULT_NODE_ID]: [] };
-  }
+  const nodeSummaries = Object.entries(payload.nodes ?? {}).reduce<CdagStructure['nodeSummaries']>(
+    (acc, [nodeId, summary]) => {
+      acc[nodeId] = {
+        id: nodeId,
+        label: summary.label ?? nodeId,
+        type: summary.type ?? 'none',
+      };
+      return acc;
+    },
+    {}
+  );
 
-  return snapshot.docs.reduce<Record<string, string[]>>((acc, docSnap) => {
-    const data = docSnap.data() as { targets?: unknown };
-    acc[docSnap.id] = normalizeAdjacencyTargets(data.targets);
-    return acc;
-  }, {});
-};
+  const adjacencyList = Object.entries(payload.edges ?? {}).reduce<CdagStructure['adjacencyList']>(
+    (acc, [source, targets]) => {
+      acc[source] = normalizeAdjacencyTargets(targets);
+      return acc;
+    },
+    {}
+  );
 
-const fetchNodeSummaries = async (
-  uid: string
-): Promise<CdagStructure['nodeSummaries']> => {
-  const summariesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries');
-  const snapshot = await getDocs(summariesRef);
+  const mergedSummaries = {
+    [DEFAULT_NODE_ID]: DEFAULT_NODE_SUMMARY,
+    ...nodeSummaries,
+  };
 
-  if (snapshot.empty) {
-    return { [DEFAULT_NODE_ID]: DEFAULT_NODE_SUMMARY };
-  }
+  const mergedAdjacency = {
+    [DEFAULT_NODE_ID]: [],
+    ...adjacencyList,
+  };
 
-  return snapshot.docs.reduce<CdagStructure['nodeSummaries']>((acc, docSnap) => {
-    const data = docSnap.data() as { label?: string; type?: CdagStructure['nodeSummaries'][string]['type'] };
-    acc[docSnap.id] = {
-      id: docSnap.id,
-      label: data.label ?? docSnap.id,
-      type: data.type ?? 'none',
-    };
-    return acc;
-  }, {});
+  const computedEdgeCount = Object.values(mergedAdjacency).reduce(
+    (sum, targets) => sum + targets.length,
+    0
+  );
+
+  return {
+    adjacencyList: mergedAdjacency,
+    nodeSummaries: mergedSummaries,
+    metrics: payload.metrics ?? {
+      nodeCount: Object.keys(mergedSummaries).length,
+      edgeCount: computedEdgeCount,
+    },
+    lastUpdated: payload.lastUpdated,
+    version: payload.version ?? 1,
+  };
 };
 
 const chunkIds = (ids: string[], size: number) => {
@@ -98,6 +148,7 @@ const chunkIds = (ids: string[], size: number) => {
   return chunks;
 };
 
+
 /**
  * Subscribe to the topology structure document.
  */
@@ -106,27 +157,13 @@ export const subscribeToStructure = (
   onUpdate: (structure: CdagStructure) => void,
   onError?: (error: Error) => void
 ): (() => void) => {
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   return onSnapshot(
-    structureRef,
+    manifestRef,
     (snapshot) => {
-      const data = snapshot.data();
-      const baseStructure = data ? normalizeStructure(data as CdagStructure) : buildEmptyStructure();
-
-      void Promise.all([fetchAdjacencyList(uid), fetchNodeSummaries(uid)])
-        .then(([adjacencyList, nodeSummaries]) => {
-          onUpdate({
-            ...baseStructure,
-            adjacencyList,
-            nodeSummaries,
-          });
-        })
-        .catch((error) => {
-          if (onError) {
-            onError(error as Error);
-          }
-        });
+      const data = snapshot.data() as CdagTopologyManifest | undefined;
+      onUpdate(data ? normalizeManifestStructure(data) : buildEmptyStructure());
     },
     (error) => {
       if (onError) {
@@ -140,21 +177,14 @@ export const subscribeToStructure = (
  * Fetch the topology structure document.
  */
 export const fetchStructure = async (uid: string): Promise<CdagStructure> => {
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
-  const snapshot = await getDoc(structureRef);
-  const baseStructure = snapshot.exists()
-    ? normalizeStructure(snapshot.data() as CdagStructure)
-    : buildEmptyStructure();
-  const [adjacencyList, nodeSummaries] = await Promise.all([
-    fetchAdjacencyList(uid),
-    fetchNodeSummaries(uid),
-  ]);
+  const manifestRef = getManifestRef(uid);
+  const snapshot = await getDoc(manifestRef);
 
-  return {
-    ...baseStructure,
-    adjacencyList,
-    nodeSummaries,
-  };
+  if (!snapshot.exists()) {
+    return buildEmptyStructure();
+  }
+
+  return normalizeManifestStructure(snapshot.data() as CdagTopologyManifest);
 };
 
 /**
@@ -229,16 +259,17 @@ export const fetchAllEdges = async (uid: string): Promise<EdgeData[]> => {
 export const createNodeBatch = async (
   uid: string,
   node: NodeData,
-  structureUpdate: Record<string, unknown>
+  manifestUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', node.id);
-  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', node.id);
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   batch.set(nodeRef, serializeNodeDocument(node), { merge: true });
-  batch.set(summaryRef, { label: node.label, type: node.type }, { merge: true });
-  batch.set(structureRef, structureUpdate, { merge: true });
+  batch.set(manifestRef, { version: 1 }, { merge: true });
+  if (Object.keys(manifestUpdate).length > 0) {
+    batch.update(manifestRef, manifestUpdate);
+  }
 
   await batch.commit();
 };
@@ -250,23 +281,17 @@ export const updateNodeBatch = async (
   uid: string,
   nodeId: string,
   updates: Partial<NodeData>,
-  structureUpdate: Record<string, unknown>
+  manifestUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
-  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', nodeId);
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   batch.set(nodeRef, serializeNodeUpdate(nodeId, updates), { merge: true });
-  batch.set(
-    summaryRef,
-    {
-      ...(updates.label !== undefined ? { label: updates.label } : {}),
-      ...(updates.type !== undefined ? { type: updates.type } : {}),
-    },
-    { merge: true }
-  );
-  batch.set(structureRef, structureUpdate, { merge: true });
+  batch.set(manifestRef, { version: 1 }, { merge: true });
+  if (Object.keys(manifestUpdate).length > 0) {
+    batch.update(manifestRef, manifestUpdate);
+  }
 
   await batch.commit();
 };
@@ -277,18 +302,17 @@ export const updateNodeBatch = async (
 export const deleteNodeBatch = async (
   uid: string,
   nodeId: string,
-  structureUpdate: Record<string, unknown>
+  manifestUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
-  const summaryRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'node_summaries', nodeId);
-  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', nodeId);
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   batch.delete(nodeRef);
-  batch.delete(summaryRef);
-  batch.delete(adjacencyRef);
-  batch.set(structureRef, structureUpdate, { merge: true });
+  batch.set(manifestRef, { version: 1 }, { merge: true });
+  if (Object.keys(manifestUpdate).length > 0) {
+    batch.update(manifestRef, manifestUpdate);
+  }
 
   await batch.commit();
 };
@@ -299,20 +323,17 @@ export const deleteNodeBatch = async (
 export const createEdgeBatch = async (
   uid: string,
   edge: EdgeData,
-  structureUpdate: Record<string, unknown>
+  manifestUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edge.id);
-  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', edge.source);
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   batch.set(edgeRef, serializeEdgeDocument(edge), { merge: true });
-  batch.set(
-    adjacencyRef,
-    { targets: arrayUnion(edge.target) },
-    { merge: true }
-  );
-  batch.set(structureRef, structureUpdate, { merge: true });
+  batch.set(manifestRef, { version: 1 }, { merge: true });
+  if (Object.keys(manifestUpdate).length > 0) {
+    batch.update(manifestRef, manifestUpdate);
+  }
 
   await batch.commit();
 };
@@ -323,48 +344,17 @@ export const createEdgeBatch = async (
 export const updateEdgeBatch = async (
   uid: string,
   edgeId: string,
-  updates: Partial<EdgeData>
+  updates: Partial<EdgeData>,
+  manifestUpdate?: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
+  const manifestRef = getManifestRef(uid);
   batch.set(edgeRef, serializeEdgeUpdate(edgeId, updates), { merge: true });
 
-  if (updates.source || updates.target) {
-    const [prevSource, prevTarget] = edgeId.split('->');
-    const nextSource = updates.source ?? prevSource;
-    const nextTarget = updates.target ?? prevTarget;
-
-    if (prevSource !== nextSource || prevTarget !== nextTarget) {
-      const prevAdjacencyRef = doc(
-        db,
-        'users',
-        uid,
-        'graphs',
-        'cdag_topology',
-        'adjacency_list',
-        prevSource
-      );
-      const nextAdjacencyRef = doc(
-        db,
-        'users',
-        uid,
-        'graphs',
-        'cdag_topology',
-        'adjacency_list',
-        nextSource
-      );
-
-      batch.set(
-        prevAdjacencyRef,
-        { targets: arrayRemove(prevTarget) },
-        { merge: true }
-      );
-      batch.set(
-        nextAdjacencyRef,
-        { targets: arrayUnion(nextTarget) },
-        { merge: true }
-      );
-    }
+  if (manifestUpdate && Object.keys(manifestUpdate).length > 0) {
+    batch.set(manifestRef, { version: 1 }, { merge: true });
+    batch.update(manifestRef, manifestUpdate);
   }
 
   await batch.commit();
@@ -378,22 +368,16 @@ export const deleteEdgeBatch = async (
   edgeId: string,
   source: string,
   target: string,
-  structureUpdate?: Record<string, unknown>
+  manifestUpdate?: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
   const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
-  const adjacencyRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'adjacency_list', source);
-  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
+  const manifestRef = getManifestRef(uid);
 
   batch.delete(edgeRef);
-  batch.set(
-    adjacencyRef,
-    { targets: arrayRemove(target) },
-    { merge: true }
-  );
-
-  if (structureUpdate) {
-    batch.set(structureRef, structureUpdate, { merge: true });
+  if (manifestUpdate && Object.keys(manifestUpdate).length > 0) {
+    batch.set(manifestRef, { version: 1 }, { merge: true });
+    batch.update(manifestRef, manifestUpdate);
   }
 
   await batch.commit();

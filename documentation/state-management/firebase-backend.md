@@ -90,11 +90,8 @@ journal_entries (collection)
 
 graphs (collection)
 - cdag_topology (document)
-	- adjacencyList
-	- nodeSummaries
-	- metrics
-	- version
-	- lastUpdated
+	- graph_metadata (subcollection)
+		- topology_manifest (document: nodes, edges, metrics, lastUpdated, version)
 	- nodes (subcollection)
 		- {nodeId}
 	- edges (subcollection)

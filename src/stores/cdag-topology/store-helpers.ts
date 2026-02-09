@@ -51,7 +51,10 @@ export const ensureStructureDefaults = (structure?: CdagStructure): CdagStructur
   if (!structure) return buildEmptyStructure();
 
   return {
-    adjacencyList: structure.adjacencyList ?? {},
+    adjacencyList: {
+      ...buildEmptyStructure().adjacencyList,
+      ...(structure.adjacencyList ?? {}),
+    },
     nodeSummaries: {
       ...buildEmptyStructure().nodeSummaries,
       ...(structure.nodeSummaries ?? {}),

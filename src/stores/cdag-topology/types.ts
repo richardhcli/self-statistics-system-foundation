@@ -62,10 +62,18 @@ export interface CdagNodeSummary {
 }
 
 /**
+ * Adjacency entry with optional edge weight.
+ */
+export interface CdagAdjacencyTarget {
+  target: string;
+  weight?: number;
+}
+
+/**
  * Structure document: adjacency + lightweight summaries for fast boot.
  */
 export interface CdagStructure {
-  adjacencyList: Record<string, string[]>;
+  adjacencyList: Record<string, CdagAdjacencyTarget[]>;
   nodeSummaries: Record<string, CdagNodeSummary>;
   metrics: { nodeCount: number; edgeCount: number };
   lastUpdated?: string;
