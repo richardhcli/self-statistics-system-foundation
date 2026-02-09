@@ -63,16 +63,15 @@ const normalizeManifestAdjacency = (payload?: unknown) => {
   if (!payload || !Array.isArray(payload)) return [];
   return payload
     .map((entry) => {
-      if (typeof entry === 'string') return { target: entry };
-      if (entry && typeof entry === 'object') {
-        const target = (entry as { target?: string; t?: string }).target ?? (entry as { t?: string }).t;
-        if (!target) return null;
-        const weight = (entry as { weight?: number; w?: number }).weight ?? (entry as { w?: number }).w;
-        return weight === undefined ? { target } : { target, weight };
-      }
-      return null;
+      if (!entry || typeof entry !== 'object') return null;
+      const target = (entry as { target?: string; t?: string }).target ?? (entry as { t?: string }).t;
+      if (!target) return null;
+      const weight = (entry as { weight?: number; w?: number }).weight ?? (entry as { w?: number }).w;
+      if (typeof weight !== 'number') return null;
+      const clampedWeight = Math.min(1, Math.max(0, weight));
+      return { target, weight: clampedWeight };
     })
-    .filter((entry): entry is { target: string; weight?: number } => Boolean(entry));
+    .filter((entry): entry is { target: string; weight: number } => Boolean(entry));
 };
 
 const normalizeManifestStructure = (manifest: Record<string, unknown> | null): CdagStructure | null => {
@@ -150,14 +149,14 @@ export const fetchBackendDatastoreSnapshot = async (
   const normalizedGraphNodes = Object.fromEntries(
     Object.entries(graphNodes).map(([nodeId, node]) => [
       nodeId,
-      normalizeNodeDocument(nodeId, node as NodeData),
+      normalizeNodeDocument(nodeId, node as unknown as Partial<NodeData>),
     ])
   );
 
   const normalizedGraphEdges = Object.fromEntries(
     Object.entries(graphEdges).map(([edgeId, edge]) => [
       edgeId,
-      normalizeEdgeDocument(edgeId, edge as EdgeData),
+      normalizeEdgeDocument(edgeId, edge as unknown as Partial<EdgeData>),
     ])
   );
 

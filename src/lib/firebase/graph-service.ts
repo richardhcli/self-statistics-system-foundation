@@ -14,7 +14,7 @@ import {
   writeBatch,
   where,
 } from 'firebase/firestore';
-import type { CdagStructure, EdgeData, NodeData } from '@/types';
+import type { CdagNodeSummary, CdagStructure, EdgeData, NodeData } from '@/types';
 import { db } from './services';
 import {
   normalizeEdgeDocument,
@@ -26,7 +26,7 @@ import {
 } from './utils/graph-normalizers';
 
 const DEFAULT_NODE_ID = 'progression';
-const DEFAULT_NODE_SUMMARY = {
+const DEFAULT_NODE_SUMMARY: CdagNodeSummary = {
   id: DEFAULT_NODE_ID,
   label: 'Progression',
   type: 'characteristic',
@@ -48,7 +48,7 @@ type ManifestAdjacencyEntry = {
 
 interface CdagTopologyManifest {
   nodes?: Record<string, ManifestNodeSummary>;
-  edges?: Record<string, ManifestAdjacencyEntry[] | string[]>;
+  edges?: Record<string, ManifestAdjacencyEntry[]>;
   metrics?: { nodeCount: number; edgeCount: number };
   lastUpdated?: string;
   version?: number;
@@ -71,21 +71,18 @@ const normalizeAdjacencyTargets = (
 
   const normalized = payload
     .map((entry) => {
-      if (typeof entry === 'string') {
-        return { target: entry };
-      }
+      if (!entry || typeof entry !== 'object') return null;
 
-      if (entry && typeof entry === 'object') {
-        const target = (entry as ManifestAdjacencyEntry).target ?? (entry as ManifestAdjacencyEntry).t;
-        if (!target || typeof target !== 'string') return null;
+      const target = (entry as ManifestAdjacencyEntry).target ?? (entry as ManifestAdjacencyEntry).t;
+      if (!target || typeof target !== 'string') return null;
 
-        const weight = (entry as ManifestAdjacencyEntry).weight ?? (entry as ManifestAdjacencyEntry).w;
-        return weight === undefined ? { target } : { target, weight };
-      }
+      const weight = (entry as ManifestAdjacencyEntry).weight ?? (entry as ManifestAdjacencyEntry).w;
+      if (typeof weight !== 'number') return null;
 
-      return null;
+      const clampedWeight = Math.min(1, Math.max(0, weight));
+      return { target, weight: clampedWeight };
     })
-    .filter((entry): entry is { target: string; weight?: number } => Boolean(entry));
+    .filter((entry): entry is { target: string; weight: number } => Boolean(entry));
 
   return normalized;
 };

@@ -66,7 +66,7 @@ export interface CdagNodeSummary {
  */
 export interface CdagAdjacencyTarget {
   target: string;
-  weight?: number;
+  weight: number;
 }
 
 /**

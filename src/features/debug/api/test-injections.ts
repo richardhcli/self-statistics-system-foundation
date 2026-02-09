@@ -83,7 +83,7 @@ const buildSnapshotFromGraph = (graph: GraphState): CdagStoreSnapshot => {
     if (!adjacencyList[edge.source].some((entry) => entry.target === edge.target)) {
       adjacencyList[edge.source].push({
         target: edge.target,
-        weight: edge.weight,
+        weight: edge.weight ?? 1.0,
       });
     }
   });
