@@ -1,5 +1,7 @@
 # Blueprint: Anonymous Guest Authentication & Banner System
 
+Implemented: February 08, 2026
+
 This document outlines the technical implementation plan for **Anonymous Authentication** and a **Guest Banner**, updated to match the specific architecture of the project.
 
 ---
