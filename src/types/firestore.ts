@@ -28,6 +28,7 @@ export interface AISettings {
   };
   temperature: number;
   maxTokens: number;
+  apiKey?: string;
 }
 
 /**
@@ -63,10 +64,34 @@ export interface NotificationSettings {
 /**
  * Integration settings stored in users/{uid}/account_config/integrations
  */
-export interface IntegrationSettings {
-  obsidianEnabled: boolean;
+export interface IntegrationLog {
+  id: string;
+  timestamp: string;
+  eventName: string;
+  payload: any;
+  status: "pending" | "success" | "error";
+  response?: string;
+}
+
+export interface IntegrationConfig {
   webhookUrl: string;
-  webhookEnabled: boolean;
+  enabled: boolean;
+  secret?: string;
+}
+
+export interface ObsidianConfig {
+  enabled: boolean;
+  host: string;
+  port: string;
+  apiKey: string;
+  useHttps: boolean;
+  targetFolder: string;
+}
+
+export interface IntegrationSettings {
+  config: IntegrationConfig;
+  obsidianConfig: ObsidianConfig;
+  logs: IntegrationLog[];
 }
 
 /**
@@ -94,6 +119,13 @@ export type AccountConfigType =
  */
 export interface ProfileDisplaySettings {
   class: string;
+}
+
+/**
+ * Player statistics stored in users/{uid}/user_information/player_statistics
+ */
+export interface PlayerStatisticsDoc {
+  stats: Record<string, { experience: number; level: number }>;
 }
 
 /**

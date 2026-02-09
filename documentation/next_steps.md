@@ -1,7 +1,18 @@
 # Potential next steps for this app
 
+### full delete: 
+Using documentation\docs-features\features-datastores-debug.md
+improve the "neural wipe" delete. Rename this to "destroy all data" in the debugging menu. Split this button into its own panel aside from the Batch Injection component: 
 
+Create (Button color) Button:functionlity pairs: 
+(Dark red) Delete Account: removes account from firebase, and destroys all data. 
+(Dark Red) Destroy All Data: deletes all firebase collections, but keeps user document and google sign-in information. Clears current global stores and removes all data in IndexDB. 
+(red) Remove firebase data: removes all firebase collections, but keeps user document and google sign-in information. 
+(red) Clear indexDB: remove all indexDB data. 
+(red) Clear global stores: removes all global stores data. 
 
+### profile picture: 
+update default picture in statistics -> information header to be profile pic. update debug view to show profile pic in component. 
 
 ### 1. Cycle Prevention (App Logic)
 

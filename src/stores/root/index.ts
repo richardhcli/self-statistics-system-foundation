@@ -113,13 +113,17 @@ export const INITIAL_ROOT_STATE: RootState = {
     mostRecentAction: 'None',
   },
   aiConfig: {
-    model: 'gemini-3-flash-preview',
+    provider: 'gemini',
+    model: {
+      voiceTranscriptionModel: 'gemini-2-flash',
+      abstractionModel: 'gemini-3-flash',
+    },
     temperature: 0,
-    liveTranscription: true,
-    voiceSensitivity: 0.5,
+    maxTokens: 2048,
+    apiKey: '',
   },
   integrations: {
-    config: { webhookUrl: '', enabled: false },
+    config: { webhookUrl: '', enabled: false, secret: '' },
     obsidianConfig: {
       enabled: false,
       host: '127.0.0.1',

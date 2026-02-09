@@ -23,7 +23,91 @@ import type {
   BillingSettings,
   AccountConfigType,
   ProfileDisplaySettings,
+  PlayerStatisticsDoc,
 } from "@/types/firestore";
+
+const DEFAULT_AI_SETTINGS: AISettings = {
+  provider: "gemini",
+  model: {
+    voiceTranscriptionModel: "gemini-2-flash",
+    abstractionModel: "gemini-3-flash",
+  },
+  temperature: 0,
+  maxTokens: 2048,
+  apiKey: "",
+};
+
+const DEFAULT_UI_PREFERENCES: UIPreferences = {
+  theme: "dark",
+  language: "en",
+  showCumulativeExp: true,
+  showMasteryLevels: true,
+  showRecentAction: true,
+  animateProgressBars: true,
+};
+
+const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
+  encryptionEnabled: true,
+  visibilityMode: "private",
+  biometricUnlock: false,
+};
+
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  pushEnabled: true,
+  weeklySummaryEnabled: true,
+  instantFeedbackEnabled: true,
+};
+
+const DEFAULT_INTEGRATION_SETTINGS: IntegrationSettings = {
+  config: {
+    webhookUrl: "",
+    enabled: false,
+    secret: "",
+  },
+  obsidianConfig: {
+    enabled: false,
+    host: "127.0.0.1",
+    port: "27124",
+    apiKey: "",
+    useHttps: false,
+    targetFolder: "Journal/AI",
+  },
+  logs: [],
+};
+
+const DEFAULT_BILLING_SETTINGS: BillingSettings = {
+  plan: "free",
+  status: "active",
+};
+
+const DEFAULT_PROFILE_DISPLAY: ProfileDisplaySettings = {
+  class: "",
+};
+
+const DEFAULT_PLAYER_STATS: PlayerStatisticsDoc = {
+  stats: {
+    progression: { experience: 0, level: 1 },
+  },
+};
+
+const buildDefaultAccountConfig = (configType: AccountConfigType) => {
+  switch (configType) {
+    case "ai_settings":
+      return DEFAULT_AI_SETTINGS;
+    case "ui_preferences":
+      return DEFAULT_UI_PREFERENCES;
+    case "privacy":
+      return DEFAULT_PRIVACY_SETTINGS;
+    case "notifications":
+      return DEFAULT_NOTIFICATION_SETTINGS;
+    case "integrations":
+      return DEFAULT_INTEGRATION_SETTINGS;
+    case "billing_settings":
+      return DEFAULT_BILLING_SETTINGS;
+    default:
+      return {};
+  }
+};
 
 /**
  * Syncs user profile with Firestore, only updating changed fields.
@@ -85,59 +169,29 @@ const createDefaultAccountConfig = async (uid: string): Promise<void> => {
   const configRef = collection(db, "users", uid, "account_config");
 
   // AI Settings
-  await setDoc(doc(configRef, "ai_settings"), {
-    provider: "gemini",
-    model: {
-      voiceTranscriptionModel: "gemini-2-flash",
-      abstractionModel: "gemini-3-flash",
-    },
-    temperature: 0,
-    maxTokens: 2048,
-  } as AISettings);
+  await setDoc(doc(configRef, "ai_settings"), DEFAULT_AI_SETTINGS);
 
   // UI Preferences
-  await setDoc(doc(configRef, "ui_preferences"), {
-    theme: "dark",
-    language: "en",
-    showCumulativeExp: true,
-    showMasteryLevels: true,
-    showRecentAction: true,
-    animateProgressBars: true,
-  } as UIPreferences);
+  await setDoc(doc(configRef, "ui_preferences"), DEFAULT_UI_PREFERENCES);
 
   // Privacy Settings
-  await setDoc(doc(configRef, "privacy"), {
-    encryptionEnabled: true,
-    visibilityMode: "private",
-    biometricUnlock: false,
-  } as PrivacySettings);
+  await setDoc(doc(configRef, "privacy"), DEFAULT_PRIVACY_SETTINGS);
 
   // Notification Settings
-  await setDoc(doc(configRef, "notifications"), {
-    pushEnabled: true,
-    weeklySummaryEnabled: true,
-    instantFeedbackEnabled: true,
-  } as NotificationSettings);
+  await setDoc(doc(configRef, "notifications"), DEFAULT_NOTIFICATION_SETTINGS);
 
   // Integrations
-  await setDoc(doc(configRef, "integrations"), {
-    obsidianEnabled: false,
-    webhookUrl: "",
-    webhookEnabled: false,
-  } as IntegrationSettings);
+  await setDoc(doc(configRef, "integrations"), DEFAULT_INTEGRATION_SETTINGS);
 
   // Billing Settings
-  await setDoc(doc(configRef, "billing_settings"), {
-    plan: "free",
-    status: "active",
-  } as BillingSettings);
+  await setDoc(doc(configRef, "billing_settings"), DEFAULT_BILLING_SETTINGS);
 };
 
 const createDefaultUserInformation = async (uid: string): Promise<void> => {
   const profileDisplayRef = doc(db, "users", uid, "user_information", "profile_display");
-  await setDoc(profileDisplayRef, {
-    class: "",
-  } as ProfileDisplaySettings);
+  const statsRef = doc(db, "users", uid, "user_information", "player_statistics");
+  await setDoc(profileDisplayRef, DEFAULT_PROFILE_DISPLAY);
+  await setDoc(statsRef, DEFAULT_PLAYER_STATS);
 };
 
 /**
@@ -192,7 +246,9 @@ export const loadAccountConfig = async <T>(
   const snapshot = await getDoc(configRef);
 
   if (!snapshot.exists()) {
-    throw new Error(`Config ${configType} not found`);
+    const defaults = buildDefaultAccountConfig(configType);
+    await setDoc(configRef, defaults as Record<string, any>);
+    return defaults as T;
   }
 
   return snapshot.data() as T;
@@ -315,6 +371,31 @@ export const updateNotificationSettings = async (
 };
 
 /**
+ * Loads integration settings for a user.
+ *
+ * @param uid - User ID
+ * @returns Integration settings configuration
+ */
+export const loadIntegrationSettings = async (
+  uid: string
+): Promise<IntegrationSettings> => {
+  return loadAccountConfig<IntegrationSettings>(uid, "integrations");
+};
+
+/**
+ * Updates integration settings for a user.
+ *
+ * @param uid - User ID
+ * @param updates - Partial integration settings to update
+ */
+export const updateIntegrationSettings = async (
+  uid: string,
+  updates: Partial<IntegrationSettings>
+): Promise<void> => {
+  return updateAccountConfig(uid, "integrations", updates);
+};
+
+/**
  * Loads profile display settings for a user.
  *
  * @param uid - User ID
@@ -327,7 +408,8 @@ export const loadProfileDisplay = async (
   const snapshot = await getDoc(profileDisplayRef);
 
   if (!snapshot.exists()) {
-    throw new Error("Profile display not found");
+    await setDoc(profileDisplayRef, DEFAULT_PROFILE_DISPLAY);
+    return DEFAULT_PROFILE_DISPLAY;
   }
 
   return snapshot.data() as ProfileDisplaySettings;

@@ -30,6 +30,4 @@ Provides a split debug interface to inspect and reconcile local IndexedDB-backed
 - Backend deletes refresh the on-screen snapshot after completion.
 
 ## Known Gaps
-- Firestore documents for cdag topology, player statistics, aiConfig, and integrations are planned but not yet created.
-- The debug mapper currently preserves local data for missing Firestore paths.
-- Update the backend schema doc once new Firestore paths are live.
+- The debug mapper preserves local data for missing Firestore paths.

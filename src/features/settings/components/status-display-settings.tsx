@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Layout, Loader2, Moon, Save, Sparkles, Sun } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useUserInformation, useUserInformationActions } from "@/stores/user-information";
 import {
   loadProfileDisplay,
   loadUIPreferences,
@@ -23,6 +24,8 @@ const DEFAULT_PREFERENCES: UIPreferences = {
 
 const StatusDisplaySettings: React.FC = () => {
   const { user } = useAuth();
+  const userInformation = useUserInformation();
+  const { setInfo } = useUserInformationActions();
   const [displayName, setDisplayName] = useState("");
   const [userClass, setUserClass] = useState("");
   const [uiPreferences, setUiPreferences] = useState<UIPreferences>(DEFAULT_PREFERENCES);
@@ -79,6 +82,18 @@ const StatusDisplaySettings: React.FC = () => {
           await updateProfileDisplay(user.uid, { class: "" });
           setUserClass("");
         }
+
+        setInfo({
+          ...userInformation,
+          name:
+            profileResult.status === "fulfilled"
+              ? profileResult.value.displayName ?? userInformation.name
+              : userInformation.name,
+          userClass:
+            profileDisplayResult.status === "fulfilled"
+              ? profileDisplayResult.value.class ?? userInformation.userClass
+              : userInformation.userClass,
+        });
       } catch (err) {
         console.error("[StatusDisplaySettings] Failed to load settings", err);
       } finally {
@@ -139,6 +154,11 @@ const StatusDisplaySettings: React.FC = () => {
         updateUserProfile(user.uid, { displayName }),
         updateProfileDisplay(user.uid, { class: userClass } as ProfileDisplaySettings),
       ]);
+      setInfo({
+        ...userInformation,
+        name: displayName,
+        userClass,
+      });
     } catch (err) {
       console.error("[StatusDisplaySettings] Failed to save status display", err);
       setError("Failed to save status display settings.");

@@ -12,11 +12,14 @@ import React, { useEffect, useState } from "react";
 import { UserCircle, Mail, MapPin, Save, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/providers/auth-provider";
+import { useUserInformation, useUserInformationActions } from "@/stores/user-information";
 import { loadUserProfile, updateUserProfile } from "@/lib/firebase/user-profile";
 import type { UserProfile } from "@/types/firestore";
 
 const ProfileSettings: React.FC = () => {
   const { user } = useAuth();
+  const userInformation = useUserInformation();
+  const { setInfo } = useUserInformationActions();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -35,6 +38,10 @@ const ProfileSettings: React.FC = () => {
         const data = await loadUserProfile(user.uid);
         setProfile(data);
         setDisplayName(data.displayName ?? "");
+        setInfo({
+          ...userInformation,
+          name: data.displayName ?? userInformation.name,
+        });
       } catch (err) {
         console.error("[ProfileSettings] Failed to load profile", err);
         setError("Unable to load profile information.");
@@ -59,6 +66,10 @@ const ProfileSettings: React.FC = () => {
       setIsSaving(true);
       await updateUserProfile(user.uid, { displayName });
       setProfile((prev) => (prev ? { ...prev, displayName } : prev));
+      setInfo({
+        ...userInformation,
+        name: displayName,
+      });
     } catch (err) {
       console.error("[ProfileSettings] Failed to update profile", err);
       setError("Failed to save profile changes.");

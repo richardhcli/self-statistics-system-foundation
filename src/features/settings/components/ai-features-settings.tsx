@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Cpu, Gauge, Save, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { loadAISettings, updateAISettings } from "@/lib/firebase/user-profile";
+import { useAiConfig, useAiConfigActions } from "@/stores/ai-config";
 import type { AISettings } from "@/types/firestore";
 
 const DEFAULT_AI_SETTINGS: AISettings = {
@@ -16,6 +17,8 @@ const DEFAULT_AI_SETTINGS: AISettings = {
 
 const AIFeaturesSettings: React.FC = () => {
   const { user } = useAuth();
+  const aiConfig = useAiConfig();
+  const { setConfig } = useAiConfigActions();
   const [settings, setSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,11 +34,21 @@ const AIFeaturesSettings: React.FC = () => {
       try {
         const data = await loadAISettings(user.uid);
         setSettings(data);
+        setConfig({
+          ...aiConfig,
+          ...data,
+          apiKey: data.apiKey ?? aiConfig.apiKey ?? "",
+        });
       } catch (err) {
         console.error("[AIFeaturesSettings] Failed to load AI settings", err);
         setSettings(DEFAULT_AI_SETTINGS);
         try {
           await updateAISettings(user.uid, DEFAULT_AI_SETTINGS);
+          setConfig({
+            ...aiConfig,
+            ...DEFAULT_AI_SETTINGS,
+            apiKey: aiConfig.apiKey ?? "",
+          });
         } catch (updateError) {
           console.error("[AIFeaturesSettings] Failed to seed AI settings", updateError);
         }
@@ -59,6 +72,11 @@ const AIFeaturesSettings: React.FC = () => {
       setError(null);
       setIsSaving(true);
       await updateAISettings(user.uid, settings);
+      setConfig({
+        ...aiConfig,
+        ...settings,
+        apiKey: settings.apiKey ?? aiConfig.apiKey ?? "",
+      });
     } catch (err) {
       console.error("[AIFeaturesSettings] Failed to update AI settings", err);
       setError("Failed to save AI settings.");

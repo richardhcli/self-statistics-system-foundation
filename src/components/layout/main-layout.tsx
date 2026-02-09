@@ -6,6 +6,7 @@
 
 import { Outlet } from "react-router-dom";
 import Header from "./header";
+import { useGlobalStoreSync } from "@/hooks/use-global-store-sync";
 
 /**
  * Main layout component.
@@ -15,6 +16,8 @@ import Header from "./header";
  * @returns JSX.Element
  */
 export const MainLayout = () => {
+  useGlobalStoreSync();
+
   return (
     <div className="flex flex-col h-screen">
       <Header />

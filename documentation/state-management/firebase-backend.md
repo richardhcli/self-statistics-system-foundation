@@ -34,6 +34,7 @@ account_config (collection)
 	- model.abstractionModel
 	- temperature
 	- maxTokens
+	- apiKey
 - ui_preferences (document)
 	- theme
 	- language
@@ -50,9 +51,18 @@ account_config (collection)
 	- weeklySummaryEnabled
 	- instantFeedbackEnabled
 - integrations (document)
-	- obsidianEnabled
-	- webhookUrl
-	- webhookEnabled
+	- config
+		- webhookUrl
+		- enabled
+		- secret
+	- obsidianConfig
+		- enabled
+		- host
+		- port
+		- apiKey
+		- useHttps
+		- targetFolder
+	- logs
 - billing_settings (document)
 	- plan
 	- status
@@ -60,6 +70,8 @@ account_config (collection)
 user_information (collection)
 - profile_display (document)
 	- class
+- player_statistics (document)
+	- stats
 
 journal_meta (collection)
 - tree_structure (document)
@@ -132,6 +144,8 @@ All in [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts
 - `loadPrivacySettings`, `updatePrivacySettings`
 - `loadNotificationSettings`, `updateNotificationSettings`
 - `loadProfileDisplay`, `updateProfileDisplay`
+- `loadIntegrationSettings`, `updateIntegrationSettings`
+- Player statistics: [src/lib/firebase/player-statistics.ts](../../src/lib/firebase/player-statistics.ts)
 
 ### Routing Context
 Routes are URL-based under /app. Settings lives under /app/settings/*.
@@ -156,13 +170,14 @@ service cloud.firestore {
 
 ### Default Seed Values (First Login)
 Defined in [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts)
-- ai_settings: provider gemini, voice model gemini-2-flash, abstraction model gemini-3-flash, temperature 0, maxTokens 2048
+- ai_settings: provider gemini, voice model gemini-2-flash, abstraction model gemini-3-flash, temperature 0, maxTokens 2048, apiKey empty
 - ui_preferences: theme dark, language en, visibility toggles true
 - privacy: encryptionEnabled true, visibilityMode private, biometricUnlock false
 - notifications: all enabled
-- integrations: obsidian/webhook disabled
+- integrations: config + obsidian config defaults, logs empty
 - billing_settings: free, active
 - profile_display: class empty
+- player_statistics: progression seeded
 
 ## Settings UI Mapping
 - **Profile**: display name in users/{uid}

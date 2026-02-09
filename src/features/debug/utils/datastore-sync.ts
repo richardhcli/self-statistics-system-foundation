@@ -14,8 +14,10 @@ import type {
   AISettings,
   IntegrationSettings,
   ProfileDisplaySettings,
+  PlayerStatisticsDoc,
   UserProfile,
 } from "@/types/firestore";
+import type { PlayerStatistics } from "@/stores/player-statistics";
 
 export interface BackendDatastoreSnapshot {
   userProfile: UserProfile | null;
@@ -91,6 +93,9 @@ export const buildRootStateFromSnapshot = (
   const profileDisplay = snapshot.userInformation[
     "profile_display"
   ] as unknown as ProfileDisplaySettings | undefined;
+  const playerStatisticsDoc = snapshot.userInformation[
+    "player_statistics"
+  ] as unknown as PlayerStatisticsDoc | undefined;
 
   const nextJournalEntries = snapshot.journalEntries ?? currentState.journal.entries;
   const nextJournalTree = snapshot.journalTree ?? currentState.journal.tree;
@@ -107,32 +112,8 @@ export const buildRootStateFromSnapshot = (
       name: snapshot.userProfile?.displayName ?? currentState.userInformation.name,
       userClass: profileDisplay?.class ?? currentState.userInformation.userClass,
     },
-    aiConfig: aiSettings
-      ? {
-          ...currentState.aiConfig,
-          model: aiSettings.model?.abstractionModel ?? currentState.aiConfig.model,
-          temperature: aiSettings.temperature ?? currentState.aiConfig.temperature,
-        }
-      : currentState.aiConfig,
-    integrations: integrationSettings
-      ? {
-          ...currentState.integrations,
-          config: {
-            ...currentState.integrations.config,
-            webhookUrl:
-              integrationSettings.webhookUrl ??
-              currentState.integrations.config.webhookUrl,
-            enabled:
-              integrationSettings.webhookEnabled ??
-              currentState.integrations.config.enabled,
-          },
-          obsidianConfig: {
-            ...currentState.integrations.obsidianConfig,
-            enabled:
-              integrationSettings.obsidianEnabled ??
-              currentState.integrations.obsidianConfig.enabled,
-          },
-        }
-      : currentState.integrations,
+    aiConfig: aiSettings ? { ...currentState.aiConfig, ...aiSettings } : currentState.aiConfig,
+    integrations: integrationSettings ? { ...currentState.integrations, ...integrationSettings } : currentState.integrations,
+    playerStatistics: (playerStatisticsDoc?.stats ?? currentState.playerStatistics) as PlayerStatistics,
   };
 };

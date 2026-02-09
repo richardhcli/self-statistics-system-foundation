@@ -8,10 +8,10 @@ import { useEffect, useState } from 'react';
  * 1. Waits for all stores to finish hydrating
  * 2. Returns initialization state for UI loading screens
  * 
- * Architecture: Local-First, Sync-Behind
+ * Architecture: Hybrid Read-Aside
  * - Read Flow: UI reads from Zustand (hydrated from IndexedDB immediately)
- * - Write Flow: UI → Zustand → IndexedDB (automatic, non-blocking)
- * - Sync: Backend sync happens independently (debug tools or future orchestrators)
+ * - Write Flow: UI → Zustand → IndexedDB → Firebase (async sync)
+ * - Sync: Backend sync happens via fetch hooks and debug tools
  * 
  * No manual IndexedDB serialization needed - the persist middleware handles it.
  * Each store persists independently to IndexedDB with automatic version management.

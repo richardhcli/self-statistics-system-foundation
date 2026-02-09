@@ -15,17 +15,19 @@
 ### Account Configuration
 - Collection: users/{uid}/account_config
 - Documents:
-  - ai_settings: provider, model.voiceTranscriptionModel, model.abstractionModel, temperature, maxTokens
+  - ai_settings: provider, model.voiceTranscriptionModel, model.abstractionModel, temperature, maxTokens, apiKey
   - ui_preferences: theme, language, showCumulativeExp, showMasteryLevels, showRecentAction, animateProgressBars
   - privacy: encryptionEnabled, visibilityMode, biometricUnlock
   - notifications: pushEnabled, weeklySummaryEnabled, instantFeedbackEnabled
-  - integrations: obsidianEnabled, webhookUrl, webhookEnabled
+  - integrations: config.webhookUrl, config.enabled, config.secret, obsidianConfig, logs
   - billing_settings: plan, status
 
 ### User Information
 - Collection: users/{uid}/user_information
 - Document: profile_display
   - class
+- Document: player_statistics
+  - stats
 
 ### Journal
 - Collection: users/{uid}/journal_meta

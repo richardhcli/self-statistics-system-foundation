@@ -4,6 +4,7 @@
 
 ## Read-Aside Services
 - User profile and settings: [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts)
+- Player statistics: [src/lib/firebase/player-statistics.ts](../../src/lib/firebase/player-statistics.ts)
 - Journal read-aside: [src/lib/firebase/journal.ts](../../src/lib/firebase/journal.ts)
 - Graph read-aside (CDAG): [src/lib/firebase/graph-service.ts](../../src/lib/firebase/graph-service.ts)
 - CRUD helpers for debug tools: [src/lib/firebase/firestore-crud.ts](../../src/lib/firebase/firestore-crud.ts)
@@ -18,13 +19,14 @@
 
 ## Default Seed Values
 Defined in [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts).
-- ai_settings: provider gemini, voice model gemini-2-flash, abstraction model gemini-3-flash, temperature 0, maxTokens 2048
+- ai_settings: provider gemini, voice model gemini-2-flash, abstraction model gemini-3-flash, temperature 0, maxTokens 2048, apiKey empty
 - ui_preferences: theme dark, language en, visibility toggles true
 - privacy: encryptionEnabled true, visibilityMode private, biometricUnlock false
 - notifications: all enabled
-- integrations: obsidian/webhook disabled
+- integrations: config + obsidian config defaults, logs empty
 - billing_settings: free, active
 - profile_display: class empty
+- player_statistics: progression seeded
 
 ## Debug Datastores View
 The debug datastores view can fetch backend snapshots, hydrate stores, and remove documents or fields.
