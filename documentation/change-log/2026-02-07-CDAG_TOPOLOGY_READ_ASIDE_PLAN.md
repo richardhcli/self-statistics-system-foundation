@@ -20,9 +20,9 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 **Goal**: Normalize topology storage for Firebase + Zustand read-aside.
 
 - [x] **1.1. Firebase Schema**
-  - `users/{uid}/cdag_topology/nodes/{nodeId}`
-  - `users/{uid}/cdag_topology/edges/{edgeId}`
-  - `users/{uid}/cdag_topology/meta/structure` (adjacency list & lightweight stats)
+  - `users/{uid}/graphs/cdag_topology` (structure doc: adjacency list & lightweight stats)
+  - `users/{uid}/graphs/cdag_topology/nodes/{nodeId}`
+  - `users/{uid}/graphs/cdag_topology/edges/{edgeId}`
 
 - [x] **1.2. Structure Document Shape**
   - `structure` holds lightweight relationship data and metadata:

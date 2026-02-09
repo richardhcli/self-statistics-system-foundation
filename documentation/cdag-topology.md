@@ -9,7 +9,7 @@ All topology utilities (merge, checks, propagation) are implemented in `lib/soul
 The topology is a **Weighted Directed Acyclic Graph (DAG)** stored with a **Hybrid Read-Aside** pattern.
 Firebase is the source of truth; Zustand + IndexedDB cache data for fast reads.
 
-Firebase access lives in [src/lib/firebase/cdag-topology.ts](../src/lib/firebase/cdag-topology.ts). The cache schema is defined in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
+Firebase access lives in [src/lib/firebase/graph-service.ts](../src/lib/firebase/graph-service.ts). The cache schema is defined in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
 ### Data Structure
 See the authoritative types in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).

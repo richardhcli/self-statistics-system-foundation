@@ -50,7 +50,7 @@ export const subscribeToStructure = (
   onUpdate: (structure: CdagStructure) => void,
   onError?: (error: Error) => void
 ): (() => void) => {
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   return onSnapshot(
     structureRef,
@@ -70,7 +70,7 @@ export const subscribeToStructure = (
  * Fetch the topology structure document.
  */
 export const fetchStructure = async (uid: string): Promise<CdagStructure> => {
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
   const snapshot = await getDoc(structureRef);
   if (!snapshot.exists()) {
     return buildEmptyStructure();
@@ -84,7 +84,7 @@ export const fetchStructure = async (uid: string): Promise<CdagStructure> => {
 export const fetchNodesByIds = async (uid: string, ids: string[]): Promise<NodeData[]> => {
   if (ids.length === 0) return [];
 
-  const nodesRef = collection(db, 'users', uid, 'cdag_topology', 'nodes');
+  const nodesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes');
   const chunks = chunkIds(ids, 10);
   const results: NodeData[] = [];
 
@@ -106,7 +106,7 @@ export const fetchNodesByIds = async (uid: string, ids: string[]): Promise<NodeD
 export const fetchEdgesByIds = async (uid: string, ids: string[]): Promise<EdgeData[]> => {
   if (ids.length === 0) return [];
 
-  const edgesRef = collection(db, 'users', uid, 'cdag_topology', 'edges');
+  const edgesRef = collection(db, 'users', uid, 'graphs', 'cdag_topology', 'edges');
   const chunks = chunkIds(ids, 10);
   const results: EdgeData[] = [];
 
@@ -131,8 +131,8 @@ export const createNodeBatch = async (
   structureUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
-  const nodeRef = doc(db, 'users', uid, 'cdag_topology', 'nodes', node.id);
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', node.id);
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.set(nodeRef, node, { merge: true });
   batch.set(structureRef, structureUpdate, { merge: true });
@@ -150,8 +150,8 @@ export const updateNodeBatch = async (
   structureUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
-  const nodeRef = doc(db, 'users', uid, 'cdag_topology', 'nodes', nodeId);
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.set(nodeRef, updates, { merge: true });
   batch.set(structureRef, structureUpdate, { merge: true });
@@ -168,8 +168,8 @@ export const deleteNodeBatch = async (
   structureUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
-  const nodeRef = doc(db, 'users', uid, 'cdag_topology', 'nodes', nodeId);
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const nodeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'nodes', nodeId);
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.delete(nodeRef);
   batch.set(structureRef, structureUpdate, { merge: true });
@@ -186,8 +186,8 @@ export const createEdgeBatch = async (
   structureUpdate: Record<string, unknown>
 ): Promise<void> => {
   const batch = writeBatch(db);
-  const edgeRef = doc(db, 'users', uid, 'cdag_topology', 'edges', edge.id);
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edge.id);
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.set(edgeRef, edge, { merge: true });
   batch.set(structureRef, structureUpdate, { merge: true });
@@ -203,7 +203,7 @@ export const updateEdgeBatch = async (
   edgeId: string,
   updates: Partial<EdgeData>
 ): Promise<void> => {
-  const edgeRef = doc(db, 'users', uid, 'cdag_topology', 'edges', edgeId);
+  const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
   await setDoc(edgeRef, updates, { merge: true });
 };
 
@@ -216,14 +216,14 @@ export const deleteEdgeBatch = async (
   structureUpdate?: Record<string, unknown>
 ): Promise<void> => {
   if (!structureUpdate) {
-    const edgeRef = doc(db, 'users', uid, 'cdag_topology', 'edges', edgeId);
+    const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
     await deleteDoc(edgeRef);
     return;
   }
 
   const batch = writeBatch(db);
-  const edgeRef = doc(db, 'users', uid, 'cdag_topology', 'edges', edgeId);
-  const structureRef = doc(db, 'users', uid, 'cdag_topology', 'meta', 'structure');
+  const edgeRef = doc(db, 'users', uid, 'graphs', 'cdag_topology', 'edges', edgeId);
+  const structureRef = doc(db, 'users', uid, 'graphs', 'cdag_topology');
 
   batch.delete(edgeRef);
   batch.set(structureRef, structureUpdate, { merge: true });
