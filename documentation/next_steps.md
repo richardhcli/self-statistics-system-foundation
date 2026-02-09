@@ -1,6 +1,12 @@
 # Potential next steps for this app
 
+
+### temporary bypass:
+
+
 ### full delete: 
+Go back to recent "firebase migration plans" documents.
+
 Using documentation\docs-features\features-datastores-debug.md
 improve the "neural wipe" delete. Rename this to "destroy all data" in the debugging menu. Split this button into its own panel aside from the Batch Injection component: 
 
@@ -10,6 +16,10 @@ Create (Button color) Button:functionlity pairs:
 (red) Remove firebase data: removes all firebase collections, but keeps user document and google sign-in information. 
 (red) Clear indexDB: remove all indexDB data. 
 (red) Clear global stores: removes all global stores data. 
+
+### finalize migration: 
+documentation\change-log\2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md
+
 
 ### profile picture: 
 update default picture in statistics -> information header to be profile pic. update debug view to show profile pic in component. 
