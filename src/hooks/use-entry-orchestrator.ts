@@ -4,8 +4,8 @@ import { usePlayerStatisticsActions } from '@/stores/player-statistics';
 import { useUserInformationActions } from '@/stores/user-information';
 import { useJournalActions } from '@/stores/journal';
 import type { JournalEntryData } from '@/stores/journal';
-import { calculateParentPropagation, analyzeEntry, transformActionsToTopology } from '@/lib/soulTopology';
-import { parseDurationToMultiplier, scaleExperience } from '@/stores/player-statistics';
+import { analyzeEntry, transformActionsToTopology } from '@/lib/soulTopology';
+import { calculateParentPropagation, parseDurationToMultiplier, scaleExperience } from '@systems/progression';
 import type { GraphState } from '@/stores/cdag-topology';
 
 /**

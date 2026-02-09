@@ -25,10 +25,12 @@ We treat Firebase as the "Backend Source of Truth" and Zustand+IndexedDB as the 
     *   **Persistence Middleware:** [src/stores/root/persist-middleware.ts](src/stores/root/persist-middleware.ts)
 
 ## 3. Project Structure & Organization
+*   `src/systems/`: Core domain logic ("The Brain"). Pure, deterministic game rules and math. **No React, no stores, no side-effects.**
+    *   *Reference:* [src/systems/progression/](src/systems/progression/index.ts)
 *   `src/features/`: Domain-specific components/hooks (Journal, Stats). **Self-contained.**
 *   `src/stores/`: Zustand stores + persist config. **Data cache only.**
     *   *Reference:* [src/stores/journal/store.ts](src/stores/journal/store.ts)
-*   `src/lib/`: Pure business logic, algorithms, and API wrappers. **No store imports.**
+*   `src/lib/`: External bridges — Firebase wrappers, AI pipelines. **No game logic.**
     *   *Reference:* [src/lib/soulTopology/utils/entry-pipeline/analyze-entry.ts](src/lib/soulTopology/utils/entry-pipeline/analyze-entry.ts)
 *   `src/hooks/`: Cross-feature orchestration and shared utilities.
     *   *Reference:* [src/hooks/use-entry-orchestrator.ts](src/hooks/use-entry-orchestrator.ts)

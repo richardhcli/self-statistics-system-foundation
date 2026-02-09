@@ -1,10 +1,8 @@
 /**
  * Soul Topology Library Public API
- * 
- * Exports core topology utilities:
- * - Experience propagation (upward through hierarchy)
- * - Entry pipeline (text-to-graph transformation)
+ *
+ * Exports entry-pipeline utilities (text → graph transformation).
+ * Experience propagation has moved to @systems/progression/engine.
  */
 
-export * from './utils/back-parent-propagation';
 export * from './utils/entry-pipeline';

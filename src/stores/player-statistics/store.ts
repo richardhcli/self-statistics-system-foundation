@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { loadPlayerStatistics, updatePlayerStatistics } from '@/lib/firebase/player-statistics';
 import { auth } from '@/lib/firebase/services';
 import { PlayerStatistics } from './types';
-import { updatePlayerStatsState } from './utils/exp-state-manager';
+import { updatePlayerStatsState } from '@systems/progression';
 import { indexedDBStorage } from '@/stores/root/persist-middleware';
 
 const CACHE_TTL_MS = 1000 * 60 * 5;

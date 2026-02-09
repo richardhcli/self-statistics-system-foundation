@@ -76,10 +76,10 @@ KEEP:
 
 ## 🔍 3. Verification Checklist
 
-- [ ] **No Business Logic in Stores**: `src/stores` contains only state definitions and `set()` calls.
-- [ ] **No Game Logic in Lib**: `src/lib` contains only generic utilities (Firebase wrappers, graph algos not specific to game rules).
-- [ ] **System Independence**: Code in `src/systems/progression` can be unit tested without mocking React hooks.
-- [ ] **Imports Updated**: All references to `back-parent-propagation` and `scaled-logic` point to `@systems/progression`.
+- [x] **No Business Logic in Stores**: `src/stores` contains only state definitions and `set()` calls.
+- [x] **No Game Logic in Lib**: `src/lib` contains only generic utilities (Firebase wrappers, graph algos not specific to game rules).
+- [x] **System Independence**: Code in `src/systems/progression` can be unit tested without mocking React hooks.
+- [x] **Imports Updated**: All references to `back-parent-propagation` and `scaled-logic` point to `@systems/progression`.
 
 ---
 
@@ -94,3 +94,27 @@ git commit -m "Refactor: Extract progression logic to src/systems/progression
 - Decouple PlayerStatistics store from calculation logic
 - Update Entry Orchestrator to consume System API"
 ```
+
+---
+
+## ✅ 5. Implementation Summary (2026-02-09)
+
+Refactor completed. All four phases executed per this blueprint.
+
+### What changed
+- Created `src/systems/progression/` with 6 files (constants, engine, formulas, state-mutations, orchestrator, index).
+- **Leveling curve** changed from linear (`EXP / 10 + 1`) to **logarithmic** (`floor(log2(EXP + 1))`). All EXP values now rounded to 4 decimal places.
+- `@systems/*` path alias added to [tsconfig.json](../../tsconfig.json) and [vite.config.ts](../../vite.config.ts).
+- Deleted 6 legacy files from `stores/player-statistics/utils/`, `utils/player-data-update/`, and `lib/soulTopology/utils/`.
+- Updated imports in: [use-entry-orchestrator.ts](../../src/hooks/use-entry-orchestrator.ts), [player-statistics store](../../src/stores/player-statistics/store.ts), [types hub](../../src/types/index.ts), [soulTopology index](../../src/lib/soulTopology/index.ts), [debug view](../../src/features/debug/components/player-stats-view.tsx).
+- Store `types.ts` now re-exports from `@systems/progression` (single source of truth).
+
+### File map
+| New System File | Migrated From |
+|---|---|
+| [engine.ts](../../src/systems/progression/engine.ts) | `lib/soulTopology/utils/back-parent-propagation.ts` |
+| [formulas.ts](../../src/systems/progression/formulas.ts) | `stores/player-statistics/utils/scaled-logic.ts` |
+| [state-mutations.ts](../../src/systems/progression/state-mutations.ts) | `stores/player-statistics/utils/exp-state-manager.ts` |
+| [orchestrator.ts](../../src/systems/progression/orchestrator.ts) | `stores/player-statistics/utils/progression-orchestrator.ts` |
+| [constants.ts](../../src/systems/progression/constants.ts) | New |
+| [index.ts](../../src/systems/progression/index.ts) | New (barrel) |

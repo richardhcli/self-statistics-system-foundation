@@ -7,7 +7,7 @@
 export * from '@/features/journal/types';
 export * from '@/features/visual-graph/types';
 export * from '@/stores/cdag-topology/types';
-export * from '@/stores/player-statistics/types';
+export { type NodeStats, type PlayerStatistics } from '@systems/progression';
 export * from '@/stores/user-information/types';
 export * from '@/features/integration/types';
 export * from '@/lib/soulTopology/types';
