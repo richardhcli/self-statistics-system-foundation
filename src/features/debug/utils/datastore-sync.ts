@@ -66,7 +66,7 @@ export const fetchBackendDatastoreSnapshot = async (
   );
 
   return {
-    userProfile: (userProfile ?? null) as UserProfile | null,
+    userProfile: (userProfile ?? null) as unknown as UserProfile | null,
     accountConfig,
     userInformation,
     journalTree: (journalTree ?? null) as JournalTreeStructure | null,
@@ -84,13 +84,13 @@ export const buildRootStateFromSnapshot = (
 ): RootState => {
   const aiSettings = snapshot.accountConfig[
     "ai-settings"
-  ] as AISettings | undefined;
+  ] as unknown as AISettings | undefined;
   const integrationSettings = snapshot.accountConfig[
     "integrations"
-  ] as IntegrationSettings | undefined;
+  ] as unknown as IntegrationSettings | undefined;
   const profileDisplay = snapshot.userInformation[
     "profile-display"
-  ] as ProfileDisplaySettings | undefined;
+  ] as unknown as ProfileDisplaySettings | undefined;
 
   const nextJournalEntries = snapshot.journalEntries ?? currentState.journal.entries;
   const nextJournalTree = snapshot.journalTree ?? currentState.journal.tree;

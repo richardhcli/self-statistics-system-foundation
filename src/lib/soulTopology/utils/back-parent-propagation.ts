@@ -45,32 +45,16 @@ const buildParentMap = (
  *    - Normalize the accumulated sums by the hit counts (Path-Averaging).
  * 
  * @param nodes - The node lookup table from GraphState
- * @param edges - The edge lookup table from GraphState (optional, defaults to empty)
+ * @param edges - The edge lookup table from GraphState
  * @param initialValues - The starting EXP values (seeds from the journal entry).
  * @returns A map of every node in the topology and its resulting propagated EXP.
  */
 export const calculateParentPropagation = (
-  nodes: Record<string, NodeData> | Record<string, { parents: Record<string, number> }>,
-  edgesOrInitialValues: Record<string, EdgeData> | Record<string, number>,
-  initialValuesArg?: Record<string, number>
+  nodes: Record<string, NodeData>,
+  edges: Record<string, EdgeData>,
+  initialValues: Record<string, number>
 ): Record<string, number> => {
-  // Handle both old and new API signatures for backward compatibility
-  let parentMap: Record<string, Record<string, number>>;
-  let initialValues: Record<string, number>;
-  
-  if (initialValuesArg !== undefined) {
-    // New API: (nodes, edges, initialValues)
-    const edges = edgesOrInitialValues as Record<string, EdgeData>;
-    initialValues = initialValuesArg;
-    parentMap = buildParentMap(nodes as Record<string, NodeData>, edges);
-  } else {
-    // Old API: (topology, initialValues) - topology has .parents property
-    initialValues = edgesOrInitialValues as Record<string, number>;
-    parentMap = {};
-    Object.entries(nodes).forEach(([nodeId, nodeData]) => {
-      parentMap[nodeId] = (nodeData as any).parents || {};
-    });
-  }
+  const parentMap = buildParentMap(nodes, edges);
 
   const accumulatedSum: Record<string, number> = {};
   const contributionCount: Record<string, number> = {};

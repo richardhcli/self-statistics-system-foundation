@@ -5,6 +5,7 @@ import { useGraphNodes, useGraphEdges } from '@/stores/cdag-topology';
 import { useDagLayout } from '../hooks/use-dag-layout';
 import { useGraphRenderer } from '../hooks/use-graph-renderer';
 import { GraphLegend } from './graph-legend';
+import { useCdagStructure } from '@/hooks/use-cdag-structure';
 
 /**
  * Component: GraphView
@@ -16,6 +17,7 @@ import { GraphLegend } from './graph-legend';
  * Syncs global cdag-topology store to local visual graph on mount.
  */
 const GraphView: React.FC = () => {
+  useCdagStructure();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 700 });

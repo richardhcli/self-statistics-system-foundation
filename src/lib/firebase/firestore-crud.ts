@@ -27,7 +27,8 @@ const getDocRef = (path: string) => {
   if (segments.length % 2 !== 0) {
     throw new Error(`Invalid document path: ${path}`);
   }
-  return doc(db, ...segments);
+  const pathSegments = segments as [string, ...string[]];
+  return doc(db, ...pathSegments);
 };
 
 const getCollectionRef = (path: string) => {
@@ -35,7 +36,8 @@ const getCollectionRef = (path: string) => {
   if (segments.length % 2 !== 1) {
     throw new Error(`Invalid collection path: ${path}`);
   }
-  return collection(db, ...segments);
+  const pathSegments = segments as [string, ...string[]];
+  return collection(db, ...pathSegments);
 };
 
 /**

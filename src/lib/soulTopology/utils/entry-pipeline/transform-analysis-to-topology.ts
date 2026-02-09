@@ -151,7 +151,5 @@ export const transformAnalysisToTopology = (
 	return {
 		nodes,
 		edges,
-		version: 2,
-		lastSyncTimestamp: timestamp,
 	};
 };

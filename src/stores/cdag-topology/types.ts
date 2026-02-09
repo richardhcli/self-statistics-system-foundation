@@ -1,15 +1,13 @@
 
 /**
- * Types for the local-first graph store.
- * Flat, normalized schema for O(1) lookups and reference-stable updates.
+ * Types for the CDAG read-aside topology store.
+ * Firebase is the source of truth; Zustand caches data only.
  */
 
 export type NodeType = 'action' | 'skill' | 'characteristic' | 'none';
 
 /**
- * NodeData: Individual node properties
- * Does NOT include hierarchy depth (level is computed if needed for UI layout)
- * Does NOT include visual positions (stored separately in visual-graph feature)
+ * NodeData: Individual node properties.
  */
 export interface NodeData {
   /** Unique node identifier (slugified from label) */
@@ -19,15 +17,14 @@ export interface NodeData {
   /** Semantic categorization of the node */
   type: NodeType;
   /** Extensible metadata for future use */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Timestamp of last modification (ISO8601) */
   createdAt?: string;
   updatedAt?: string;
 }
 
 /**
- * EdgeData: Relationship between two nodes
- * References nodes by ID, enabling O(1) lookups
+ * EdgeData: Relationship between two nodes.
  */
 export interface EdgeData {
   /** Unique edge identifier */
@@ -46,31 +43,59 @@ export interface EdgeData {
 }
 
 /**
- * GraphState: The complete graph structure
- * Stored in Zustand + IndexedDB with idb-keyval persistence
+ * GraphState: Normalized graph data (used by pure utilities).
  */
 export interface GraphState {
   /** Lookup table: nodeId → NodeData (O(1) access) */
   nodes: Record<string, NodeData>;
   /** Lookup table: edgeId → EdgeData (O(1) access) */
   edges: Record<string, EdgeData>;
-  /** Schema version for migrations */
-  version: number;
-  /** Last sync timestamp (for server comparison) */
-  lastSyncTimestamp?: string;
 }
 
 /**
- * Legacy alias for compatibility with older APIs.
- * Supports both normalized GraphState and legacy parent-mapped topology.
+ * Lightweight node summaries stored in the structure document.
  */
-export type CdagTopology =
-  | GraphState
-  | Record<
-      string,
-      {
-        parents: Record<string, number>;
-        type?: NodeType;
-      }
-    >;
+export interface CdagNodeSummary {
+  id: string;
+  label: string;
+  type: NodeType;
+}
+
+/**
+ * Structure document: adjacency + lightweight summaries for fast boot.
+ */
+export interface CdagStructure {
+  adjacencyList: Record<string, string[]>;
+  nodeSummaries: Record<string, CdagNodeSummary>;
+  metrics: { nodeCount: number; edgeCount: number };
+  lastUpdated?: string;
+  version: number;
+}
+
+/**
+ * Cache metadata for read-aside fetch decisions.
+ */
+export interface CdagCacheInfo {
+  lastFetched: number;
+  isDirty?: boolean;
+}
+
+/**
+ * Cache metadata buckets for nodes, edges, and structure.
+ */
+export interface CdagMetadata {
+  nodes: Record<string, CdagCacheInfo>;
+  edges: Record<string, CdagCacheInfo>;
+  structure: CdagCacheInfo;
+}
+
+/**
+ * Persisted CDAG store snapshot.
+ */
+export interface CdagStoreSnapshot {
+  nodes: Record<string, NodeData>;
+  edges: Record<string, EdgeData>;
+  structure: CdagStructure;
+  metadata: CdagMetadata;
+}
 

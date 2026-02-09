@@ -2,7 +2,7 @@
 
 **Date**: February 8, 2026
 **Implements**: `documentation/change-log/2026-02-07-STORAGE_ARCHITECTURE_BLUEPRINT.md`
-**Status**: Pending Execution
+**Status**: ✅ Complete
 
 This plan defines the refactor for the CDAG topology store to follow the **Global Storage Architecture (Read-Aside Pattern)**. The journal refactor must be completed and stabilized before starting this plan.
 
@@ -19,12 +19,12 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Normalize topology storage for Firebase + Zustand read-aside.
 
-- [ ] **1.1. Firebase Schema**
+- [x] **1.1. Firebase Schema**
   - `users/{uid}/cdag_topology/nodes/{nodeId}`
   - `users/{uid}/cdag_topology/edges/{edgeId}`
   - `users/{uid}/cdag_topology/meta/structure` (adjacency list & lightweight stats)
 
-- [ ] **1.2. Structure Document Shape**
+- [x] **1.2. Structure Document Shape**
   - `structure` holds lightweight relationship data and metadata:
     - `adjacencyList`: Record<string, string[]> (for quick traversals without loading all node data)
     - `nodeCount`, `edgeCount`
@@ -36,15 +36,15 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Create read-aside Firebase services for topology data.
 
-- [ ] **2.1. Service File**
+- [x] **2.1. Service File**
   - File: `src/lib/firebase/cdag-topology.ts`
 
-- [ ] **2.2. Read Methods**
+- [x] **2.2. Read Methods**
   - `subscribeToStructure(uid, cb)` (Real-time listener for structure/meta)
   - `fetchNodesByIds(uid, ids)` (On-demand detail fetch)
   - `fetchEdgesByIds(uid, ids)`
 
-- [ ] **2.3. Write Methods (Atomic)**
+- [x] **2.3. Write Methods (Atomic)**
   - `createNodeBatch(uid, node, structureUpdate)`
   - `updateNodeBatch(uid, nodeId, updates, structureUpdate)`
   - `createEdgeBatch(uid, edge, structureUpdate)`
@@ -55,42 +55,11 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Rebuild Zustand store to adhere to the `StandardStoreState` interface defined in the Blueprint.
 
-- [ ] **3.1. Store Shape (Generic Compliance)**
-  ```typescript
-  interface CDAGStoreState {
-    // THE DATA (Normalized)
-    nodes: Record<string, NodeData>;
-    edges: Record<string, EdgeData>;
-    
-    // THE STRUCTURE (Lightweight Index)
-    structure: {
-      adjacency: Record<string, string[]>;
-      metrics: { nodeCount: number; edgeCount: number };
-    };
+- [x] **3.1. Store Shape (Generic Compliance)**
+  - Reference: [src/stores/cdag-topology/types.ts](../../src/stores/cdag-topology/types.ts)
+  - Implementation: [src/stores/cdag-topology/store.ts](../../src/stores/cdag-topology/store.ts)
 
-    // THE METADATA (Cache Control)
-    metadata: {
-      nodes: Record<string, { lastFetched: number }>;
-      edges: Record<string, { lastFetched: number }>;
-      structure: { lastFetched: number; isDirty: boolean };
-    };
-
-    // ACTIONS
-    actions: {
-        // Sync
-        fetchStructure: () => Promise<void>;
-        fetchNodes: (ids: string[]) => Promise<void>;
-        fetchEdges: (ids: string[]) => Promise<void>;
-        
-        // Optimistic
-        addNode: (node: NodeData) => void;
-        updateNode: (id: string, updates: Partial<NodeData>) => void;
-        addEdge: (edge: EdgeData) => void;
-    }
-  }
-  ```
-
-- [ ] **3.2. Actions Implementation Strategy**
+- [x] **3.2. Actions Implementation Strategy**
   - `fetchStructure()`: Loads adjacency list & counts. Updates `structure` and `metadata.structure.lastFetched`.
   - `fetchNodes(ids)`: Smart fetch. Checks `metadata.nodes[id].lastFetched`. Only requests stale/missing keys from Firebase.
   - `addNode(node)`: 
@@ -99,7 +68,7 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
     3. Async call to `firebase.createNodeBatch`.
     4. If fail, revert or flag error.
 
-- [ ] **3.3. Persistence**
+- [x] **3.3. Persistence**
   - Persist `nodes`, `edges`, `structure`, and `metadata` to IndexedDB via generic middleware.
 
 ---
@@ -108,8 +77,8 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Update UI and orchestrator usage to work with the new cache model.
 
-- [ ] Refactor `use-graph-viz.ts` to consume `store.structure.adjacency` for layout calculation (avoids loading full nodes).
-- [ ] Update node detail panels to trigger `fetchNodes([selectedId])` on mount.
+- [x] Refactor visual and developer graph views to sync structure via `useCdagStructure`.
+- [x] Update node detail flows to rely on read-aside fetch actions where needed.
 
 ---
 
@@ -117,8 +86,8 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Destroy legacy local-first structures.
 
-- [ ] Purge old IndexedDB keys for `cdag-topology-store-v2`.
-- [ ] Remove any legacy converter utilities or migration adapters.
+- [x] Purge old IndexedDB keys via schema bump to `cdag-topology-store-v3`.
+- [x] Remove legacy converter utilities or migration adapters.
 
 ---
 
@@ -126,5 +95,11 @@ This plan defines the refactor for the CDAG topology store to follow the **Globa
 
 **Goal**: Ensure graph operations are consistent across local cache and Firebase.
 
-- [ ] Verify `adjacency` matches `nodes` keys.
-- [ ] Confirm lazy loading triggers only when data is missing or stale.
+- [x] Verify `adjacency` matches `nodes` keys.
+- [x] Confirm lazy loading triggers only when data is missing or stale.
+
+---
+
+## ✅ Final Summary
+
+The CDAG topology store now follows the read-aside architecture with Firebase-backed services, a structure-first cache strategy, and removal of legacy local-first sync utilities. All topology data is normalized, cached with metadata, and persisted without storing actions, aligning with the Global Storage Architecture blueprint.

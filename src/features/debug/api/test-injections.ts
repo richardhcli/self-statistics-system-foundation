@@ -1,7 +1,12 @@
 import { useJournalEntryPipeline } from '@/features/journal/hooks/use-journal-entry-pipeline';
 import { useGraphActions } from '@/stores/cdag-topology';
-import type { CdagTopology } from '@/stores/cdag-topology/types';
-import type { EdgeData, GraphState, NodeData } from '@/stores/cdag-topology/types';
+import type {
+  CdagStoreSnapshot,
+  CdagStructure,
+  EdgeData,
+  GraphState,
+  NodeData,
+} from '@/stores/cdag-topology/types';
 import { 
   AI_TEST_ENTRIES, 
   MANUAL_TEST_ENTRIES, 
@@ -49,9 +54,9 @@ export const createInjectTestDataHook = () => {
  */
 export const createInjectTopologyDataHook = () => {
   return () => {
-    const { setGraph } = useGraphActions();
-    const graphState = normalizeTopology(COMPLEX_TOPOLOGY_DATA);
-    setGraph(graphState);
+    const { setSnapshot } = useGraphActions();
+    const snapshot = buildSnapshotFromGraph(COMPLEX_TOPOLOGY_DATA);
+    setSnapshot(snapshot);
   };
 };
 
@@ -62,46 +67,50 @@ export const createInjectTopologyDataHook = () => {
  */
 export const createInjectBrainTopologyDataHook = () => {
   return () => {
-    const { setGraph } = useGraphActions();
-    const graphState = normalizeTopology(BRAIN_TOPOLOGY_DATA);
-    setGraph(graphState);
+    const { setSnapshot } = useGraphActions();
+    const snapshot = buildSnapshotFromGraph(BRAIN_TOPOLOGY_DATA);
+    setSnapshot(snapshot);
   };
 };
 
-/**
- * Normalize legacy topology into GraphState.
- * Supports both GraphState and legacy parent-mapped datasets.
- */
-const normalizeTopology = (topology: CdagTopology): GraphState => {
-  if ((topology as GraphState).nodes && (topology as GraphState).edges) {
-    return topology as GraphState;
-  }
+const buildSnapshotFromGraph = (graph: GraphState): CdagStoreSnapshot => {
+  const adjacencyList: CdagStructure['adjacencyList'] = {};
 
-  const legacy = topology as Record<string, { parents: Record<string, number>; type?: NodeData["type"] }>;
-  const nodes: Record<string, NodeData> = {};
-  const edges: Record<string, EdgeData> = {};
-
-  Object.entries(legacy).forEach(([nodeId, nodeData]) => {
-    nodes[nodeId] = {
-      id: nodeId,
-      label: nodeId,
-      type: nodeData.type ?? "none",
-    };
-
-    Object.entries(nodeData.parents || {}).forEach(([parentId, weight]) => {
-      const edgeId = `${parentId}__${nodeId}`;
-      edges[edgeId] = {
-        id: edgeId,
-        source: parentId,
-        target: nodeId,
-        weight,
-      };
-    });
+  Object.values(graph.edges).forEach((edge) => {
+    if (!adjacencyList[edge.source]) {
+      adjacencyList[edge.source] = [];
+    }
+    if (!adjacencyList[edge.source].includes(edge.target)) {
+      adjacencyList[edge.source].push(edge.target);
+    }
   });
 
+  const nodeSummaries = Object.values(graph.nodes).reduce<CdagStructure['nodeSummaries']>(
+    (acc, node) => {
+      acc[node.id] = { id: node.id, label: node.label, type: node.type };
+      return acc;
+    },
+    {}
+  );
+
+  const metadata = {
+    nodes: {},
+    edges: {},
+    structure: { lastFetched: 0, isDirty: false },
+  };
+
   return {
-    nodes,
-    edges,
-    version: 2,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    structure: {
+      adjacencyList,
+      nodeSummaries,
+      metrics: {
+        nodeCount: Object.keys(graph.nodes).length,
+        edgeCount: Object.keys(graph.edges).length,
+      },
+      version: 1,
+    },
+    metadata,
   };
 };

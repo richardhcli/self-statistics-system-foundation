@@ -28,7 +28,7 @@ export const useEntryOrchestrator = () => {
   const journalActions = useJournalActions();
   const { updateStats } = usePlayerStatisticsActions();
   const { updateMostRecentAction } = useUserInformationActions();
-  const { addNode, addEdge, setGraph } = useGraphActions();
+  const { upsertNode, upsertEdge } = useGraphActions();
   
   // Store state selectors (only when needed for calculations)
   const nodes = useGraphNodes();
@@ -65,7 +65,7 @@ export const useEntryOrchestrator = () => {
 
       // Step 1: Generate or use provided topology fragment
       if (useAI) {
-        const aiResult = await analyzeEntry(entry, { nodes, edges, version: 2 }, duration);
+        const aiResult = await analyzeEntry(entry, { nodes, edges }, duration);
         topologyFragment = aiResult.topologyFragment;
         estimatedDuration = aiResult.estimatedDuration;
         actionWeights = aiResult.actionWeights; // Use AI-provided weights
@@ -75,14 +75,15 @@ export const useEntryOrchestrator = () => {
         actions.forEach(action => {
           actionWeights[action] = 1;
         });
-        topologyFragment = transformActionsToTopology(actions, { nodes, edges, version: 2 });
+        topologyFragment = transformActionsToTopology(actions, { nodes, edges });
       }
 
-      // Step 2: Merge topology fragment into store
-      setGraph({
-        nodes: { ...nodes, ...topologyFragment.nodes },
-        edges: { ...edges, ...topologyFragment.edges },
-        version: 2,
+      // Step 2: Merge topology fragment into store (optimistic + Firebase async)
+      Object.values(topologyFragment.nodes).forEach((node) => {
+        upsertNode(node);
+      });
+      Object.values(topologyFragment.edges).forEach((edge) => {
+        upsertEdge(edge);
       });
 
       // Step 3: Calculate experience propagation from topology (use updated topology)
@@ -135,7 +136,7 @@ export const useEntryOrchestrator = () => {
         actions: actionWeights,
       };
     },
-    [nodes, edges, journalActions, updateStats, updateMostRecentAction, setGraph]
+    [nodes, edges, journalActions, updateStats, updateMostRecentAction, upsertNode, upsertEdge]
   );
 
   return {

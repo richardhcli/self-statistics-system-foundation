@@ -45,7 +45,5 @@ export const transformActionsToTopology = (
 	return {
 		nodes,
 		edges: {}, // No edges for standalone actions
-		version: 2,
-		lastSyncTimestamp: timestamp,
 	};
 };

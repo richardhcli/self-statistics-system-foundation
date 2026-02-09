@@ -40,11 +40,11 @@ Firebase Firestore is the canonical system of record.
 ## Phase 2: CDAG Topology Migration
 **Reference**: `documentation/change-log/2026-02-07-CDAG_TOPOLOGY_READ_ASIDE_PLAN.md`
 
-- [ ] **2.1. Graph Structure Separation**
+- [x] **2.1. Graph Structure Separation**
     - Store lightweight adjacency list in `cdag_topology/meta/structure`.
     - Store heavy node data in `cdag_topology/nodes/{id}`.
 
-- [ ] **2.2. Lazy Loading Graph**
+- [x] **2.2. Lazy Loading Graph**
     - Initial Load: Fetch only Structure (Nodes positions, edges).
     - Detail Load: Fetch Node Data only when user hovers/selects.
 

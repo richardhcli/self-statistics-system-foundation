@@ -6,3 +6,4 @@
 export * from './services';
 export * from './journal';
 export * from './firestore-crud';
+export * from './cdag-topology';

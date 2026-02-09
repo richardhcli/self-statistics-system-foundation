@@ -1,5 +1,5 @@
 
-import { CdagTopology, GraphState } from '@/stores/cdag-topology/types';
+import { GraphState } from '@/stores/cdag-topology/types';
 import { PlayerStatistics } from '../types';
 import { calculateParentPropagation } from '@/lib/soulTopology';
 import { parseDurationToMultiplier, scaleExperience } from './scaled-logic';
@@ -16,7 +16,7 @@ import { updatePlayerStatsState } from './exp-state-manager';
  * @returns Updated stats and metadata
  */
 export const calculateScaledProgression = (
-  topology: CdagTopology,
+  topology: GraphState,
   stats: PlayerStatistics,
   initialActions: string[],
   duration?: string
@@ -26,18 +26,12 @@ export const calculateScaledProgression = (
   levelsGained: number;
   nodeIncreases: Record<string, number>;
 } => {
-  const isGraphState = (value: CdagTopology): value is GraphState => {
-    return Boolean((value as GraphState)?.nodes && (value as GraphState)?.edges);
-  };
-
   const initialSeeds: Record<string, number> = {};
   initialActions.forEach((action) => {
     initialSeeds[action] = 1.0;
   });
 
-  const propagated = isGraphState(topology)
-    ? calculateParentPropagation(topology.nodes, topology.edges, initialSeeds)
-    : calculateParentPropagation(topology, initialSeeds);
+  const propagated = calculateParentPropagation(topology.nodes, topology.edges, initialSeeds);
 
   const multiplier = parseDurationToMultiplier(duration);
   const scaledExpMap = scaleExperience(propagated, multiplier);
@@ -66,7 +60,7 @@ export const calculateScaledProgression = (
  * @returns Updated stats and metadata
  */
 export const calculateDirectProgression = (
-  topology: CdagTopology,
+  topology: GraphState,
   stats: PlayerStatistics,
   actions: string[],
   exp: number = 1
@@ -76,16 +70,10 @@ export const calculateDirectProgression = (
   levelsGained: number;
   nodeIncreases: Record<string, number>;
 } => {
-  const isGraphState = (value: CdagTopology): value is GraphState => {
-    return Boolean((value as GraphState)?.nodes && (value as GraphState)?.edges);
-  };
-
   const initialSeeds: Record<string, number> = {};
   actions.forEach((a) => (initialSeeds[a] = exp));
 
-  const propagated = isGraphState(topology)
-    ? calculateParentPropagation(topology.nodes, topology.edges, initialSeeds)
-    : calculateParentPropagation(topology, initialSeeds);
+  const propagated = calculateParentPropagation(topology.nodes, topology.edges, initialSeeds);
 
   const { nextStats, totalIncrease, levelsGained } = updatePlayerStatsState(
     stats,

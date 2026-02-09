@@ -6,19 +6,13 @@ All topology utilities (merge, checks, propagation) are implemented in `lib/soul
 
 ## 🧠 Core Architecture
 
-The topology is a **Weighted Directed Acyclic Graph (DAG)** where every node belongs to a specific functional category.
+The topology is a **Weighted Directed Acyclic Graph (DAG)** stored with a **Hybrid Read-Aside** pattern.
+Firebase is the source of truth; Zustand + IndexedDB cache data for fast reads.
+
+Firebase access lives in [src/lib/firebase/cdag-topology.ts](../src/lib/firebase/cdag-topology.ts). The cache schema is defined in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
 ### Data Structure
-```typescript
-type NodeType = 'action' | 'skill' | 'characteristic' | 'none';
-
-interface CdagNodeData {
-  parents: Record<string, number>; // Parent Label -> Weight
-  type: NodeType;                 // Classification for coloring and logic
-}
-
-type CdagTopology = Record<string, CdagNodeData>;
-```
+See the authoritative types in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
 ## 🏷 Classification Logic
 - **Actions**: Real-world activities. They are the sources of EXP.
@@ -31,5 +25,11 @@ Edge weights are adjusted via the `mergeTopology` logic using a global `LEARNING
 2. **Convergence**: Fragments merge into the main topology. If an edge already exists, its weight shifts slightly toward the new predicted value, allowing the brain to learn user patterns over months of use.
 
 ## 📈 Integration
-- **D3 Layout**: Uses `NodeType` to determine horizontal ranking and coloring.
+- **Graph Layout**: Uses structure adjacency for fast layout, then enriches with node/edge details on demand.
 - **EXP Engine**: Uses the weighted hierarchy to calculate back-propagation intensities.
+
+## 🔄 Read-Aside Flow
+1. UI requests graph data via selectors (nodes/edges/structure).
+2. Store checks cache metadata; if stale, it fetches from Firebase.
+3. Structure loads first (adjacency + node summaries).
+4. Node/edge details load on-demand via smart fetch.

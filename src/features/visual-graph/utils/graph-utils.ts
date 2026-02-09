@@ -1,5 +1,5 @@
 
-import { CdagTopology } from '@/types';
+import { GraphState } from '@/types';
 
 /**
  * Graph Utilities for Visualization
@@ -10,17 +10,16 @@ import { CdagTopology } from '@/types';
  * Root nodes (characteristics) are assigned the highest level, actions are assigned 0.
  * In our visualization logic, this "level" maps to topological rank from right-to-left.
  */
-export const calculateLevels = (topology: CdagTopology): Record<string, number> => {
+export const calculateLevels = (topology: GraphState): Record<string, number> => {
   const levels: Record<string, number> = {};
   const visiting = new Set<string>();
   const childrenMap: Record<string, string[]> = {};
   
-  // Inverse the topology to find children
-  Object.keys(topology).forEach(label => {
-    Object.keys(topology[label].parents).forEach(parent => {
-      if (!childrenMap[parent]) childrenMap[parent] = [];
-      childrenMap[parent].push(label);
-    });
+  Object.values(topology.edges).forEach((edge) => {
+    if (!childrenMap[edge.source]) {
+      childrenMap[edge.source] = [];
+    }
+    childrenMap[edge.source].push(edge.target);
   });
 
   const getLevel = (label: string): number => {
@@ -34,6 +33,6 @@ export const calculateLevels = (topology: CdagTopology): Record<string, number> 
     return levels[label];
   };
 
-  Object.keys(topology).forEach(getLevel);
+  Object.keys(topology.nodes).forEach(getLevel);
   return levels;
 };

@@ -21,10 +21,10 @@ This separation prevents unnecessary re-renders—components accessing only acti
 **Actions**: `addEntry()`, `updateEntry()`, `deleteEntry()`
 
 ### 2. `cdag-topology/`
-**Purpose**: Manage the logical concept hierarchy (Second Brain core)  
-**Exports**: `useGraphNodes()`, `useGraphEdges()`, `useGraphNode()`, `useGraphActions()`, `useGraphState()`
-**State**: `nodes`, `edges`, metadata  
-**Actions**: `addNode()`, `addEdge()`, `updateNodeMetadata()`
+**Purpose**: Manage the logical concept hierarchy (CDAG) as a read-aside cache  
+**Exports**: `useGraphNodes()`, `useGraphEdges()`, `useGraphStructure()`, `useGraphMetadata()`, `useGraphNode()`, `useGraphActions()`
+**State**: `nodes`, `edges`, `structure`, `metadata`  
+**Actions**: `fetchStructure()`, `fetchNodes()`, `fetchEdges()`, `addNode()`, `addEdge()`
 
 ### 3. `player-statistics/`
 **Purpose**: Track experience and leveling progression  

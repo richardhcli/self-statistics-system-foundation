@@ -5,6 +5,7 @@ import {
   useGraphEdges, 
   useGraphActions,
 } from '@/stores/cdag-topology';
+import { useCdagStructure } from '@/hooks/use-cdag-structure';
 import { calculateLayout } from '../utils/layout';
 import DAGCanvas from './dag-canvas';
 import { EditorSidebar } from './editor-sidebar';
@@ -23,7 +24,9 @@ import { PropertySidebar } from './property-sidebar';
  * - useGraphActions() provides stable mutation functions
  */
 const DeveloperGraphView: React.FC = () => {
+  useCdagStructure();
   const [selection, setSelection] = useState<{ type: 'node' | 'edge'; data: any } | null>(null);
+  const buildEdgeId = (source: string, target: string) => `${source}->${target}`;
 
   // Atomic selectors - fine-grained reactivity
   const nodeMap = useGraphNodes();
@@ -94,7 +97,7 @@ const DeveloperGraphView: React.FC = () => {
   };
 
   const handleAddEdge = (sourceId: string, targetId: string, weight: number) => {
-    const edgeId = `${sourceId}-to-${targetId}-${Date.now()}`;
+    const edgeId = buildEdgeId(sourceId, targetId);
     addEdge({
       id: edgeId,
       source: sourceId,

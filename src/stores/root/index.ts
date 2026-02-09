@@ -1,5 +1,5 @@
 import { getJournalEntries, setJournalEntries } from '@/stores/journal';
-import { getGraphData, setGraphData, type GraphState } from '@/stores/cdag-topology';
+import { getGraphSnapshot, setGraphSnapshot, type CdagStoreSnapshot } from '@/stores/cdag-topology';
 import {
   getPlayerStatistics,
   setPlayerStatistics,
@@ -32,7 +32,7 @@ import { IntegrationStore } from '@/features/integration/types';
  */
 export interface RootState {
   journal: JournalPersistedState;
-  cdagTopology: GraphState;
+  cdagTopology: CdagStoreSnapshot;
   playerStatistics: PlayerStatistics;
   userInformation: UserInformation;
   aiConfig: AIConfig;
@@ -46,7 +46,7 @@ export interface RootState {
 export const serializeRootState = (): RootState => {
   return {
     journal: getJournalEntries(),
-    cdagTopology: getGraphData(),
+    cdagTopology: getGraphSnapshot(),
     playerStatistics: getPlayerStatistics(),
     userInformation: getUserInformation(),
     aiConfig: getAiConfig(),
@@ -60,7 +60,7 @@ export const serializeRootState = (): RootState => {
  */
 export const deserializeRootState = (state: RootState): void => {
   setJournalEntries(state.journal);
-  setGraphData(state.cdagTopology);
+  setGraphSnapshot(state.cdagTopology);
   setPlayerStatistics(state.playerStatistics);
   setUserInformation(state.userInformation);
   setAiConfig(state.aiConfig);
@@ -86,7 +86,23 @@ export const INITIAL_ROOT_STATE: RootState = {
       },
     },
     edges: {},
-    version: 2,
+    structure: {
+      adjacencyList: {},
+      nodeSummaries: {
+        progression: {
+          id: 'progression',
+          label: 'Progression',
+          type: 'characteristic',
+        },
+      },
+      metrics: { nodeCount: 1, edgeCount: 0 },
+      version: 1,
+    },
+    metadata: {
+      nodes: {},
+      edges: {},
+      structure: { lastFetched: 0, isDirty: false },
+    },
   },
   playerStatistics: {
     progression: { experience: 0, level: 1 },
