@@ -1,75 +1,48 @@
 
 import React, { useMemo, useState } from 'react';
 import { useJournalEntries, useJournalTree } from '@/stores/journal';
-import { useGraphNodes } from '@/stores/cdag-topology';
+import { useGraphNodes, useGraphStructure } from '@/stores/cdag-topology';
 import { usePlayerStatistics } from '@/stores/player-statistics';
 import { useUserInformation } from '@/stores/user-information';
+import { HorizontalTabNav } from '@/components/tabs';
+import type { TabConfig } from '@/components/tabs';
 import { StatsHeader } from './stats-header';
-import { StatsTable } from './stats-table';
-import { AttributesGrid } from './attributes-grid';
-import { MasteryList } from './mastery-list';
-import { SystemStatus } from './system-status';
-import { PlayerStatusTab } from './player-status-tab';
-import { LayoutGrid, User, ArrowRightLeft } from 'lucide-react';
+import { StatusView } from './status-view';
+import { ExperienceView } from './experience-view';
+import { LevelView } from './level-view';
+import { AllStatisticsView } from './all-statistics-view';
+import { LayoutGrid, User, Zap, Layers } from 'lucide-react';
 
-type TabType = 'player-status' | 'all-statistics';
+type TabType = 'status' | 'experience' | 'levels' | 'all-statistics';
 
 const StatisticsView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('player-status');
+  const [activeTab, setActiveTab] = useState<TabType>('status');
   const entries = useJournalEntries();
   const tree = useJournalTree();
   const nodes = useGraphNodes();
+  const structure = useGraphStructure();
   const playerStatistics = usePlayerStatistics();
   const userInformation = useUserInformation();
 
   const stats = useMemo(() => {
     let totalEntries = 0;
     let totalExp = 0;
-    let totalLevels = 0;
-    
-    // Fix: Updated domain keys to match characterization categories from the AI pipeline
-    const domainCounts: Record<string, number> = { 
-      Intellect: 0, 
-      Vitality: 0, 
-      Social: 0, 
-      Wisdom: 0, 
-      Discipline: 0, 
-      Creativity: 0, 
-      Leadership: 0 
-    };
-    
-    // Aggregation Logic for UI Stats
+
+    // Aggregation Logic for Header Stats
     Object.values(entries).forEach((entry) => {
       if (entry.content) totalEntries++;
-
-      if (entry.result?.nodeIncreases) {
-        Object.keys(entry.result.nodeIncreases).forEach((nodeId) => {
-          const nodeData = nodes[nodeId];
-          if (nodeData?.type === 'characteristic') {
-            const match = Object.keys(domainCounts).find(
-              (key) => key.toLowerCase() === nodeData.label.toLowerCase()
-            );
-            if (match) {
-              domainCounts[match] = (domainCounts[match] || 0) + 1;
-            }
-          }
-        });
-      }
     });
 
-    const playerLevel = Math.floor(totalEntries / 5) + 1;
     const playerExpProgress = (totalEntries % 5) * 20;
 
-    // Use explicit casting to handle unknown property access from Object.entries on Record
     const nodesWithStats = Object.entries(playerStatistics).map(([label, s]) => {
-      const nodeStats = s as any;
-      totalExp += nodeStats.experience;
-      totalLevels += nodeStats.level;
-      return { label, ...nodeStats };
+      const nodeStats = s as { experience?: number; level?: number };
+      const experience = Number(nodeStats.experience ?? 0);
+      totalExp += experience;
+      return { label, experience, level: Number(nodeStats.level ?? 0) };
     });
 
     const sortedByExp = [...nodesWithStats].sort((a, b) => b.experience - a.experience);
-    const sortedByLevel = [...nodesWithStats].sort((a, b) => b.level - a.level);
 
     // Calculate EXP Today and Yesterday from Metadata
     const now = new Date();
@@ -91,25 +64,26 @@ const StatisticsView: React.FC = () => {
     const expYesterday = getDateMeta(yesterday);
 
     return { 
-      totalEntries, 
-      playerLevel, 
-      playerExpProgress, 
-      domains: domainCounts, 
-      topNodes: sortedByExp.slice(0, 5),
+      totalEntries,
+      playerExpProgress,
+      topNodes: sortedByExp.slice(0, 10),
       totalNodes: Object.keys(nodes).length,
+      totalEdges: structure?.metrics?.edgeCount ?? 0,
       totalExp,
-      totalLevels,
+      totalLevels: 0,
       expToday,
       expYesterday,
       highestExpNode: sortedByExp[0] || null,
-      highestLevelNode: sortedByLevel[0] || null
+      highestLevelNode: null,
     };
-  }, [entries, nodes, playerStatistics, tree]);
+  }, [entries, nodes, playerStatistics, structure, tree]);
 
-  const toggleView = () => {
-    setActiveTab(prev => prev === 'player-status' ? 'all-statistics' : 'player-status');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const tabs: TabConfig<TabType>[] = [
+    { id: 'status', label: 'Status', icon: User },
+    { id: 'experience', label: 'Experience', icon: Zap },
+    { id: 'levels', label: 'Levels', icon: Layers },
+    { id: 'all-statistics', label: 'All Statistics', icon: LayoutGrid },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-16">
@@ -122,81 +96,44 @@ const StatisticsView: React.FC = () => {
         playerExpProgress={stats.playerExpProgress}
       />
 
-      {/* Main View Area */}
-      <div className="min-h-[400px]">
-        {activeTab === 'player-status' ? (
-          <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-            <PlayerStatusTab 
-              totalExp={stats.totalExp}
-              highestLevel={stats.highestLevelNode?.level || 1}
-              highestLevelNodeLabel={stats.highestLevelNode?.label}
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-right-4 duration-500">
-            {/* Main Stats Column */}
-            <div className="lg:col-span-8 space-y-8">
-              {/* User Statistics Table */}
-              <StatsTable 
-                totalNodes={stats.totalNodes}
-                totalExp={stats.totalExp}
-                totalLevels={stats.totalLevels}
-                highestExpNode={stats.highestExpNode}
-                highestLevelNode={stats.highestLevelNode}
-              />
-
-              {/* Core Attributes Grid */}
-              <AttributesGrid domains={stats.domains} />
-            </div>
-
-            {/* Sidebar Column */}
-            <div className="lg:col-span-4 space-y-8">
-              {/* Top Mastery List */}
-              <MasteryList topNodes={stats.topNodes} />
-
-              {/* System Status */}
-              <SystemStatus totalEntries={stats.totalEntries} />
-            </div>
-          </div>
-        )}
+      <div className="flex items-center">
+        <HorizontalTabNav
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          className="w-full"
+        />
       </div>
 
-      {/* View Switcher Footer Component */}
-      <div className="pt-12 border-t border-slate-200">
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Analysis Navigation</p>
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
-            <button
-              onClick={() => setActiveTab('player-status')}
-              className={`flex items-center gap-3 px-8 py-3 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-widest ${
-                activeTab === 'player-status'
-                  ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Player Status
-            </button>
-            <button
-              onClick={() => setActiveTab('all-statistics')}
-              className={`flex items-center gap-3 px-8 py-3 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-widest ${
-                activeTab === 'all-statistics'
-                  ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              All Statistics
-            </button>
+      {/* Main View Area */}
+      <div className="min-h-[400px]">
+        {activeTab === 'status' && (
+          <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+            <StatusView totalExp={stats.totalExp} />
           </div>
-          <button 
-            onClick={toggleView}
-            className="flex items-center gap-2 mt-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:underline decoration-2 underline-offset-4"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            Quick Toggle
-          </button>
-        </div>
+        )}
+        {activeTab === 'experience' && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <ExperienceView topNodes={stats.topNodes} />
+          </div>
+        )}
+        {activeTab === 'levels' && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <LevelView />
+          </div>
+        )}
+        {activeTab === 'all-statistics' && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <AllStatisticsView
+              totalExp={stats.totalExp}
+              totalLevels={stats.totalLevels}
+              highestExpNode={stats.highestExpNode}
+              highestLevelNode={stats.highestLevelNode}
+              totalNodes={stats.totalNodes}
+              totalEdges={stats.totalEdges}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
