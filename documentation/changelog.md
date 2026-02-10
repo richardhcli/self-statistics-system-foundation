@@ -2,10 +2,24 @@
 
 This document tracks the iterative development of the Journal & Graph AI application.
 
+## [v1.7.0] - Progression System & RPG Status Views
+- **Progression System (`@systems/progression`)**: Extracted all game logic into a pure, side-effect-free module at `src/systems/progression/`. Includes the propagation engine, EXP scaling formulas, logarithmic level curve (`Level = floor(log2(EXP + 1))`), state mutations with level-up detection, and an orchestration layer.
+- **7 Core Attributes**: Defined Vitality, Intellect, Wisdom, Social, Discipline, Creativity, and Leadership as archetypal hubs. AI classification is guided toward these attributes but never forced.
+- **Status View (RPG Dashboard)**: Built a 4-section character sheet: 7-axis Recharts radar chart, attribute grid cards with icons/level/progress bars, recent neural impact list (last 5 entries), and skill clusters grouped by governing characteristic via BFS.
+- **Level View**: Global level badge computed from total XP, gradient progress bar toward next level, and top 3 contributor nodes by EXP.
+- **Recharts Integration**: Added `recharts` as a production dependency for statistical visualization.
+- **`@systems/*` Path Alias**: Added TypeScript and Vite alias for the new systems directory.
+- **AI Prompt Refinement**: Updated `CHARACTERISTIC_ABSTRACTION_PROMPT` for organic-but-guided classification toward the 7 attributes.
+- **Legacy Cleanup**: Deleted 6 legacy files from stores/lib that contained game logic previously scattered across the codebase.
+
 ## [v1.6.0] - Complete overhaul of backend
-- jornal, graph, and user settings all stored in backend
-- firebase backend used as main source of truth. 
-- indexDB caching for read-aside architecture. 
+- **Firebase Backend**: Journal, graph, and user settings all stored in Firebase Firestore.
+- **Hybrid Read-Aside Architecture**: Firebase as the backend source of truth; Zustand + IndexedDB as a persistent cache for fast boot and offline reads.
+- **Graph Read-Aside Service**: CDAG topology uses a manifest-first hydration pipeline with 30-minute TTL for full fetches.
+- **Journal Read-Aside**: Tree index drives lazy month-range fetches from Firebase; entries cached in IndexedDB.
+- **Authentication**: Google Sign-In + Anonymous Guest with automatic profile seeding on first login.
+- **Debug Datastores**: Split debug interface for inspecting and reconciling local vs. backend state.
+- **Force Sync Panel**: Manual Firestore snapshot fetching and store hydration for recovery.
 
 ## [v1.5.0] - The Modular Journal Refactor
 - **Self-Contained Journal Feature**: Completely refactored the journal feature to be a fully modular, self-contained React component.

@@ -20,16 +20,16 @@ export const GraphLegend: React.FC = () => {
         </div>
         <div className="flex flex-col gap-1.5 px-1 mt-1">
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-indigo-600">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#4f46e5]"/> Characteristic (Root)
+            <div className="w-1.5 h-1.5 rounded-full bg-[#4f46e5]"/> Characteristic (Being)
           </span>
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-600">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"/> Skill (Activity)
+            <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"/> Skill (Knowing)
           </span>
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#10b981]"/> Action (Task)
+            <div className="w-1.5 h-1.5 rounded-full bg-[#10b981]"/> Action (Doing)
           </span>
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-slate-400">
-            <div className="w-1.5 h-1.5 rounded-full bg-slate-200 border border-slate-300"/> Unclassified
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-200 border border-slate-300"/> Abstract
           </span>
         </div>
       </div>

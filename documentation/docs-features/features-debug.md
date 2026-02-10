@@ -98,6 +98,11 @@ Displays private authentication diagnostics for the active session.
 - Provider metadata and sign-in timestamps
 - `AuthProvider` loading/timeout state
 
+## Related
+- [GLOBAL_STATE.md](../state-management/GLOBAL_STATE.md) — Store pattern reference
+- [features-datastores-debug.md](./features-datastores-debug.md) — Datastore debug tools
+- [architecture-lib-vs-stores.md](../architecture/architecture-lib-vs-stores.md) — Where logic lives (`/lib`, `/stores`, `/systems`)
+
 ### 6. DatastoresView
 **File:** [src/features/debug/components/datastores-view.tsx](../../src/features/debug/components/datastores-view.tsx)
 

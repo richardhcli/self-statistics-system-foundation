@@ -5,7 +5,8 @@ Sync your neural journal entries directly into your local Obsidian vault as Mark
 ## Prerequisites
 Requires the **[Obsidian Local REST API](https://coddingtonbear.github.io/obsidian-local-rest-api/)** plugin.
 1. Enable the plugin in Obsidian.
-2. Configure the **API Key** and **Port** in the Second Brain settings.
+2. Configure the **API Key** and **Port** in the app settings at `/app/settings/integrations`.
+3. Configuration is stored in Firestore at `users/{uid}/account_config/integrations/obsidianConfig` and cached locally in the `user-integrations` Zustand store.
 
 ## Format
 Entries are saved with rich YAML frontmatter, including the extracted domain, activity, and weighted action breakdown.

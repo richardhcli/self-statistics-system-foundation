@@ -1,6 +1,6 @@
 # Firebase Backend Features and Operations
 
-**Last Updated**: February 8, 2026
+**Last Updated**: February 10, 2026
 
 ## Read-Aside Services
 - User profile and settings: [src/lib/firebase/user-profile.ts](../../src/lib/firebase/user-profile.ts)

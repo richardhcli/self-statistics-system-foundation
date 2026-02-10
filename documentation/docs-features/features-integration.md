@@ -22,5 +22,6 @@ Your neural data is yours. The Data Portability panel allows you to manage your 
 - **Import**: Restore any valid neural-brain-backup file. Note that this is a destructive operation that replaces the current local state with the backup content.
 
 ## 💾 Security & Persistence
-- **Local-First**: Integration secrets (API Keys, Webhook URLs) are stored only in your browser's IndexedDB.
+- **Firestore-Backed**: Integration secrets (API Keys, Webhook URLs) are stored in Firestore at `users/{uid}/account_config/integrations` and cached locally in the `user-integrations` Zustand store + IndexedDB.
+- **Read-Aside Pattern**: Settings load from IndexedDB on boot, then sync from Firestore if stale.
 - **Log Management**: Transmission logs are kept locally to help debug integrations. They can be purged at any time via the "Clear History" button.

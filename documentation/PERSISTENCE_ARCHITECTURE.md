@@ -1,8 +1,8 @@
 # Persistence Architecture: Hybrid Read-Aside, Sync-Behind
 
-**Date**: February 1, 2026  
+**Date**: February 10, 2026  
 **Status**: ✅ COMPLETE  
-**Version**: 2.0 - Pure Data Architecture
+**Version**: 2.1 - Firebase Hybrid Read-Aside
 
 ---
 
@@ -15,8 +15,8 @@ This application uses a **Hybrid Read-Aside, Sync-Behind** architecture with **Z
 - **Primary Source**: Firebase (cloud) for data; IndexedDB is the persistent cache
 - **Code Authority**: All actions/getters defined in code, never persisted
 - **UI Philosophy**: Optimistic (never waits for network)
-- **Write Flow**: UI → Zustand → IndexedDB (Data Only) → Async sync to Firebase
-- **Read Flow**: UI → Zustand/IndexedDB → Fetch from Firebase on cache miss or stale
+- **Write Flow**: UI → Zustand → IndexedDB (Data Only) → Firebase sync via service layer
+- **Read Flow**: UI → Zustand/IndexedDB → Fetch from Firebase on cache miss or stale (30-min TTL)
 - **Persistence Strategy**: `partialize` whitelist - only serialize data, never functions
 
 ---
@@ -57,7 +57,7 @@ interface StoreState {
 ## Architecture Layers
 
 ### 1. **Zustand Stores (State Management)**
-- 6 independent stores, each with its own persistence
+- 7 stores (journal, player-statistics, user-information, user-integrations, cdag-topology, ai-config, root), each with its own persistence
 - Pattern C: Separated state/action hooks for optimal re-renders
 - Each store uses `persist` middleware with IndexedDB backend
 
@@ -117,11 +117,11 @@ interface StoreState {
 │    (Based on Zustand state, no network wait)                │
 └─────────────────────────────────────────────────────────────┘
                         │
-                        ▼ (FUTURE: Optional background sync)
+                        ▼ (Firebase sync via service layer)
 ┌─────────────────────────────────────────────────────────────┐
-│              BACKGROUND: POST TO BACKEND                     │
-│    (Sync orchestrator sends data to server)                 │
-│    (Happens independently, doesn't block UI)                │
+│          BACKGROUND: SYNC TO FIREBASE                     │
+│    (Service layer posts data to Firestore)                │
+│    (Read-aside fetches on stale / cache miss)             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -289,7 +289,9 @@ Keys (ONLY DATA, no functions):
 ├── journal-store-v1         → { entries: {...} }
 ├── player-statistics-store-v1 → { stats: {...} }
 ├── user-information-store-v1 → { info: {...} }
-└── user-integrations-store-v1 → { integrations: {...} }
+├── user-integrations-store-v1 → { integrations: {...} }
+├── cdag-topology-store-v1   → { nodes: {...}, edges: {...} }
+└── ai-config-store-v1       → { config: {...} }
 
 ❌ NEVER stored:
 ├── actions object
@@ -363,36 +365,28 @@ See [ROADMAP.md](./ROADMAP.md) for planned non-destructive migration system.
 
 ---
 
-## Sync Protocol (Future Implementation)
+## Sync Protocol (Implemented: Firebase Read-Aside)
 
-When backend sync is implemented, it should follow this pattern:
+Firebase sync is implemented via service-layer functions in `src/lib/firebase/`. Each domain (journal, graph, player-statistics, user-profile) has its own service file that handles reads and writes to Firestore.
 
 ```typescript
-// Pseudo-code
-orchestrator.sync = async () => {
-  // 1. Collect local changes
-  const allChanges = {
-    journal: getJournalEntries(),
-    topology: getCdagTopology(),
-    // ... all 6 stores
-  };
+// Pattern: Service-layer sync (already implemented)
+import { syncJournalToFirebase } from '@/lib/firebase/journal';
+import { syncGraphToFirebase } from '@/lib/firebase/graph-service';
+import { syncPlayerStatsToFirebase } from '@/lib/firebase/player-statistics';
+```
 
-  // 2. Send to backend (with conflict resolution)
-  try {
-    const response = await api.post('/sync', allChanges);
-    // 3. Merge remote changes back into stores
-    deserializeRootState(response.data);
-  } catch (err) {
-    // Keep local data intact; retry later
-    console.log('Sync failed, retrying in background');
-  }
-};
+### Read-Aside Flow
+1. UI reads from Zustand (instant).
+2. On cache miss or stale TTL (30 min), fetch from Firebase.
+3. Firebase response overwrites local cache.
+4. Writes go to Zustand + IndexedDB first (optimistic), then sync to Firebase.
 ```
 
 ### Conflict Resolution Strategy
 
-- **Local Wins**: Local data is authoritative until server explicitly rejects
-- **Timestamp-Based**: Server can enforce `lastModified` ordering if needed
+- **Firebase Wins on Read**: When fetching from Firebase, the server data overwrites local cache.
+- **Local Wins on Write**: Writes are optimistic\u2014Zustand updates immediately, Firebase sync follows.
 - **Operational Transform**: Consider for collaborative features (future)
 
 ---

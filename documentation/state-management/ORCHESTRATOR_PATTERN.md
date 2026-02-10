@@ -9,6 +9,8 @@
 ## Overview
 Orchestrators coordinate multi-store updates in a single business operation. They implement the **Cross-Store Coordination Pattern** described in the Global State Protocol.
 
+**Pure Logic**: Complex calculations should live in `/lib` or `/systems` (e.g., `@systems/progression`), not in the orchestrator itself. Orchestrators call these pure functions and dispatch results to stores.
+
 ## Pattern Structure
 
 ### 1. Stable Action References

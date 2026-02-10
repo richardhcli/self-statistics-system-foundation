@@ -51,9 +51,10 @@ export const DebugProvider = ({ children }: { children: React.ReactNode }) => {
 
 When features are composed, state management remains **decoupled**:
 
-1. **Isolation:** `features/developer-graph` maintains its own store.
-2. **Consumption:** The component injected into a "Slot" retains access to its original feature store.
+1. **Isolation:** Features use global Zustand stores from `src/stores/` (e.g., `cdag-topology`, `player-statistics`). Feature-local stores are avoided; state that crosses components goes in global stores.
+2. **Consumption:** The component injected into a "Slot" retains access to its original store hooks.
 3. **Communication:** If `debug` needs to react to `developer-graph`, it should do so via a **callback prop** or by subscribing to the external store explicitly in a custom hook.
+4. **Domain Systems:** Pure logic modules live in `src/systems/` (aliased as `@systems/*`). These are neither features nor stores — they are imported by both.
 
 ---
 

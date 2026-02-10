@@ -1,6 +1,6 @@
 # Persistence Roadmap: Future Schema Migrations & Sync
 
-**Date**: February 1, 2026  
+**Date**: February 10, 2026  
 **Status**: Planned (Not Yet Implemented)  
 **Priority**: Low (design document for Phase 2)
 
@@ -13,23 +13,24 @@ DO NOT IMPLEMENT THESE CHANGES UNTIL PRODUCTION PHASE.
 
 This roadmap documents the planned evolution of the persistence layer to support:
 1. **Non-destructive schema migrations** (data transformation without clearing)
-2. **Background sync to backend** (Stale-While-Revalidate pattern)
-3. **Conflict resolution** (handling local vs. server changes)
-4. **Selective sync** (sync only changed stores)
+2. **Conflict resolution** (handling local vs. server changes)
+3. **Selective sync** (sync only changed stores)
 
 ---
 
-## Phase 1: Current State (V1.0) ✅ COMPLETE
+## Phase 1: Current State (V2.1) ✅ COMPLETE
 
 ### Implemented
 - ✅ IndexedDB backend with idb-keyval
-- ✅ Independent store persistence
+- ✅ Independent store persistence (7 stores)
 - ✅ Automatic hydration on app startup
 - ✅ Version management (clear on mismatch)
+- ✅ Firebase Read-Aside sync (journal, graph, player stats, user settings)
+- ✅ Google Auth + Anonymous guest with profile seeding
+- ✅ Graph manifest-first hydration pipeline with 30-min TTL
 
 ### Limitations
 - ❌ No data transformation on schema changes
-- ❌ No backend sync
 - ❌ No conflict resolution
 - ❌ Data cleared on version mismatch
 

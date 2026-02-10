@@ -13,12 +13,13 @@ This file establishes the "Rules of Engagement" for the overall state architectu
 ---
 
 ## Architecture Overview
-This project follows a **Hybrid Read-Aside** architecture where Firebase is the source of truth and client-side storage is a persistent cache.
+This project follows a **Hybrid Read-Aside** architecture where Firebase is the source of truth and client-side storage (Zustand + IndexedDB) is a persistent cache.
 
 ### State Hierarchy
-1. **Global State (Zustand)**: Domain-specific data that must persist and be accessible across features (e.g., Graph Topology, Player Stats).
-2. **Server State (React Query)**: Remote data cache and background synchronization (not yet implemented; reserved for future).
-3. **Local State (useState/useReducer)**: UI-only, transient state (e.g., Form inputs, Modal toggles).
+1. **Global State (Zustand)**: Domain-specific data that must persist and be accessible across features (e.g., Graph Topology, Player Stats). 7 stores total.
+2. **Domain Systems (`/systems`)**: Pure logic modules (e.g., `@systems/progression`) containing engine calculations, constants, and state mutation functions. No React or store dependencies.
+3. **Server State (Firebase)**: Cloud source of truth. Firebase services in `src/lib/firebase/` manage read-aside sync.
+4. **Local State (useState/useReducer)**: UI-only, transient state (e.g., Form inputs, Modal toggles).
 
 ---
 

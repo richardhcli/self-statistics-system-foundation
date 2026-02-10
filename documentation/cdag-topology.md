@@ -20,18 +20,23 @@ Firebase access lives in [src/lib/firebase/graph-service.ts](../src/lib/firebase
 See the authoritative types in [src/stores/cdag-topology/types.ts](../src/stores/cdag-topology/types.ts).
 
 ## 🏷 Classification Logic
-- **Actions**: Real-world activities. They are the sources of EXP.
-- **Skills**: Middle-management nodes. They aggregate experience from multiple actions.
-- **Characteristics**: Top-level roots. They represent the abstract nature of the user's effort.
+- **Actions** (`NodeType = 'action'`): Real-world activities. They are the sources of EXP.
+- **Skills** (`NodeType = 'skill'`): Middle-management nodes. They aggregate experience from multiple actions.
+- **Characteristics** (`NodeType = 'characteristic'`): Top-level roots. Seven core attributes (Vitality, Intellect, Wisdom, Social, Discipline, Creativity, Leadership) plus user-defined organic concepts.
 
 ## 🤖 Adaptive Learning
 Edge weights are adjusted via the `mergeTopology` logic using a global `LEARNING_RATE` (implemented in `lib/soulTopology`).
 1. **Fragments**: AI generates small hierarchy fragments from entries.
 2. **Convergence**: Fragments merge into the main topology. If an edge already exists, its weight shifts slightly toward the new predicted value, allowing the brain to learn user patterns over months of use.
 
+## ⚖️ Edge Weights
+- `CdagAdjacencyTarget.weight` is **required** (float [0, 1]). Weights always exist on edges.
+- Weights determine the proportion of EXP that propagates from child to parent.
+
 ## 📈 Integration
 - **Graph Layout**: Uses structure adjacency for fast layout, then enriches with node/edge details on demand.
-- **EXP Engine**: Uses the weighted hierarchy to calculate back-propagation intensities.
+- **EXP Engine**: The `src/systems/progression/` module uses the weighted hierarchy for back-propagation. `calculateParentPropagation()` walks edges upward to accumulate attribute EXP. See [ai-and-gamification.md](./ai-and-gamification.md) for formulas.
+- **7 Core Attributes**: The AI prompt guides top-level characteristics toward Vitality, Intellect, Wisdom, Social, Discipline, Creativity, Leadership — but allows organic concepts when they don't cleanly fit.
 
 ## 🔄 Read-Aside Flow
 1. UI requests graph data via selectors (nodes/edges/structure).

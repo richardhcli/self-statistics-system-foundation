@@ -1,11 +1,13 @@
-# Architecture Protocol: /lib vs /stores
+# Architecture Protocol: /lib vs /stores vs /systems
 
-**Purpose**: Defines strict separation between pure logic and state management  
+**Purpose**: Defines strict separation between pure logic, state management, and domain systems  
 **Audience**: Developers implementing features or refactoring code  
 **Related**: [ai-guidelines.md](../ai-guidelines.md#5-the-engine-vs-state-split-lib-vs-stores), [architecture.md](./architecture.md)
 
 ## Overview
-This document defines the strict separation between **Pure Logic** (`/lib`) and **Global State** (`/stores`). This distinction is critical for maintaining a **Hybrid Read-Aside** system that is testable, reference-stable, and free of circular dependencies.
+This document defines the strict separation between **Pure Logic** (`/lib`), **Global State** (`/stores`), and **Domain Systems** (`/systems`). This distinction is critical for maintaining a **Hybrid Read-Aside** system that is testable, reference-stable, and free of circular dependencies.
+
+## 1. The /lib Directory (The "Soul")
 The `/lib` folder contains the domain's "Soul"—the pure math, algorithms, and data models.
 
 ### Core Responsibilities
@@ -55,10 +57,29 @@ When a utility needs data from multiple stores, it must be coordinated by an **O
 
 1. **Orchestrator Hook**: Consumes multiple stores via the **Separated Selector Facade Pattern**.
 2. **Fetch Data**: Retrieves current snapshots (e.g., `nodes` from Topology, `exp` from Stats).
-3. **Execute Utility**: Passes those snapshots as arguments to the pure `/lib` utility.
+3. **Execute Utility**: Passes those snapshots as arguments to the pure `/lib` or `/systems` utility.
 4. **Apply Update**: Dispatches the result back to the relevant store actions.
 
 
 
+## 5. The /systems Directory (Domain Logic Modules)
+The `/systems` folder contains **pure, side-effect-free domain logic** that is too complex or cohesive for `/lib` utilities. Systems are independent modules with their own `index.ts` barrel exports, aliased as `@systems/*` in tsconfig.json and vite.config.ts.
+
+### Core Responsibilities
+* **Domain Engine Logic**: Complex multi-step calculations that form a cohesive module (e.g., progression system).
+* **Constants & Metadata**: Domain constants, enums, and descriptive metadata relevant to the system.
+* **State Mutation Functions**: Pure functions that take state + input → return new state. They never call stores directly.
+
+### Implementation Rules
+* ❌ **NO** imports from `@/stores` or React hooks.
+* ❌ **NO** side effects — all functions are pure.
+* ✅ **DO** export via barrel `index.ts`.
+* ✅ **DO** import in stores, hooks, and components as `@systems/[module]`.
+
+### Current Systems
+* `src/systems/progression/` — EXP engine, level curve, attribute constants, state mutations, orchestrator logic.
+
+
+
 ## Summary for AI Prompt
-"When creating new logic, define the core data models and pure algorithms in `/lib`. Implement the **Separated Selector Facade Pattern** in `/stores`, importing the `/lib` types and utilities to handle state updates. Ensure the store uses `partialize` to exclude actions from IndexedDB persistence."
+"When creating new logic, define the core data models and pure algorithms in `/lib`. For cohesive domain modules (like the progression system), use `/systems`. Implement the **Separated Selector Facade Pattern** in `/stores`, importing the `/lib` and `/systems` types and utilities to handle state updates. Ensure the store uses `partialize` to exclude actions from IndexedDB persistence."

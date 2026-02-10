@@ -1,16 +1,31 @@
 # Firebase Backend State (AI Agent Summary)
 
-**Last Updated**: February 8, 2026
+**Last Updated**: February 10, 2026
 
 ## Purpose
 Firebase provides authentication and cloud persistence for user profile, settings, and graph/journal data. The app follows a hybrid read-aside model: Firestore is the source of truth and Zustand/IndexedDB act as the persistent cache via read-aside services.
 
+## Zustand Stores (7 total)
+| Store | IndexedDB Key | Primary Data |
+|-------|---------------|-------|
+| journal | `journal-store-v1` | Journal entries tree |
+| player-statistics | `player-statistics-store-v1` | Per-attribute EXP stats |
+| user-information | `user-information-store-v1` | Name, class, recent action |
+| user-integrations | `user-integrations-store-v1` | Webhook + Obsidian config |
+| cdag-topology | `cdag-topology-store-v1` | Graph nodes + edges |
+| ai-config | `ai-config-store-v1` | AI provider settings |
+| root | `root-store` | Serialization + app metadata |
+
+## Progression System
+The `@systems/progression` module (`src/systems/progression/`) contains all EXP/level logic as pure functions. It is imported by stores and hooks but never accesses stores directly. See [ai-and-gamification.md](../ai-and-gamification.md) for formulas and attributes.
+
 ## Current architecture: 
 
 ### Stack
-- **Auth**: Firebase Auth (Google provider)
+- **Auth**: Firebase Auth (Google + Anonymous providers)
 - **Database**: Firestore
 - **Config**: [src/lib/firebase/services.ts](../../src/lib/firebase/services.ts)
+- **Progression Engine**: [src/systems/progression/](../../src/systems/progression/) (`@systems/progression` alias)
 
 ### Firestore Schema (Current)
 

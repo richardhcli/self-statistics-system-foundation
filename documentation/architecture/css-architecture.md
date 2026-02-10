@@ -16,6 +16,9 @@ Each feature module maintains its own stylesheet for domain-specific visual logi
 - **settings.css**: Layout logic for the persistent Discord-style sidebar and sub-page transitions.
 - **integration.css**: diagnostic feed scrollbars and raw data code formatting.
 
+### 3. Tailwind-Only Features
+Some features (e.g., **statistics**) use only Tailwind utility classes and have no dedicated CSS file. The statistics dashboard (radar charts, attribute cards, level views) relies on Tailwind for layout and Recharts' built-in SVG styling for chart rendering.
+
 ## Best Practices
 1. **Utility-First**: Default to Tailwind for layout, spacing, and simple colors.
 2. **Modular Extraction**: Extract to CSS when handling:

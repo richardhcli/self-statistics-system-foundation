@@ -1,73 +1,62 @@
 # Changelog Summary
 
 **Purpose**: High-level change log for project evolution  
-**Status**: Archived changelog entries consolidated; see `/change-log/` for detailed session logs  
-**Last Updated**: February 2, 2026
+**Status**: Active — see `/change-log/` for detailed session logs  
+**Last Updated**: February 10, 2026
 
 ---
 
-## Recent Major Milestones (Feb 2, 2026)
+## Recent Major Milestones
 
-### ✅ Completed: Migration to GraphState Unified Format
-- **Date**: Feb 1-2, 2026
+### ✅ Completed: Progression System & RPG Status Views (Feb 9-10, 2026)
 - **Status**: COMPLETE
-- **Details**: Removed all legacy topology formats; all operations now use unified `GraphState` interface with `nodes` and `edges` records
-- **Impact**: Simplified codebase, improved type safety, eliminated format conversion bugs
+- **Details**: Extracted all game logic into `src/systems/progression/` (pure, no React). Built full RPG dashboard: 7-axis radar chart, attribute cards, level views, skill clusters. Added `recharts` dependency. Defined 7 core attributes with icons and descriptions. AI prompt now guides classification toward attributes organically.
+- **Impact**: Centralized game math; UI now shows meaningful character sheet data.
 
-### ✅ Completed: Data-Only Persistence Architecture
-- **Date**: Feb 1, 2026
+### ✅ Completed: Firebase Hybrid Read-Aside Architecture (Feb 3-8, 2026)
 - **Status**: COMPLETE
-- **Details**: Verified that IndexedDB persists only serializable data; actions/functions defined in code
-- **Impact**: Eliminated stale code from disk, fixed persistence bugs, reduced storage size
+- **Details**: Migrated journal, graph, player statistics, and user settings to Firebase Firestore as the source of truth. Zustand + IndexedDB serve as the persistent cache. Added Google Auth + Anonymous guest with profile seeding.
+- **Impact**: Cloud-backed data with offline-first UX.
 
-### ✅ Completed: Entry Pipeline Refactor
-- **Date**: Feb 2, 2026
+### ✅ Completed: Graph Read-Aside Pipeline (Feb 7-9, 2026)
 - **Status**: COMPLETE
-- **Details**: Refactored journal entry processing to use unified Orchestrator pattern
-- **Impact**: Cleaner cross-store coordination, atomic updates, better performance
+- **Details**: CDAG topology uses a manifest-first hydration pipeline: IndexedDB boot → manifest fetch → subscription → detail expansion with 30-minute TTL.
+- **Impact**: Fast graph boot with authoritative Firebase overwrite.
 
-### ✅ Completed: AI Pipeline Enhancement
-- **Date**: Feb 2, 2026
+### ✅ Completed: Migration to GraphState Unified Format (Feb 1-2, 2026)
 - **Status**: COMPLETE
-- **Details**: Enhanced AI-driven topology generation and entry analysis
-- **Impact**: Better concept node generation, improved topology accuracy
+- **Details**: Removed all legacy topology formats; all operations now use unified `GraphState` interface with `nodes` and `edges` records.
+- **Impact**: Simplified codebase, improved type safety.
 
-### ✅ Completed: Structured Mappings Migration
-- **Date**: Feb 2, 2026
+### ✅ Completed: Entry Pipeline Refactor (Feb 2, 2026)
 - **Status**: COMPLETE
-- **Details**: Migrated all topology actions to structured mapping format
-- **Impact**: Standardized action handling, consistent with GraphState format
+- **Details**: Refactored journal entry processing to use unified Orchestrator pattern. Cross-store coordination via `use-entry-orchestrator.ts`.
+- **Impact**: Cleaner cross-store coordination, atomic updates.
 
 ---
 
-## Known Issues & Decisions
+## Architecture Decisions
 
-### ⚠️ Store Method Pattern Inconsistency
-- **Issue**: Documentation prescribes `actions` object; implementation uses direct CRUD methods
-- **Status**: Needs standardization
-- **Recommendation**: Verify with project lead and standardize going forward
+### Systems Layer (`src/systems/`)
+- Pure domain logic separated from React and stores.
+- Aliased as `@systems/*` in tsconfig and vite config.
+- Currently contains `progression/` module with engine, formulas, constants, state mutations, orchestrator.
 
-### ⚠️ Root Store Serialization Layer
-- **Issue**: Documented as always-used; actual usage unclear
-- **Status**: Needs clarification
-- **Recommendation**: Document exact use cases (export/import vs. sync)
+### Edge Weights
+- `CdagAdjacencyTarget.weight` is **required** (float [0, 1]). Weights always exist on edges.
+
+### 7 Core Attributes
+- AI is **guided but not forced** to classify toward Vitality, Intellect, Wisdom, Social, Discipline, Creativity, Leadership.
+- Organic characteristics are preserved when they don't cleanly fit.
 
 ---
 
 ## Archive
 
-Detailed session logs are available in `/change-log/`:
-- `2026-02-02-readme.md` — Latest session notes
-- `2026-02-02-STRUCTURED_MAPPINGS_MIGRATION.md` — Detailed migration work
-- `2026-02-02-AI_PIPELINE_ENHANCEMENT.md` — AI improvements
-- `2026-02-02-ENTRY_PIPELINE_REFACTOR.md` — Entry processing refactor
-- `2026-02-01-FINAL_RESOLUTION_SUMMARY.md` — Phase 3-4 completion
-- And earlier archived logs for historical reference
-
----
+Detailed session logs are available in `/change-log/`.
 
 ## Quick Links
 
 - **Current Architecture**: See [../ai-guidelines.md](../ai-guidelines.md)
-- **State Management**: See [../state-management/state-management-README.md](../state-management/state-management-README.md)
+- **State Management**: See [state-management/state-management-README.md](./state-management/state-management-README.md)
 - **Detailed Changes**: See `./change-log/` directory for session-by-session breakdown
