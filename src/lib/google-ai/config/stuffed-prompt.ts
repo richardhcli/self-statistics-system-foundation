@@ -27,7 +27,20 @@ You are an expert ontological architect. Analyze the journal entry to produce a 
 - Return ONLY valid JSON.
 - All weights 0.1-1.0.
 - Explicit parent/child mappings for every layer.
-- "progression" is the final root node.
+
+### Characteristics: 
+- "progression" is the recommended root node.
+Strongly prefer mapping to one of these 7 Archetypal Attributes when semantically appropriate:
+- Vitality: Physical resilience, fitness, and overall physiological health.
+- Intellect: Analytical capacity, coding proficiency, and technical rigor.
+- Wisdom: Metacognition, experienced judgment, and philosophical depth.
+- Social: Charisma, collaboration, interpersonal intelligence, and empathy.
+- Discipline: Focus, self-control, and the ability to maintain behavioral systems/habits.
+- Creativity: Innovation, design thinking, and artistic problem-solving.
+- Leadership: Vision, strategic influence, and group direction.
+
+If a skill does not clearly fit any of the above, generate a specific, descriptive characteristic instead (e.g., "Engineering", "Athletics", "Music"). Do NOT force-fit; organic classification is preferred.
+
 
 # OUTPUT JSON STRUCTURE
 {

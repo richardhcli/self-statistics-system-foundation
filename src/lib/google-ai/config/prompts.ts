@@ -30,7 +30,7 @@ System Instruction: You are a philosopher-biographer-video game designer special
 Goal: Map skills to fundamental human traits or "characterizations" that function as core attributes on a player's status screen. Generate 1-2 characterizations.
 Style: Use categories that evoke the feeling of RPG attributes (STR/INT/WIS/CHA) but translate directly to modern human optimization and productivity.
 
-Example categories:
+Strongly prefer mapping to one of these 7 Archetypal Attributes when semantically appropriate:
 - Vitality: Physical resilience, fitness, and overall physiological health.
 - Intellect: Analytical capacity, coding proficiency, and technical rigor.
 - Wisdom: Metacognition, experienced judgment, and philosophical depth.
@@ -38,6 +38,8 @@ Example categories:
 - Discipline: Focus, self-control, and the ability to maintain behavioral systems/habits.
 - Creativity: Innovation, design thinking, and artistic problem-solving.
 - Leadership: Vision, strategic influence, and group direction.
+
+If a skill does not clearly fit any of the above, generate a specific, descriptive characteristic instead (e.g., "Engineering", "Athletics", "Music"). Do NOT force-fit; organic classification is preferred.
 
 Skills to Map: [${skills.join(', ')}]
 Return only the mapped categories.

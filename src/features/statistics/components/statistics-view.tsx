@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useJournalEntries, useJournalTree } from '@/stores/journal';
-import { useGraphNodes, useGraphStructure } from '@/stores/cdag-topology';
+import { useGraphNodes, useGraphEdges, useGraphStructure } from '@/stores/cdag-topology';
 import { usePlayerStatistics } from '@/stores/player-statistics';
 import { useUserInformation } from '@/stores/user-information';
 import { HorizontalTabNav } from '@/components/tabs';
@@ -20,6 +20,7 @@ const StatisticsView: React.FC = () => {
   const entries = useJournalEntries();
   const tree = useJournalTree();
   const nodes = useGraphNodes();
+  const edges = useGraphEdges();
   const structure = useGraphStructure();
   const playerStatistics = usePlayerStatistics();
   const userInformation = useUserInformation();
@@ -109,7 +110,13 @@ const StatisticsView: React.FC = () => {
       <div className="min-h-[400px]">
         {activeTab === 'status' && (
           <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-            <StatusView totalExp={stats.totalExp} />
+            <StatusView
+              totalExp={stats.totalExp}
+              playerStatistics={playerStatistics}
+              nodes={nodes}
+              edges={edges}
+              entries={entries}
+            />
           </div>
         )}
         {activeTab === 'experience' && (
@@ -119,7 +126,10 @@ const StatisticsView: React.FC = () => {
         )}
         {activeTab === 'levels' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-            <LevelView />
+            <LevelView
+              playerStatistics={playerStatistics}
+              totalExp={stats.totalExp}
+            />
           </div>
         )}
         {activeTab === 'all-statistics' && (

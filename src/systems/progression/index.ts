@@ -14,6 +14,10 @@ export {
   BASE_EXP_UNIT,
   MINUTES_PER_EXP_UNIT,
   EXP_PRECISION,
+  CORE_ATTRIBUTES,
+  ATTRIBUTE_ICONS,
+  ATTRIBUTE_DESCRIPTIONS,
+  type CoreAttribute,
 } from './constants';
 
 // Engine (propagation algorithm)
